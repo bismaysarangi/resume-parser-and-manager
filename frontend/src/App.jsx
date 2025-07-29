@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import Navbar from "./components/Navbar";
 import Parser from "./pages/Parser";
 import Footer from "./components/Footer";
+import Upload from "./pages/Upload";
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/parser" element={<Parser />} />
+        <Route path="/upload" element={<Upload />} />
       </Routes>
       <Footer />
     </Router>

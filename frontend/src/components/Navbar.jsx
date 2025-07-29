@@ -10,6 +10,7 @@ const Navbar = () => {
         </li>
         <li>
           <Link to="/parser">Parser</Link>
+          <Link to="/upload">Upload</Link>
         </li>
       </ul>
     </nav>
