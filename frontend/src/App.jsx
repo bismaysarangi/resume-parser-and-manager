@@ -4,6 +4,8 @@ import Navbar from "./components/Navbar";
 import Parser from "./pages/Parser";
 import Footer from "./components/Footer";
 import Upload from "./pages/Upload";
+import Signup from "./pages/Signup";
+import Login from "./pages/Login";
 
 function App() {
   return (
@@ -13,6 +15,8 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/parser" element={<Parser />} />
         <Route path="/upload" element={<Upload />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
       </Routes>
       <Footer />
     </Router>
