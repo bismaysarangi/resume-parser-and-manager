@@ -118,5 +118,6 @@
     @apply bg-background text-foreground;
     background-color: rgb(34, 24, 36);
     color: rgb(215, 219, 233);
+    font-family: "Montserrat", sans-serif;
   }
 }
