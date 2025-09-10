@@ -49,7 +49,7 @@ export default function Signup() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4"
+      className="min-h-screen flex items-center justify-center p-8 pt-20"
       style={{ backgroundColor: "rgb(34, 24, 36)" }}
     >
       <div className="w-full max-w-md">
