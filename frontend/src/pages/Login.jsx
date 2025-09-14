@@ -29,23 +29,36 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const formData = new URLSearchParams();
+      formData.append("username", email); // email used as username
+      formData.append("password", password);
+
+      const res = await fetch("http://127.0.0.1:8000/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || "Login failed");
+      }
+
+      // Save token for future protected requests
+      localStorage.setItem("token", data.access_token);
+
       setLoading(false);
-      navigate("/"); // Redirect to home after successful login
+      navigate("/"); // Redirect to home
     } catch (error) {
-      setErrorMessage("Login failed. Please try again.");
+      setErrorMessage(error.message);
       setLoading(false);
     }
   };
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgb(34, 24, 36)" }}
-    >
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: "rgb(34, 24, 36)" }}>
       <div className="w-full max-w-md">
-        {/* Subtle glow effect */}
         <div className="absolute inset-0 bg-white/5 rounded-2xl blur-3xl"></div>
 
         <Card className="relative bg-black/50 border-white/15 backdrop-blur-2xl shadow-2xl">
@@ -61,20 +74,13 @@ export default function Login() {
           <CardContent className="space-y-6">
             {errorMessage && (
               <Alert className="bg-red-500/15 border-red-400/30 text-red-200 backdrop-blur-sm">
-                <AlertDescription className="text-sm">
-                  {errorMessage}
-                </AlertDescription>
+                <AlertDescription className="text-sm">{errorMessage}</AlertDescription>
               </Alert>
             )}
 
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div className="space-y-2">
-                <Label
-                  htmlFor="email"
-                  className="text-white/70 text-sm font-medium"
-                >
-                  Email address
-                </Label>
+                <Label htmlFor="email" className="text-white/70 text-sm font-medium">Email address</Label>
                 <Input
                   id="email"
                   type="email"
@@ -87,12 +93,7 @@ export default function Login() {
               </div>
 
               <div className="space-y-2">
-                <Label
-                  htmlFor="password"
-                  className="text-white/70 text-sm font-medium"
-                >
-                  Password
-                </Label>
+                <Label htmlFor="password" className="text-white/70 text-sm font-medium">Password</Label>
                 <Input
                   id="password"
                   type="password"
@@ -125,17 +126,12 @@ export default function Login() {
                 <div className="w-full border-t border-white/10"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="bg-black/50 px-4 text-white/40">
-                  First time visiting us?
-                </span>
+                <span className="bg-black/50 px-4 text-white/40">First time visiting us?</span>
               </div>
             </div>
 
             <div className="text-center">
-              <Link
-                to="/signup"
-                className="text-white/60 hover:text-white text-sm font-medium transition-colors duration-300 hover:underline underline-offset-4"
-              >
+              <Link to="/signup" className="text-white/60 hover:text-white text-sm font-medium transition-colors duration-300 hover:underline underline-offset-4">
                 Create an account
               </Link>
             </div>
