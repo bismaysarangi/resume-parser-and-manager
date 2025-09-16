@@ -1,12 +1,97 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
-import { Menu, X, User, Upload, Home, FileText } from "lucide-react";
+import {
+  Menu,
+  X,
+  User,
+  Upload,
+  FileText,
+  Brain,
+  LogOut,
+  Info,
+} from "lucide-react";
 
 const Navbar = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+  const navigate = useNavigate();
+
+  // Check authentication status
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      const token = localStorage.getItem("token");
+      setIsLoggedIn(!!token);
+
+      // If logged in, fetch user profile
+      if (token) {
+        await fetchUserProfile(token);
+      } else {
+        setUserProfile(null);
+      }
+    };
+
+    checkAuthStatus();
+
+    // Listen for custom auth events
+    const handleAuthChange = () => {
+      checkAuthStatus();
+    };
+
+    // Listen for storage changes (logout from another tab)
+    const handleStorageChange = () => {
+      checkAuthStatus();
+    };
+
+    window.addEventListener("authStatusChanged", handleAuthChange);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("authStatusChanged", handleAuthChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
+  const fetchUserProfile = async (token) => {
+    try {
+      // UPDATED: Changed endpoint from /users/me/ to /auth/me
+      const response = await fetch("http://127.0.0.1:8000/api/v1/auth/me", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const profile = await response.json();
+        setUserProfile(profile);
+      } else {
+        // Token might be invalid, remove it
+        localStorage.removeItem("token");
+        setIsLoggedIn(false);
+        setUserProfile(null);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user profile:", error);
+      // On error, assume token is invalid
+      localStorage.removeItem("token");
+      setIsLoggedIn(false);
+      setUserProfile(null);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setIsLoggedIn(false);
+    setUserProfile(null);
+    setIsMobileMenuOpen(false);
+
+    window.dispatchEvent(new Event("authStatusChanged"));
+
+    navigate("/");
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -28,6 +113,17 @@ const Navbar = () => {
     };
   }, [isMobileMenuOpen]);
 
+  // Navigation items based on auth status
+  const publicNavItems = [{ to: "/about", label: "About", icon: Info }];
+
+  const privateNavItems = [
+    { to: "/parsed-results", label: "Parsed Results", icon: FileText },
+    { to: "/upload", label: "Upload", icon: Upload },
+    { to: "/ai-insights", label: "AI Insights", icon: Brain },
+  ];
+
+  const navItems = isLoggedIn ? privateNavItems : publicNavItems;
+
   return (
     <nav
       className={`fixed top-0 w-full z-50 transition-all duration-300 ${
@@ -39,6 +135,7 @@ const Navbar = () => {
     >
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
+          {/* Logo */}
           <div className="flex-shrink-0">
             <Link
               to="/"
@@ -49,45 +146,68 @@ const Navbar = () => {
             </Link>
           </div>
 
+          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link
-              to="/parser"
-              className="text-white/80 hover:text-white transition-all duration-300 text-sm font-medium relative group"
-            >
-              Parser
-              <span className="absolute -bottom-1 left-0 w-0 h-px bg-white transition-all duration-300 group-hover:w-full"></span>
-            </Link>
-            <Link
-              to="/upload"
-              className="text-white/80 hover:text-white transition-all duration-300 text-sm font-medium relative group"
-            >
-              Upload
-              <span className="absolute -bottom-1 left-0 w-0 h-px bg-white transition-all duration-300 group-hover:w-full"></span>
-            </Link>
-            <Link
-              to="/profile"
-              className="text-white/80 hover:text-white transition-all duration-300 text-sm font-medium relative group"
-            >
-              Profile
-              <span className="absolute -bottom-1 left-0 w-0 h-px bg-white transition-all duration-300 group-hover:w-full"></span>
-            </Link>
+            {navItems.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="text-white/80 hover:text-white transition-all duration-300 text-sm font-medium relative group"
+              >
+                {item.label}
+                <span className="absolute -bottom-1 left-0 w-0 h-px bg-white transition-all duration-300 group-hover:w-full"></span>
+              </Link>
+            ))}
           </div>
 
+          {/* Desktop Auth Section */}
           <div className="hidden md:flex items-center space-x-4">
-            <Button
-              asChild
-              className="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 backdrop-blur-sm transition-all duration-300"
-            >
-              <Link to="/login">Login</Link>
-            </Button>
-            <Button
-              asChild
-              className="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 backdrop-blur-sm transition-all duration-300"
-            >
-              <Link to="/signup">Sign Up</Link>
-            </Button>
+            {isLoggedIn ? (
+              <div className="flex items-center space-x-4">
+                {/* Profile Button */}
+                <Link
+                  to="/profile"
+                  className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 backdrop-blur-sm transition-all duration-300 px-4 py-2 rounded-md text-sm"
+                >
+                  <User className="h-4 w-4" />
+                  <span>
+                    {userProfile?.full_name ||
+                      userProfile?.username ||
+                      "Profile"}
+                  </span>
+                </Link>
+
+                {/* Logout Button */}
+                <Button
+                  onClick={handleLogout}
+                  size="sm"
+                  className="bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-400/30 hover:border-red-400/50 backdrop-blur-sm transition-all duration-300"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Button
+                  asChild
+                  size="sm"
+                  className="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 backdrop-blur-sm transition-all duration-300"
+                >
+                  <Link to="/login">Login</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="sm"
+                  className="bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 backdrop-blur-sm transition-all duration-300"
+                >
+                  <Link to="/signup">Sign Up</Link>
+                </Button>
+              </>
+            )}
           </div>
 
+          {/* Mobile Menu Trigger */}
           <div className="md:hidden">
             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
               <SheetTrigger asChild>
@@ -119,6 +239,7 @@ const Navbar = () => {
                 className="w-80 bg-[rgb(45, 32, 54)] backdrop-blur-xl border-l border-white/20 p-0 [&>button]:text-white [&>button]:hover:text-gray-300 [&>button]:top-4 [&>button]:right-4"
               >
                 <div className="flex flex-col h-full">
+                  {/* Mobile Header */}
                   <div className="p-6 border-b border-white/20">
                     <div className="flex items-center space-x-2">
                       <FileText className="w-6 h-6 text-white" />
@@ -126,70 +247,86 @@ const Navbar = () => {
                         Resume Parser
                       </span>
                     </div>
+                    {isLoggedIn && userProfile && (
+                      <div className="mt-3 text-sm text-white/60">
+                        Welcome, {userProfile.full_name || userProfile.username}
+                      </div>
+                    )}
                   </div>
 
+                  {/* Mobile Navigation Links */}
                   <div className="flex-1 overflow-y-auto p-6 space-y-2">
                     <div className="text-sm font-semibold text-white/60 mb-6 uppercase tracking-wide">
                       Navigation
                     </div>
 
-                    <Link
-                      to="/parser"
-                      className="flex items-center px-4 py-4 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 touch-manipulation relative group"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <FileText className="w-5 h-5 mr-3" />
-                      Parser
-                      <span className="absolute left-0 right-0 bottom-2 mx-auto w-0 h-px bg-white transition-all duration-300 group-hover:w-4/5"></span>
-                    </Link>
+                    {navItems.map((item) => {
+                      const IconComponent = item.icon;
+                      return (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          className="flex items-center px-4 py-4 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 touch-manipulation relative group"
+                          onClick={() => setIsMobileMenuOpen(false)}
+                        >
+                          <IconComponent className="w-5 h-5 mr-3" />
+                          {item.label}
+                          <span className="absolute left-0 right-0 bottom-2 mx-auto w-0 h-px bg-white transition-all duration-300 group-hover:w-4/5"></span>
+                        </Link>
+                      );
+                    })}
 
-                    <Link
-                      to="/upload"
-                      className="flex items-center px-4 py-4 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 touch-manipulation relative group"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <Upload className="w-5 h-5 mr-3" />
-                      Upload
-                      <span className="absolute left-0 right-0 bottom-2 mx-auto w-0 h-px bg-white transition-all duration-300 group-hover:w-4/5"></span>
-                    </Link>
-
-                    <Link
-                      to="/profile"
-                      className="flex items-center px-4 py-4 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 touch-manipulation relative group"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <User className="w-5 h-5 mr-3" />
-                      Profile
-                      <span className="absolute left-0 right-0 bottom-2 mx-auto w-0 h-px bg-white transition-all duration-300 group-hover:w-4/5"></span>
-                    </Link>
+                    {/* Profile link for logged in users */}
+                    {isLoggedIn && (
+                      <Link
+                        to="/profile"
+                        className="flex items-center px-4 py-4 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 touch-manipulation relative group"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        <User className="w-5 h-5 mr-3" />
+                        Profile
+                        <span className="absolute left-0 right-0 bottom-2 mx-auto w-0 h-px bg-white transition-all duration-300 group-hover:w-4/5"></span>
+                      </Link>
+                    )}
                   </div>
 
+                  {/* Mobile Auth Section */}
                   <div className="p-6 border-t border-white/20">
-                    <div className="space-y-3">
+                    {isLoggedIn ? (
                       <Button
-                        asChild
-                        className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 backdrop-blur-sm transition-all duration-200 touch-manipulation h-12 text-base font-medium"
+                        onClick={handleLogout}
+                        className="w-full bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-400/30 hover:border-red-400/50 backdrop-blur-sm transition-all duration-200 touch-manipulation h-12 text-base font-medium"
                       >
-                        <Link
-                          to="/login"
-                          onClick={() => setIsMobileMenuOpen(false)}
-                        >
-                          Login
-                        </Link>
+                        <LogOut className="w-5 h-5 mr-2" />
+                        Logout
                       </Button>
+                    ) : (
+                      <div className="space-y-3">
+                        <Button
+                          asChild
+                          className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 backdrop-blur-sm transition-all duration-200 touch-manipulation h-12 text-base font-medium"
+                        >
+                          <Link
+                            to="/login"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Login
+                          </Link>
+                        </Button>
 
-                      <Button
-                        asChild
-                        className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 backdrop-blur-sm transition-all duration-200 touch-manipulation h-12 text-base font-medium"
-                      >
-                        <Link
-                          to="/signup"
-                          onClick={() => setIsMobileMenuOpen(false)}
+                        <Button
+                          asChild
+                          className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 backdrop-blur-sm transition-all duration-200 touch-manipulation h-12 text-base font-medium"
                         >
-                          Sign Up
-                        </Link>
-                      </Button>
-                    </div>
+                          <Link
+                            to="/signup"
+                            onClick={() => setIsMobileMenuOpen(false)}
+                          >
+                            Sign Up
+                          </Link>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </SheetContent>
