@@ -13,27 +13,67 @@ import {
   Sparkles,
   FileText,
   User,
+  Home,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const LandingPage = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(true);
     }, 100);
 
-    const checkAuthStatus = () => {
-      const token = localStorage.getItem("authToken");
+    const checkAuthStatus = async () => {
+      const token = localStorage.getItem("token"); // Using 'token' key to match login component
       setIsLoggedIn(!!token);
+
+      // If logged in, optionally fetch user profile
+      if (token) {
+        await fetchUserProfile(token);
+      }
     };
 
     checkAuthStatus();
 
-    return () => clearTimeout(timer);
+    // Listen for auth status changes
+    const handleAuthChange = () => {
+      checkAuthStatus();
+    };
+
+    const handleStorageChange = () => {
+      checkAuthStatus();
+    };
+
+    window.addEventListener("authStatusChanged", handleAuthChange);
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("authStatusChanged", handleAuthChange);
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
+
+  const fetchUserProfile = async (token) => {
+    try {
+      const response = await fetch("http://127.0.0.1:8000/users/me/", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const profile = await response.json();
+        setUserProfile(profile);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user profile:", error);
+    }
+  };
 
   const AnimatedText = ({ text, delay = 0 }) => {
     return (
@@ -151,9 +191,19 @@ const LandingPage = () => {
               }`}
             >
               <p className="text-xl md:text-2xl text-white/70 mb-8 max-w-3xl mx-auto leading-relaxed">
-                Upload, parse, and manage resumes with ease. Our AI-powered
-                platform transforms your hiring process with intelligent
-                insights and secure storage.
+                {isLoggedIn && userProfile ? (
+                  <>
+                    Welcome back,{" "}
+                    {userProfile.full_name || userProfile.username}! Continue
+                    managing your resumes with our AI-powered platform.
+                  </>
+                ) : (
+                  <>
+                    Upload, parse, and manage resumes with ease. Our AI-powered
+                    platform transforms your hiring process with intelligent
+                    insights and secure storage.
+                  </>
+                )}
               </p>
             </div>
 
@@ -212,11 +262,12 @@ const LandingPage = () => {
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Powerful Features
+              {isLoggedIn ? "Your Tools" : "Powerful Features"}
             </h2>
             <p className="text-xl text-white/70 max-w-2xl mx-auto">
-              Everything you need to streamline your recruitment process and
-              make better hiring decisions.
+              {isLoggedIn
+                ? "Access all the tools you need to manage your recruitment process effectively."
+                : "Everything you need to streamline your recruitment process and make better hiring decisions."}
             </p>
           </div>
 
@@ -257,8 +308,9 @@ const LandingPage = () => {
               Why Choose Us?
             </h2>
             <p className="text-xl text-white/70 max-w-2xl mx-auto">
-              Join thousands of companies who trust our platform for their
-              recruitment needs.
+              {isLoggedIn
+                ? "You've already made the right choice! Here's why thousands trust our platform."
+                : "Join thousands of companies who trust our platform for their recruitment needs."}
             </p>
           </div>
 
@@ -297,41 +349,58 @@ const LandingPage = () => {
           >
             <CardContent className="p-12 text-center">
               <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-                Ready to Transform Your Hiring?
+                {isLoggedIn
+                  ? "Ready to Continue Your Work?"
+                  : "Ready to Transform Your Hiring?"}
               </h2>
               <p className="text-xl text-white/70 mb-8 max-w-2xl mx-auto">
-                Start parsing resumes smarter, not harder. Join our platform
-                today and experience the future of recruitment.
+                {isLoggedIn
+                  ? "Access your dashboard and continue managing your resumes with our powerful tools."
+                  : "Start parsing resumes smarter, not harder. Join our platform today and experience the future of recruitment."}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 {isLoggedIn ? (
-                  <Link to="/upload">
-                    <Button
-                      size="lg"
-                      className="bg-white text-black hover:bg-white/90 transition-all duration-300 px-8 py-6 text-lg font-semibold hover:scale-105 shadow-lg"
-                    >
-                      <FileText className="w-5 h-5 mr-2" />
-                      Start Parsing
-                    </Button>
-                  </Link>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <Link to="/upload">
+                      <Button
+                        size="lg"
+                        className="bg-white text-black hover:bg-white/90 transition-all duration-300 px-8 py-6 text-lg font-semibold hover:scale-105 shadow-lg"
+                      >
+                        <Upload className="w-5 h-5 mr-2" />
+                        Upload Resume
+                      </Button>
+                    </Link>
+                    <Link to="/parsed-results">
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="bg-transparent hover:bg-white/10 text-white border-white/30 hover:border-white/50 px-8 py-6 text-lg font-semibold hover:scale-105 transition-all duration-300"
+                      >
+                        <FileText className="w-5 h-5 mr-2" />
+                        View Results
+                      </Button>
+                    </Link>
+                  </div>
                 ) : (
-                  <Link to="/login">
+                  <>
+                    <Link to="/login">
+                      <Button
+                        size="lg"
+                        className="bg-white text-black hover:bg-white/90 transition-all duration-300 px-8 py-6 text-lg font-semibold hover:scale-105 shadow-lg"
+                      >
+                        <User className="w-5 h-5 mr-2" />
+                        Sign In
+                      </Button>
+                    </Link>
                     <Button
+                      variant="outline"
                       size="lg"
-                      className="bg-white text-black hover:bg-white/90 transition-all duration-300 px-8 py-6 text-lg font-semibold hover:scale-105 shadow-lg"
+                      className="bg-transparent hover:bg-white/10 text-white border-white/30 hover:border-white/50 px-8 py-6 text-lg font-semibold hover:scale-105 transition-all duration-300"
                     >
-                      <User className="w-5 h-5 mr-2" />
-                      Sign In
+                      Learn More
                     </Button>
-                  </Link>
+                  </>
                 )}
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="bg-transparent hover:bg-white/10 text-white border-white/30 hover:border-white/50 px-8 py-6 text-lg font-semibold hover:scale-105 transition-all duration-300"
-                >
-                  Learn More
-                </Button>
               </div>
             </CardContent>
           </Card>
