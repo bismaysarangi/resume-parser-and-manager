@@ -8,6 +8,7 @@ MONGO_USER = os.getenv("MONGO_USER")
 MONGO_PASS = os.getenv("MONGO_PASS")
 MONGO_CLUSTER = os.getenv("MONGO_CLUSTER")
 SECRET_KEY = os.getenv("SECRET_KEY") or "defaultsecret"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

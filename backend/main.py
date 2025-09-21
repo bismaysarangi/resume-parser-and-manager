@@ -7,6 +7,7 @@ import httpx
 import json
 from core.config import CORS_ORIGINS
 from routes.auth import router as auth_router
+from core.config import GROQ_API_KEY
 
 app = FastAPI()
 
@@ -22,7 +23,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 
 # Groq/OpenAI API key
-GROQ_API_KEY = "groq"
+GROQ_API = GROQ_API_KEY
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
 
@@ -65,7 +66,7 @@ async def parse_resume(file: UploadFile = File(...)):
     """
 
     headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Authorization": f"Bearer {GROQ_API}",
         "Content-Type": "application/json",
     }
 
