@@ -5,17 +5,21 @@ from docx import Document
 import re
 import httpx
 import json
+from core.config import CORS_ORIGINS
+from routes.auth import router as auth_router
 
 app = FastAPI()
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 
 # Groq/OpenAI API key
 GROQ_API_KEY = "groq"
