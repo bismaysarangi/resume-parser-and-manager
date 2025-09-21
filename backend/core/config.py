@@ -16,4 +16,4 @@ user = quote_plus(MONGO_USER)
 password = quote_plus(MONGO_PASS)
 MONGO_URI = f"mongodb+srv://{user}:{password}@{MONGO_CLUSTER}/resume_parser?retryWrites=true&w=majority"
 
-CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+CORS_ORIGINS = ["http://localhost:5173/*", "http://127.0.0.1:5173"]

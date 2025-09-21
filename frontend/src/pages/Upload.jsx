@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import axios from "axios";
 import {
   Upload,
   FileText,
@@ -18,6 +19,7 @@ const UploadPage = () => {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
+  const [result,setResult] = useState(null);
   const fileInputRef = useRef(null);
 
   const handleDragOver = (e) => {
@@ -39,12 +41,33 @@ const UploadPage = () => {
     }
   };
 
-  const handleFileSelect = (e) => {
-    const files = e.target.files;
-    if (files.length > 0) {
-      processFile(files[0]);
-    }
-  };
+ const handleFileSelect = async (e) => {
+  const files = e.target.files;
+  if (!files || files.length === 0) {
+    alert("Please select a file first");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", files[0]); // must match FastAPI param name
+
+  try {
+    const response = await axios.post(
+      "http://localhost:8000/api/parse-resume",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    setResult(response.data); // axios auto-parses JSON
+  } catch (error) {
+    console.error("Error uploading the file:", error);
+  }
+};
+
 
   const processFile = (file) => {
     // Check if file is a PDF or DOC/DOCX
@@ -154,6 +177,12 @@ const UploadPage = () => {
                     className="hidden"
                     id="resume-upload"
                   />
+                      {/* {result && (
+                        <div style={{ marginTop: "20px" }}>
+                        <h3>Parsed Resume Data:</h3>
+                        <pre>{JSON.stringify(result, null, 2)}</pre>
+                        </div>
+                      )} */}
                   <Button
                     size="lg"
                     className="bg-white text-black hover:bg-white/90 px-8 py-6 text-lg font-semibold"
@@ -242,6 +271,64 @@ const UploadPage = () => {
             </div>
           </CardContent>
         </Card>
+{result && (
+  <div style={{ marginTop: "20px" }}>
+    <h3 className="text-xl font-bold text-white mb-4">Parsed Resume Data</h3>
+    <div className="overflow-x-auto">
+      <table className="min-w-full border border-gray-300 bg-white text-black rounded-lg shadow">
+        <tbody>
+          {Object.entries(result).map(([key, value]) => (
+            <tr key={key} className="border-b border-gray-300">
+              <td className="px-4 py-2 font-semibold capitalize bg-gray-100">
+                {key.replace(/_/g, " ")}
+              </td>
+              <td className="px-4 py-2">
+                {Array.isArray(value)
+                  ? value.length > 0
+                    ? // Handle nested objects like education/projects/experience
+                      value[0] && typeof value[0] === "object" ? (
+                        <table className="w-full border border-gray-300">
+                          <thead className="bg-gray-200">
+                            <tr>
+                              {Object.keys(value[0]).map((col) => (
+                                <th
+                                  key={col}
+                                  className="px-2 py-1 border border-gray-300 text-left text-sm"
+                                >
+                                  {col.replace(/_/g, " ")}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {value.map((item, idx) => (
+                              <tr key={idx}>
+                                {Object.values(item).map((val, i) => (
+                                  <td
+                                    key={i}
+                                    className="px-2 py-1 border border-gray-300 text-sm"
+                                  >
+                                    {val || "—"}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        // Plain array of strings
+                        value.join(", ")
+                      )
+                    : "—"
+                  : value || "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
 
         {/* Features reminder */}
         <div className="grid md:grid-cols-3 gap-6 mt-16">
@@ -285,12 +372,7 @@ const UploadPage = () => {
         </div>
       </div>
 
-      {/* Background decoration */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute top-20 right-10 w-72 h-72 bg-white/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 left-10 w-96 h-96 bg-white/3 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl"></div>
-      </div>
+      
     </div>
   );
 };
