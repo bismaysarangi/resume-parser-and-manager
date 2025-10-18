@@ -53,12 +53,12 @@ async def parse_resume(file: UploadFile = File(...)):
       "name": "",
       "email": "",
       "phone": "",
-      "education": [{{"Degree": "", "University": "", "College": "", "Years": ""}}],
+      "education": [{{"Degree": "", "University": "", "Grade": "", "Years": ""}}],
       "skills": [],
       "experience": [{{"Company": "", "Role": "", "Years": ""}}],
       "projects": [{{"Name": "", "Description": "", "Tech Stack": "", "Date": ""}}],
-      "tenth_marks": "",
-      "twelfth_marks": ""
+      "10th Marks": "",
+      "12th Marks": ""
     }}
 
     Resume text:
