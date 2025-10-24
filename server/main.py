@@ -97,3 +97,63 @@ async def parse_resume(file: UploadFile = File(...)):
             "details": str(e),
             "raw_response": response.text,
         }
+
+
+@app.post("/api/ai-insights")
+async def get_ai_insights(resume_data: dict):
+    """
+    Generate AI-powered career insights based on parsed resume data
+    """
+    try:
+        prompt = f"""
+        Analyze this resume data and provide comprehensive career insights in JSON format:
+        {json.dumps(resume_data)}
+        
+        Return JSON with this structure:
+        {{
+          "strengths": ["list of 3-4 key strengths"],
+          "improvements": ["list of 3-4 areas for improvement"],
+          "skillGaps": {{
+            "Frontend Developer": ["gap1", "gap2"],
+            "Backend Developer": ["gap1", "gap2"],
+            "Full Stack Developer": ["gap1", "gap2"]
+          }},
+          "careerSuggestions": ["list of suitable job roles"],
+          "interviewTips": ["list of 4-5 interview preparation tips"],
+          "overallScore": 75,
+          "summary": "brief overall assessment"
+        }}
+        
+        Be constructive, specific, and actionable.
+        """
+
+        headers = {
+            "Authorization": f"Bearer {GROQ_API}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "model": "openai/gpt-oss-20b",
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.7
+        }
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(GROQ_URL, headers=headers, json=payload)
+
+        data = response.json()
+        ai_text = data["choices"][0]["message"]["content"]
+
+        # Remove ```json ... ``` if present
+        ai_text = re.sub(r"^```json\s*|\s*```$", "", ai_text.strip(), flags=re.DOTALL)
+
+        insights = json.loads(ai_text)
+        return {"insights": insights}
+
+    except Exception as e:
+        return {
+            "error": "Failed to generate insights",
+            "details": str(e)
+        }
