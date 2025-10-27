@@ -36,7 +36,7 @@ moto==5.1.12
 motor==3.7.1
 orjson==3.11.3
 passlib==1.7.4
-pdfminer.six==20250506
+pdfminer.six==20231228
 pdfplumber==0.11.0
 pyasn1==0.6.1
 pycparser==2.22
@@ -74,7 +74,6 @@ typing_extensions==4.14.1
 ujson==5.11.0
 urllib3==2.5.0
 uvicorn==0.35.0
-uvloop==0.21.0
 watchfiles==1.1.0
 websockets==15.0.1
 Werkzeug==3.1.3

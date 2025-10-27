@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 
 export default function Signup() {
+  const [full_name, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -22,7 +23,7 @@ export default function Signup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password || !confirmPassword) {
+    if (!full_name || !email || !password || !confirmPassword) {
       setErrorMessage("Please fill in all fields.");
       return;
     }
@@ -39,6 +40,7 @@ export default function Signup() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          full_name,
           username: email, // email used as username
           email,
           password, // backend will hash it
@@ -86,6 +88,25 @@ export default function Signup() {
             )}
 
             <form className="space-y-5" onSubmit={handleSubmit}>
+              {/* Full Name Field */}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="full_name"
+                  className="text-white/70 text-sm font-medium"
+                >
+                  Full Name
+                </Label>
+                <Input
+                  id="full_name"
+                  type="text"
+                  value={full_name}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="h-12 bg-white/8 border-white/15 text-white placeholder:text-white/35 focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all duration-300"
+                  placeholder="Enter your full name"
+                  required
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label
                   htmlFor="email"
