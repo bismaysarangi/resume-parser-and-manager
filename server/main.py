@@ -1,9 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import CORS_ORIGINS
-from routes.auth import router as auth_router
-from routes.resume import router as resume_router
-from routes import user, auth
+from routes import user, auth, resume
 
 app = FastAPI()
 
@@ -17,10 +15,9 @@ app.add_middleware(
 )
 
 # Include Routers
-app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
-app.include_router(resume_router, prefix="/api", tags=["resume"])
-app.include_router(auth.router, prefix="/api/v1/auth")
-app.include_router(user.router, prefix="/api/v1")
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(user.router, prefix="/api/v1", tags=["user"])
+app.include_router(resume.router, prefix="/api", tags=["resume"])
 
 
 @app.get("/")
