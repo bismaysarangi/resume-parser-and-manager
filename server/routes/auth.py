@@ -2,11 +2,11 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 from core.database import users_collection
-from core.security import verify_password, get_password_hash, create_access_token 
-from core.config import ACCESS_TOKEN_EXPIRE_MINUTES 
-from models.user import UserCreate, UserInDB, UserOut 
+from core.security import verify_password, get_password_hash, create_access_token
+from core.config import ACCESS_TOKEN_EXPIRE_MINUTES
+from models.user import UserCreate, UserInDB, UserOut
 from schemas.token import Token
-from dependencies.auth import get_user_by_email, get_current_active_user 
+from dependencies.auth import get_user_by_email, get_current_active_user
 router = APIRouter()
 
 def authenticate_user(email: str, password: str):
@@ -33,6 +33,7 @@ async def signup(user: UserCreate):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     new_user = create_user(user)
+    print(new_user)
     return UserOut(
         username=new_user.username,
         email=new_user.email,
