@@ -11,7 +11,7 @@ async def extract_text_from_file(file):
     Extract text from uploaded file (PDF, DOCX, TXT)
     """
     text = ""
-    
+
     if file.filename.endswith(".pdf"):
         with pdfplumber.open(file.file) as pdf:
             for page in pdf.pages:
@@ -23,7 +23,7 @@ async def extract_text_from_file(file):
         text = (await file.read()).decode("utf-8")
     else:
         raise ValueError("Unsupported file type. Please upload PDF, DOCX, or TXT.")
-    
+
     # Clean up whitespace
     text = re.sub(r"[ \t]+", " ", text)
     return text
@@ -70,7 +70,7 @@ async def call_groq_api(prompt, temperature=0.7):
 
     async with httpx.AsyncClient(timeout=60) as client:
         response = await client.post(GROQ_URL, headers=headers, json=payload)
-    
+
     return response
 
 
@@ -90,20 +90,20 @@ async def parse_resume(file):
     try:
         # Extract text
         text = await extract_text_from_file(file)
-        
+
         # Create prompt
         prompt = create_resume_parse_prompt(text)
-        
+
         # Call Groq API
         response = await call_groq_api(prompt)
         data = response.json()
-        
+
         # Parse response
         ai_text = data["choices"][0]["message"]["content"]
         parsed = parse_ai_response(ai_text)
-        
+
         return {"filename": file.filename, **parsed}
-    
+
     except ValueError as e:
         raise ValueError(str(e))
     except Exception as e:
