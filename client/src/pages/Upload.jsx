@@ -83,7 +83,7 @@ const UploadPage = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:8000/api/parse-resume",
+        "http://127.0.0.1:8000/api/parse-resume",
         formData,
         {
           headers: {

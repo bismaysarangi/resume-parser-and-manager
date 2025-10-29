@@ -41,7 +41,7 @@ const AiInsights = () => {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:8000/api/ai-insights", {
+      const response = await fetch("http://127.0.0.1:8000/api/ai-insights", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
