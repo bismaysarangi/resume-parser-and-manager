@@ -21,7 +21,7 @@ def create_insights_prompt(resume_data):
       }},
       "careerSuggestions": ["list of suitable job roles"],
       "interviewTips": ["list of 4-5 interview preparation tips"],
-      "overallScore": 75,
+      "overallScore": <calculate a score between 40-95 based on resume quality, experience, skills, and achievements>,
       "summary": "brief overall assessment"
     }}
     
