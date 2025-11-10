@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import Home from "./pages/Home";
 import Navbar from "./components/Navbar";
 import Parser from "./pages/ParsedResults";
@@ -10,8 +11,15 @@ import Profile from "./pages/Profile";
 import AiInsights from "./pages/AiInsights";
 
 function App() {
+  const location = useLocation();
+
+  useEffect(() => {
+    console.log("Scrolling to top");
+    window.scrollTo(0, 0);
+  }, [location]);
+
   return (
-    <Router>
+    <>
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
@@ -23,7 +31,7 @@ function App() {
         <Route path="/ai-insights" element={<AiInsights />} />
       </Routes>
       <Footer />
-    </Router>
+    </>
   );
 }
 
