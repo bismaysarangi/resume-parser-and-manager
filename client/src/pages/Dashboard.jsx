@@ -182,7 +182,7 @@ const Dashboard = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-white/60 text-sm font-medium">
-                        Total Resumes
+                        Total Uploads
                       </p>
                       <p className="text-3xl font-bold text-white mt-2">
                         {stats.totalResumes}
