@@ -12,7 +12,7 @@ import {
   LogOut,
   Info,
   Clock,
-  BarChart3, // Added Dashboard icon
+  BarChart3,
 } from "lucide-react";
 
 const Navbar = () => {

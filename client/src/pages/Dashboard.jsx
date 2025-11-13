@@ -20,7 +20,6 @@ import {
   BarChart3,
   Clock,
   CheckCircle,
-  XCircle,
 } from "lucide-react";
 
 const Dashboard = () => {
@@ -29,7 +28,6 @@ const Dashboard = () => {
   const [stats, setStats] = useState({
     totalResumes: 0,
     recentResumes: 0,
-    averageScore: 0,
     skillsCount: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -66,6 +64,16 @@ const Dashboard = () => {
       );
       setHistory(historyResponse.data);
 
+      // Debug: Log the data structure
+      console.log("Resume history data:", historyResponse.data);
+      if (historyResponse.data.length > 0) {
+        console.log("First resume:", historyResponse.data[0]);
+        console.log(
+          "First resume ai_insights:",
+          historyResponse.data[0].ai_insights
+        );
+      }
+
       // Calculate stats
       calculateStats(historyResponse.data);
     } catch (error) {
@@ -92,16 +100,28 @@ const Dashboard = () => {
     const averageSkills =
       totalResumes > 0 ? Math.round(totalSkills / totalResumes) : 0;
 
+    // Calculate average AI score - only from resumes with scores
+    const resumesWithScores = resumeHistory.filter(
+      (item) => item.ai_insights?.overallScore > 0
+    );
+    const totalScore = resumesWithScores.reduce((acc, item) => {
+      return acc + (item.ai_insights?.overallScore || 0);
+    }, 0);
+    const averageScore =
+      resumesWithScores.length > 0
+        ? Math.round(totalScore / resumesWithScores.length)
+        : 0;
+
     setStats({
       totalResumes,
       recentResumes,
-      averageScore: 75, // Placeholder - you can calculate this from AI insights
+      averageScore,
       skillsCount: averageSkills,
     });
   };
 
   const getRecentResumes = () => {
-    return history.slice(0, 3); // Last 3 resumes
+    return history.slice(0, 3);
   };
 
   const getTimeAgo = (dateString) => {
@@ -129,11 +149,11 @@ const Dashboard = () => {
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen pt-24"
       style={{ backgroundColor: "rgb(34, 24, 36)" }}
     >
       {/* Header */}
-      <header className="pt-12 px-6">
+      <header className="px-6 pb-8">
         <div className="container mx-auto max-w-7xl flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-white">Dashboard</h1>
@@ -141,103 +161,84 @@ const Dashboard = () => {
               Welcome back, {user?.full_name || user?.username || "User"}!
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <Link to="/upload">
-              <Button className="bg-white text-black hover:bg-white/90">
-                <Upload className="w-4 h-4 mr-2" />
-                Upload Resume
-              </Button>
-            </Link>
-          </div>
+          <Link to="/upload">
+            <Button className="bg-white text-black hover:bg-white/90 transition-all duration-300 hover:shadow-lg">
+              <Upload className="w-4 h-4 mr-2" />
+              Upload Resume
+            </Button>
+          </Link>
         </div>
       </header>
 
       <div className="container mx-auto max-w-7xl py-8 px-4">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-blue-600/10 to-cyan-600/5 backdrop-blur-sm border-blue-500/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white/60 text-sm font-medium">
-                    Total Resumes
-                  </p>
-                  <p className="text-3xl font-bold text-white mt-2">
-                    {stats.totalResumes}
-                  </p>
-                </div>
-                <div className="p-3 bg-blue-500/20 rounded-lg">
-                  <FileText className="w-6 h-6 text-blue-400" />
-                </div>
-              </div>
-              <div className="flex items-center mt-4 text-green-400 text-sm">
-                <TrendingUp className="w-4 h-4 mr-1" />
-                <span>{stats.recentResumes} recent</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-purple-600/10 to-pink-600/5 backdrop-blur-sm border-purple-500/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white/60 text-sm font-medium">
-                    Recent Activity
-                  </p>
-                  <p className="text-3xl font-bold text-white mt-2">
-                    {stats.recentResumes}
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-500/20 rounded-lg">
-                  <Clock className="w-6 h-6 text-purple-400" />
-                </div>
-              </div>
-              <p className="text-white/60 text-sm mt-4">Last 7 days</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-green-600/10 to-emerald-600/5 backdrop-blur-sm border-green-500/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white/60 text-sm font-medium">
-                    Avg. Skills
-                  </p>
-                  <p className="text-3xl font-bold text-white mt-2">
-                    {stats.skillsCount}
-                  </p>
-                </div>
-                <div className="p-3 bg-green-500/20 rounded-lg">
-                  <Code className="w-6 h-6 text-green-400" />
-                </div>
-              </div>
-              <p className="text-white/60 text-sm mt-4">Per resume</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-orange-600/10 to-red-600/5 backdrop-blur-sm border-orange-500/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-white/60 text-sm font-medium">
-                    Avg. Score
-                  </p>
-                  <p className="text-3xl font-bold text-white mt-2">
-                    {stats.averageScore}%
-                  </p>
-                </div>
-                <div className="p-3 bg-orange-500/20 rounded-lg">
-                  <BarChart3 className="w-6 h-6 text-orange-400" />
-                </div>
-              </div>
-              <p className="text-white/60 text-sm mt-4">Based on AI analysis</p>
-            </CardContent>
-          </Card>
-        </div>
-
+        {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Recent Activity */}
-          <div className="lg:col-span-2">
+          {/* Left Column - Stats and Recent Activity */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="bg-gradient-to-br from-blue-600/10 to-cyan-600/5 backdrop-blur-sm border-blue-500/20 hover:border-blue-500/40 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white/60 text-sm font-medium">
+                        Total Resumes
+                      </p>
+                      <p className="text-3xl font-bold text-white mt-2">
+                        {stats.totalResumes}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-blue-500/20 rounded-lg">
+                      <FileText className="w-6 h-6 text-blue-400" />
+                    </div>
+                  </div>
+                  <div className="flex items-center mt-4 text-green-400 text-sm">
+                    <TrendingUp className="w-4 h-4 mr-1" />
+                    <span>{stats.recentResumes} recent</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-purple-600/10 to-pink-600/5 backdrop-blur-sm border-purple-500/20 hover:border-purple-500/40 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white/60 text-sm font-medium">
+                        Recent Activity
+                      </p>
+                      <p className="text-3xl font-bold text-white mt-2">
+                        {stats.recentResumes}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-purple-500/20 rounded-lg">
+                      <Clock className="w-6 h-6 text-purple-400" />
+                    </div>
+                  </div>
+                  <p className="text-white/60 text-sm mt-4">Last 7 days</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-green-600/10 to-emerald-600/5 backdrop-blur-sm border-green-500/20 hover:border-green-500/40 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/10">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white/60 text-sm font-medium">
+                        Avg. Skills
+                      </p>
+                      <p className="text-3xl font-bold text-white mt-2">
+                        {stats.skillsCount}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-green-500/20 rounded-lg">
+                      <Code className="w-6 h-6 text-green-400" />
+                    </div>
+                  </div>
+                  <p className="text-white/60 text-sm mt-4">Per resume</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recent Activity */}
             <Card className="bg-white/10 backdrop-blur-sm border-white/20">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white">
@@ -248,16 +249,16 @@ const Dashboard = () => {
               <CardContent>
                 {getRecentResumes().length > 0 ? (
                   <div className="space-y-4">
-                    {getRecentResumes().map((item) => (
+                    {getRecentResumes().map((item, index) => (
                       <div
-                        key={item._id}
-                        className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 hover:border-white/20 transition-all"
+                        key={item._id || `resume-${index}`}
+                        className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 hover:border-white/30 transition-all duration-300 hover:bg-white/8"
                       >
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 flex-1">
                           <div className="p-2 bg-blue-500/20 rounded">
                             <FileText className="w-4 h-4 text-blue-400" />
                           </div>
-                          <div>
+                          <div className="flex-1">
                             <h3 className="text-white font-semibold text-sm">
                               {item.filename}
                             </h3>
@@ -273,8 +274,7 @@ const Dashboard = () => {
                         </div>
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="border-white/20 text-black hover:bg-white/10"
+                          className="ml-4 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg"
                           onClick={() =>
                             navigate("/parsed-results", {
                               state: {
@@ -294,7 +294,7 @@ const Dashboard = () => {
                     <FileText className="w-12 h-12 text-white/40 mx-auto mb-4" />
                     <p className="text-white/60 mb-4">No resumes parsed yet</p>
                     <Link to="/upload">
-                      <Button className="bg-white text-black hover:bg-white/90">
+                      <Button className="bg-white text-black hover:bg-white/90 transition-all duration-300 hover:shadow-lg">
                         <Upload className="w-4 h-4 mr-2" />
                         Upload First Resume
                       </Button>
@@ -305,10 +305,7 @@ const Dashboard = () => {
                 {history.length > 3 && (
                   <div className="mt-6 text-center">
                     <Link to="/history">
-                      <Button
-                        variant="outline"
-                        className="border-white/20 text-white hover:bg-white/10"
-                      >
+                      <Button className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg">
                         View All Resumes
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
@@ -319,7 +316,7 @@ const Dashboard = () => {
             </Card>
           </div>
 
-          {/* Quick Actions & Insights */}
+          {/* Right Column - Sidebar Cards */}
           <div className="space-y-6">
             {/* Quick Actions */}
             <Card className="bg-white/10 backdrop-blur-sm border-white/20">
@@ -331,26 +328,20 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <Link to="/upload">
-                  <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white">
+                  <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg">
                     <Upload className="w-4 h-4 mr-2" />
                     Upload New Resume
                   </Button>
                 </Link>
                 <Link to="/history">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start border-white/20 text-black hover:bg-white/10"
-                  >
+                  <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg">
                     <History className="w-4 h-4 mr-2" />
                     View History
                   </Button>
                 </Link>
                 {history.length > 0 && (
                   <Link to="/ai-insights">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start border-white/20 text-black hover:bg-white/10"
-                    >
+                    <Button className="w-full justify-start bg-purple-600 hover:bg-purple-700 text-white transition-all duration-300 hover:shadow-lg">
                       <Brain className="w-4 h-4 mr-2" />
                       Get AI Insights
                     </Button>
@@ -398,10 +389,7 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <Link to="/profile">
-                  <Button
-                    variant="outline"
-                    className="w-full border-white/20 text-black hover:bg-white/10"
-                  >
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg">
                     Edit Profile
                   </Button>
                 </Link>

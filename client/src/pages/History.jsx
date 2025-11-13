@@ -13,6 +13,7 @@ import {
   Briefcase,
   GraduationCap,
   Code,
+  Loader2,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -51,23 +52,6 @@ const HistoryPage = () => {
     }
   };
 
-  const deleteResume = async (resumeId) => {
-    try {
-      const token = localStorage.getItem("token");
-      await axios.delete(
-        `http://127.0.0.1:8000/api/resume-history/${resumeId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      setHistory(history.filter((item) => item._id !== resumeId));
-    } catch (error) {
-      console.error("Error deleting resume:", error);
-    }
-  };
-
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -91,19 +75,15 @@ const HistoryPage = () => {
 
   return (
     <div
-      className="min-h-screen"
+      className="min-h-screen pt-24"
       style={{ backgroundColor: "rgb(34, 24, 36)" }}
     >
       {/* Header */}
-      <header className="pt-6 px-6">
+      <header className="px-6 pb-8">
         <div className="container mx-auto max-w-6xl flex justify-between items-center">
           <Link to="/">
-            <Button
-              variant="outline"
-              className="border-white/20 text-white hover:bg-white/10"
-            >
+            <Button className="bg-amber-100 hover:bg-amber-200 text-black transition-all duration-300 hover:shadow-lg">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Home
             </Button>
           </Link>
           <h1 className="text-2xl font-bold text-white">Resume History</h1>
@@ -122,7 +102,7 @@ const HistoryPage = () => {
                 You haven't parsed any resumes yet.
               </p>
               <Link to="/upload">
-                <Button className="bg-white text-black hover:bg-white/90">
+                <Button className="bg-white text-black hover:bg-white/90 transition-all duration-300 hover:shadow-lg">
                   Upload Your First Resume
                 </Button>
               </Link>
@@ -133,7 +113,7 @@ const HistoryPage = () => {
             {history.map((item) => (
               <Card
                 key={item._id}
-                className="bg-white/10 backdrop-blur-sm border-white/20 hover:border-white/30 transition-all"
+                className="bg-white/10 backdrop-blur-sm border-white/20 hover:border-white/30 transition-all duration-300 hover:shadow-lg"
               >
                 <CardContent className="p-6">
                   <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -205,9 +185,9 @@ const HistoryPage = () => {
                                 <div className="flex flex-wrap gap-2">
                                   {item.parsed_data.skills
                                     .slice(0, 5)
-                                    .map((skill, index) => (
+                                    .map((skill, idx) => (
                                       <span
-                                        key={index}
+                                        key={`skill-${item._id}-${idx}`}
                                         className="px-2 py-1 bg-cyan-500/20 rounded text-cyan-300 text-xs"
                                       >
                                         {skill}
@@ -229,20 +209,11 @@ const HistoryPage = () => {
                     <div className="flex gap-2 lg:flex-col">
                       <Button
                         size="sm"
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg"
                         onClick={() => setSelectedResume(item)}
                       >
                         <Eye className="w-4 h-4 mr-1" />
                         View
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-red-500/50 text-red-400 hover:bg-red-500/20"
-                        onClick={() => deleteResume(item._id)}
-                      >
-                        <Trash2 className="w-4 h-4 mr-1" />
-                        Delete
                       </Button>
                     </div>
                   </div>
@@ -263,9 +234,8 @@ const HistoryPage = () => {
                   {selectedResume.filename}
                 </h2>
                 <Button
-                  variant="ghost"
-                  onClick={() => setSelectedResume(null)}
                   className="text-white hover:bg-white/10"
+                  onClick={() => setSelectedResume(null)}
                 >
                   ✕
                 </Button>
@@ -285,7 +255,7 @@ const HistoryPage = () => {
                         Personal Information
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-2">
+                    <CardContent className="space-y-2 text-white/80">
                       {selectedResume.parsed_data.name && (
                         <p>
                           <strong>Name:</strong>{" "}
@@ -307,8 +277,6 @@ const HistoryPage = () => {
                     </CardContent>
                   </Card>
                 )}
-
-                {/* Add more sections as needed */}
               </div>
             </div>
           </div>

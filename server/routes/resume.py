@@ -2,7 +2,6 @@ from fastapi import APIRouter, UploadFile, File, Depends
 from bson import ObjectId
 from services.resume_parser import parse_resume
 from services.ai_insights import generate_insights
-from models.resume import ResumeHistory, ResumeData
 from dependencies.auth import get_current_active_user
 from core.database import db
 from datetime import datetime
@@ -24,25 +23,36 @@ async def parse_resume_endpoint(
         # Parse resume
         result = await parse_resume(file)
         
-        # Store in history
+        # Generate AI insights
+        try:
+            insights_response = await generate_insights(result)
+            insights_data = insights_response.get("insights", {})
+        except Exception as e:
+            print(f"Error generating insights: {e}")
+            insights_data = {"overallScore": 0, "error": "Failed to generate insights"}
+        
+        # Store in history with insights
         resume_history = {
             "user_email": current_user.email,
             "filename": file.filename,
             "parsed_data": result,
+            "ai_insights": insights_data,
             "parsed_at": datetime.utcnow()
         }
         
         # Insert into database
         inserted = resume_history_collection.insert_one(resume_history)
         
-        # Add history ID to response
+        # Add history ID and insights to response
         result["history_id"] = str(inserted.inserted_id)
+        result["ai_insights"] = insights_data
         
         return result
         
     except ValueError as e:
         return {"error": str(e)}
     except Exception as e:
+        print(f"Error in parse_resume_endpoint: {e}")
         return {
             "error": "Failed to parse resume",
             "details": str(e)
@@ -61,4 +71,3 @@ async def get_ai_insights(resume_data: dict):
             "error": "Failed to generate insights",
             "details": str(e)
         }
-    
