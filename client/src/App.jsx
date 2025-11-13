@@ -9,6 +9,8 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import Profile from "./pages/Profile";
 import AiInsights from "./pages/AiInsights";
+import History from "./pages/History";
+import Dashboard from "./pages/Dashboard";
 
 function App() {
   const location = useLocation();
@@ -29,6 +31,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/ai-insights" element={<AiInsights />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
       <Footer />
     </>

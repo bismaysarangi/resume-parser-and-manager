@@ -11,6 +11,8 @@ import {
   Brain,
   LogOut,
   Info,
+  Clock,
+  BarChart3, // Added Dashboard icon
 } from "lucide-react";
 
 const Navbar = () => {
@@ -117,9 +119,11 @@ const Navbar = () => {
   const publicNavItems = [{ to: "/about", label: "About", icon: Info }];
 
   const privateNavItems = [
-    { to: "/parsed-results", label: "Parsed Results", icon: FileText },
     { to: "/upload", label: "Upload", icon: Upload },
+    { to: "/parsed-results", label: "Results", icon: FileText },
     { to: "/ai-insights", label: "AI Insights", icon: Brain },
+    { to: "/history", label: "History", icon: Clock },
+    { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
   ];
 
   const navItems = isLoggedIn ? privateNavItems : publicNavItems;
@@ -146,18 +150,22 @@ const Navbar = () => {
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation - UPDATED: Added icons to nav items */}
           <div className="hidden md:flex items-center space-x-8">
-            {navItems.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className="text-white/80 hover:text-white transition-all duration-300 text-sm font-medium relative group"
-              >
-                {item.label}
-                <span className="absolute -bottom-1 left-0 w-0 h-px bg-white transition-all duration-300 group-hover:w-full"></span>
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              const IconComponent = item.icon;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className="flex items-center space-x-1 text-white/80 hover:text-white transition-all duration-300 text-sm font-medium relative group"
+                >
+                  <IconComponent className="h-4 w-4" />
+                  <span>{item.label}</span>
+                  <span className="absolute -bottom-1 left-0 w-0 h-px bg-white transition-all duration-300 group-hover:w-full"></span>
+                </Link>
+              );
+            })}
           </div>
 
           {/* Desktop Auth Section */}
@@ -254,7 +262,7 @@ const Navbar = () => {
                     )}
                   </div>
 
-                  {/* Mobile Navigation Links */}
+                  {/* Mobile Navigation Links - UPDATED: Added icons */}
                   <div className="flex-1 overflow-y-auto p-6 space-y-2">
                     <div className="text-sm font-semibold text-white/60 mb-6 uppercase tracking-wide">
                       Navigation

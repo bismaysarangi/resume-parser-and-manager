@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import axios from "axios";
@@ -11,6 +11,8 @@ import {
   XCircle,
   Loader2,
   ArrowRight,
+  LogIn,
+  User,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -20,8 +22,42 @@ const UploadPage = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
   const [result, setResult] = useState(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [user, setUser] = useState(null);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+
+  // Check authentication status on component mount
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  const checkAuthStatus = async () => {
+    const token = localStorage.getItem("token");
+    console.log("Current token:", token);
+
+    if (token) {
+      try {
+        // Verify the token is valid by calling a protected endpoint
+        const response = await axios.get(
+          "http://127.0.0.1:8000/api/v1/user/profile",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        setUser(response.data);
+        console.log("User is authenticated:", response.data);
+      } catch (error) {
+        console.error("Token invalid or expired:", error);
+        localStorage.removeItem("token");
+        setShowLoginPrompt(true);
+      }
+    } else {
+      setShowLoginPrompt(true);
+    }
+  };
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -50,6 +86,15 @@ const UploadPage = () => {
   };
 
   const handleFileUpload = async (file) => {
+    // Check if user is logged in
+    const token = localStorage.getItem("token");
+    console.log("Upload - Token from localStorage:", token);
+
+    if (!token) {
+      setShowLoginPrompt(true);
+      return;
+    }
+
     // Check if file is a PDF or DOC/DOCX
     const validTypes = [
       "application/pdf",
@@ -77,21 +122,26 @@ const UploadPage = () => {
     setUploadedFile(file);
     setIsUploading(true);
     setUploadStatus(null);
+    setShowLoginPrompt(false);
 
     const formData = new FormData();
     formData.append("file", file);
 
     try {
+      console.log("Sending upload request with token:", token);
+
       const response = await axios.post(
         "http://127.0.0.1:8000/api/parse-resume",
         formData,
         {
           headers: {
             "Content-Type": "multipart/form-data",
+            Authorization: `Bearer ${token}`,
           },
         }
       );
 
+      console.log("Upload successful:", response.data);
       setResult(response.data);
       setIsUploading(false);
       setUploadStatus({
@@ -100,11 +150,22 @@ const UploadPage = () => {
       });
     } catch (error) {
       console.error("Error uploading the file:", error);
+      console.error("Error response:", error.response?.data);
       setIsUploading(false);
-      setUploadStatus({
-        type: "error",
-        message: "Failed to upload resume. Please try again.",
-      });
+
+      if (error.response && error.response.status === 401) {
+        setUploadStatus({
+          type: "error",
+          message: "Session expired. Please login again.",
+        });
+        localStorage.removeItem("token");
+        setShowLoginPrompt(true);
+      } else {
+        setUploadStatus({
+          type: "error",
+          message: "Failed to upload resume. Please try again.",
+        });
+      }
     }
   };
 
@@ -112,6 +173,7 @@ const UploadPage = () => {
     setUploadedFile(null);
     setUploadStatus(null);
     setResult(null);
+    setShowLoginPrompt(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -133,6 +195,10 @@ const UploadPage = () => {
     }
   };
 
+  const handleLoginRedirect = () => {
+    navigate("/login");
+  };
+
   return (
     <div
       className="min-h-screen"
@@ -150,7 +216,15 @@ const UploadPage = () => {
               Back to Home
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold text-white">Resume Parser</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-white">Resume Parser</h1>
+            {user && (
+              <div className="flex items-center gap-2 text-white/70">
+                <User className="w-4 h-4" />
+                <span>Welcome, {user.full_name || user.username}</span>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -165,13 +239,50 @@ const UploadPage = () => {
           </p>
         </div>
 
+        {/* Login Prompt */}
+        {showLoginPrompt && (
+          <Card className="backdrop-blur-sm border-yellow-500/50 bg-yellow-500/10 mb-6">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <LogIn className="w-6 h-6 text-yellow-400 mr-3" />
+                  <div>
+                    <h3 className="text-yellow-400 font-semibold text-lg">
+                      Login Required
+                    </h3>
+                    <p className="text-yellow-300/80">
+                      Please log in to upload and analyze resumes.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="border-yellow-400 text-yellow-400 hover:bg-yellow-400/20"
+                    onClick={() => setShowLoginPrompt(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                    onClick={handleLoginRedirect}
+                  >
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Go to Login
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Upload Area */}
         <Card className="backdrop-blur-sm border-white/20 bg-white/5">
           <CardContent className="p-8">
             <div
               className={`border-2 border-dashed rounded-xl p-10 text-center transition-all duration-300 ${
                 isDragging ? "border-white bg-white/10" : "border-white/30"
-              }`}
+              } ${showLoginPrompt ? "opacity-50" : ""}`}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
@@ -199,10 +310,24 @@ const UploadPage = () => {
                     size="lg"
                     className="bg-white text-black hover:bg-white/90 px-8 py-6 text-lg font-semibold"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={showLoginPrompt}
                   >
                     <Upload className="w-5 h-5 mr-2" />
                     Select File
                   </Button>
+
+                  {/* User status info */}
+                  <div className="mt-4">
+                    {user ? (
+                      <p className="text-green-400 text-sm">
+                        ✓ Logged in as {user.email}
+                      </p>
+                    ) : (
+                      <p className="text-yellow-400 text-sm">
+                        You need to be logged in to upload resumes
+                      </p>
+                    )}
+                  </div>
                 </>
               ) : (
                 <div className="py-4">

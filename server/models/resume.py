@@ -1,17 +1,23 @@
-from sqlalchemy import Column, Integer, String, JSON
-from core.database import Base
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
+from datetime import datetime
 
-class Resume(Base):
-    __tablename__ = "resumes"
+class ResumeData(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    education: List[Dict[str, Any]] = []
+    skills: List[str] = []
+    experience: List[Dict[str, Any]] = []
+    projects: List[Dict[str, Any]] = []
+    tenth_marks: Optional[str] = None
+    twelfth_marks: Optional[str] = None
 
-    id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String, nullable=False)
-    name = Column(String)
-    email = Column(String)
-    phone = Column(String)
-    education = Column(JSON)
-    skills = Column(JSON)
-    experience = Column(JSON)
-    projects = Column(JSON)
-    tenth_marks = Column(String)
-    twelfth_marks = Column(String)
+class ResumeHistory(BaseModel):
+    user_email: str
+    filename: str
+    parsed_data: ResumeData
+    parsed_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        arbitrary_types_allowed = True

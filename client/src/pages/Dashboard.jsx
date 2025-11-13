@@ -1,0 +1,447 @@
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
+import {
+  FileText,
+  Upload,
+  History,
+  Brain,
+  User,
+  Mail,
+  Calendar,
+  TrendingUp,
+  Award,
+  BookOpen,
+  Briefcase,
+  Code,
+  ArrowRight,
+  BarChart3,
+  Clock,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
+
+const Dashboard = () => {
+  const [user, setUser] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [stats, setStats] = useState({
+    totalResumes: 0,
+    recentResumes: 0,
+    averageScore: 0,
+    skillsCount: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    fetchDashboardData();
+  }, [navigate]);
+
+  const fetchDashboardData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      // Fetch user profile
+      const userResponse = await axios.get(
+        "http://127.0.0.1:8000/api/v1/user/profile",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setUser(userResponse.data);
+
+      // Fetch resume history
+      const historyResponse = await axios.get(
+        "http://127.0.0.1:8000/api/resume-history",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setHistory(historyResponse.data);
+
+      // Calculate stats
+      calculateStats(historyResponse.data);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateStats = (resumeHistory) => {
+    const totalResumes = resumeHistory.length;
+
+    // Recent resumes (last 7 days)
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const recentResumes = resumeHistory.filter(
+      (item) => new Date(item.parsed_at) > oneWeekAgo
+    ).length;
+
+    // Calculate average skills count
+    const totalSkills = resumeHistory.reduce((acc, item) => {
+      return acc + (item.parsed_data.skills?.length || 0);
+    }, 0);
+    const averageSkills =
+      totalResumes > 0 ? Math.round(totalSkills / totalResumes) : 0;
+
+    setStats({
+      totalResumes,
+      recentResumes,
+      averageScore: 75, // Placeholder - you can calculate this from AI insights
+      skillsCount: averageSkills,
+    });
+  };
+
+  const getRecentResumes = () => {
+    return history.slice(0, 3); // Last 3 resumes
+  };
+
+  const getTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 1) return "1 day ago";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.ceil(diffDays / 7)} weeks ago`;
+    return `${Math.ceil(diffDays / 30)} months ago`;
+  };
+
+  if (loading) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: "rgb(34, 24, 36)" }}
+      >
+        <div className="text-white text-xl">Loading Dashboard...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="min-h-screen"
+      style={{ backgroundColor: "rgb(34, 24, 36)" }}
+    >
+      {/* Header */}
+      <header className="pt-12 px-6">
+        <div className="container mx-auto max-w-7xl flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+            <p className="text-white/60 mt-2">
+              Welcome back, {user?.full_name || user?.username || "User"}!
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <Link to="/upload">
+              <Button className="bg-white text-black hover:bg-white/90">
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Resume
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto max-w-7xl py-8 px-4">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-gradient-to-br from-blue-600/10 to-cyan-600/5 backdrop-blur-sm border-blue-500/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white/60 text-sm font-medium">
+                    Total Resumes
+                  </p>
+                  <p className="text-3xl font-bold text-white mt-2">
+                    {stats.totalResumes}
+                  </p>
+                </div>
+                <div className="p-3 bg-blue-500/20 rounded-lg">
+                  <FileText className="w-6 h-6 text-blue-400" />
+                </div>
+              </div>
+              <div className="flex items-center mt-4 text-green-400 text-sm">
+                <TrendingUp className="w-4 h-4 mr-1" />
+                <span>{stats.recentResumes} recent</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-600/10 to-pink-600/5 backdrop-blur-sm border-purple-500/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white/60 text-sm font-medium">
+                    Recent Activity
+                  </p>
+                  <p className="text-3xl font-bold text-white mt-2">
+                    {stats.recentResumes}
+                  </p>
+                </div>
+                <div className="p-3 bg-purple-500/20 rounded-lg">
+                  <Clock className="w-6 h-6 text-purple-400" />
+                </div>
+              </div>
+              <p className="text-white/60 text-sm mt-4">Last 7 days</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-600/10 to-emerald-600/5 backdrop-blur-sm border-green-500/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white/60 text-sm font-medium">
+                    Avg. Skills
+                  </p>
+                  <p className="text-3xl font-bold text-white mt-2">
+                    {stats.skillsCount}
+                  </p>
+                </div>
+                <div className="p-3 bg-green-500/20 rounded-lg">
+                  <Code className="w-6 h-6 text-green-400" />
+                </div>
+              </div>
+              <p className="text-white/60 text-sm mt-4">Per resume</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-orange-600/10 to-red-600/5 backdrop-blur-sm border-orange-500/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white/60 text-sm font-medium">
+                    Avg. Score
+                  </p>
+                  <p className="text-3xl font-bold text-white mt-2">
+                    {stats.averageScore}%
+                  </p>
+                </div>
+                <div className="p-3 bg-orange-500/20 rounded-lg">
+                  <BarChart3 className="w-6 h-6 text-orange-400" />
+                </div>
+              </div>
+              <p className="text-white/60 text-sm mt-4">Based on AI analysis</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Recent Activity */}
+          <div className="lg:col-span-2">
+            <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white">
+                  <Clock className="w-5 h-5 mr-2" />
+                  Recent Resumes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {getRecentResumes().length > 0 ? (
+                  <div className="space-y-4">
+                    {getRecentResumes().map((item) => (
+                      <div
+                        key={item._id}
+                        className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 hover:border-white/20 transition-all"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="p-2 bg-blue-500/20 rounded">
+                            <FileText className="w-4 h-4 text-blue-400" />
+                          </div>
+                          <div>
+                            <h3 className="text-white font-semibold text-sm">
+                              {item.filename}
+                            </h3>
+                            <p className="text-white/60 text-xs">
+                              Parsed {getTimeAgo(item.parsed_at)}
+                            </p>
+                            {item.parsed_data.name && (
+                              <p className="text-white/70 text-xs mt-1">
+                                {item.parsed_data.name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-white/20 text-black hover:bg-white/10"
+                          onClick={() =>
+                            navigate("/parsed-results", {
+                              state: {
+                                parsedData: item.parsed_data,
+                                fileName: item.filename,
+                              },
+                            })
+                          }
+                        >
+                          View
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 text-white/40 mx-auto mb-4" />
+                    <p className="text-white/60 mb-4">No resumes parsed yet</p>
+                    <Link to="/upload">
+                      <Button className="bg-white text-black hover:bg-white/90">
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload First Resume
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+
+                {history.length > 3 && (
+                  <div className="mt-6 text-center">
+                    <Link to="/history">
+                      <Button
+                        variant="outline"
+                        className="border-white/20 text-white hover:bg-white/10"
+                      >
+                        View All Resumes
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Quick Actions & Insights */}
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white">
+                  <Award className="w-5 h-5 mr-2" />
+                  Quick Actions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Link to="/upload">
+                  <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white">
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload New Resume
+                  </Button>
+                </Link>
+                <Link to="/history">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start border-white/20 text-black hover:bg-white/10"
+                  >
+                    <History className="w-4 h-4 mr-2" />
+                    View History
+                  </Button>
+                </Link>
+                {history.length > 0 && (
+                  <Link to="/ai-insights">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start border-white/20 text-black hover:bg-white/10"
+                    >
+                      <Brain className="w-4 h-4 mr-2" />
+                      Get AI Insights
+                    </Button>
+                  </Link>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Profile Summary */}
+            <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white">
+                  <User className="w-5 h-5 mr-2" />
+                  Profile Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-500/20 rounded">
+                    <User className="w-4 h-4 text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">
+                      {user?.full_name || "Not set"}
+                    </p>
+                    <p className="text-white/60 text-sm">Full Name</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/20 rounded">
+                    <Mail className="w-4 h-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">{user?.email}</p>
+                    <p className="text-white/60 text-sm">Email</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-500/20 rounded">
+                    <Calendar className="w-4 h-4 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-white font-medium">Member</p>
+                    <p className="text-white/60 text-sm">Account Type</p>
+                  </div>
+                </div>
+                <Link to="/profile">
+                  <Button
+                    variant="outline"
+                    className="w-full border-white/20 text-black hover:bg-white/10"
+                  >
+                    Edit Profile
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Tips & Suggestions */}
+            <Card className="bg-gradient-to-br from-purple-600/10 to-pink-600/5 backdrop-blur-sm border-purple-500/20">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white">
+                  <BookOpen className="w-5 h-5 mr-2" />
+                  Pro Tips
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-white/80 text-sm">
+                    Keep your resume updated with recent projects
+                  </p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-white/80 text-sm">
+                    Include measurable achievements in your experience
+                  </p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-white/80 text-sm">
+                    Use AI insights to identify skill gaps
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;

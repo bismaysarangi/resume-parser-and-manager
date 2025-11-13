@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import CORS_ORIGINS
-from routes import user, auth, resume
+from routes import user, auth, resume, history 
 
 app = FastAPI()
 
@@ -18,8 +18,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(user.router, prefix="/api/v1", tags=["user"])
 app.include_router(resume.router, prefix="/api", tags=["resume"])
-
-
+app.include_router(history.router, prefix="/api", tags=["history"])  
 @app.get("/")
 async def root():
     return {"message": "Resume Parser API is running"}
