@@ -8,12 +8,9 @@ import {
   User,
   Mail,
   Phone,
-  Trash2,
   Eye,
   Briefcase,
-  GraduationCap,
   Code,
-  Loader2,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -36,14 +33,11 @@ const HistoryPage = () => {
   const fetchResumeHistory = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(
-        "http://127.0.0.1:8000/api/resume-history",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await axios.get("http://127.0.0.1:8000/api/resume-history", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setHistory(response.data);
     } catch (error) {
       console.error("Error fetching resume history:", error);
@@ -65,8 +59,7 @@ const HistoryPage = () => {
   if (loading) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: "rgb(34, 24, 36)" }}
+        className="min-h-screen flex items-center justify-center bg-[#221824]"
       >
         <div className="text-white text-xl">Loading...</div>
       </div>
@@ -74,26 +67,27 @@ const HistoryPage = () => {
   }
 
   return (
-    <div
-      className="min-h-screen pt-24"
-      style={{ backgroundColor: "rgb(34, 24, 36)" }}
-    >
+    <div className="min-h-screen bg-[#221824] pt-24">
       {/* Header */}
       <header className="px-6 pb-8">
         <div className="container mx-auto max-w-6xl flex justify-between items-center">
           <Link to="/">
-            <Button className="bg-amber-100 hover:bg-amber-200 text-black transition-all duration-300 hover:shadow-lg">
+            {/* <Button className="bg-amber-100 hover:bg-amber-200 text-black transition-all duration-300 hover:shadow-lg"> */}
               <ArrowLeft className="w-4 h-4 mr-2" />
-            </Button>
+              
+            {/* </Button> */}
           </Link>
-          <h1 className="text-2xl font-bold text-white">Resume History</h1>
+          <h1 className="text-2xl font-bold text-white text-center w-full -ml-10 md:ml-0">
+            Resume History
+          </h1>
         </div>
       </header>
 
+      {/* History Section */}
       <div className="container mx-auto max-w-6xl py-8 px-4">
         {history.length === 0 ? (
-          <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-            <CardContent className="p-12 text-center">
+          <Card className="bg-white/10 backdrop-blur-sm border-white/20 text-center">
+            <CardContent className="p-12">
               <FileText className="w-16 h-16 text-white/60 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-white mb-4">
                 No Resume History
@@ -115,107 +109,96 @@ const HistoryPage = () => {
                 key={item._id}
                 className="bg-white/10 backdrop-blur-sm border-white/20 hover:border-white/30 transition-all duration-300 hover:shadow-lg"
               >
-                <CardContent className="p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                    {/* Resume Info */}
-                    <div className="flex-1">
-                      <div className="flex items-start gap-4 mb-4">
-                        <div className="p-3 bg-blue-500/20 rounded-lg">
-                          <FileText className="w-6 h-6 text-blue-400" />
+                <CardContent className="p-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  {/* Resume Info */}
+                  <div className="flex-1">
+                    <div className="flex items-start gap-4 mb-4">
+                      <div className="p-3 bg-blue-500/20 rounded-lg">
+                        <FileText className="w-6 h-6 text-blue-400" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-semibold text-white mb-1 break-all">
+                          {item.filename}
+                        </h3>
+                        <div className="flex items-center gap-2 text-white/60 text-sm mb-3">
+                          <Calendar className="w-4 h-4" />
+                          <span>Parsed on {formatDate(item.parsed_at)}</span>
                         </div>
-                        <div className="flex-1">
-                          <h3 className="text-xl font-semibold text-white mb-2">
-                            {item.filename}
-                          </h3>
-                          <div className="flex items-center gap-2 text-white/60 mb-2">
-                            <Calendar className="w-4 h-4" />
-                            <span className="text-sm">
-                              Parsed on {formatDate(item.parsed_at)}
-                            </span>
-                          </div>
 
-                          {/* Quick Info */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-                            {item.parsed_data.name && (
+                        {/* Quick Info */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-3">
+                          {item.parsed_data.name && (
+                            <div className="flex items-center gap-2 text-white/80">
+                              <User className="w-4 h-4 text-green-400" />
+                              <span className="text-sm">{item.parsed_data.name}</span>
+                            </div>
+                          )}
+                          {item.parsed_data.email && (
+                            <div className="flex items-center gap-2 text-white/80">
+                              <Mail className="w-4 h-4 text-blue-400" />
+                              <span className="text-sm truncate">
+                                {item.parsed_data.email}
+                              </span>
+                            </div>
+                          )}
+                          {item.parsed_data.phone && (
+                            <div className="flex items-center gap-2 text-white/80">
+                              <Phone className="w-4 h-4 text-purple-400" />
+                              <span className="text-sm">{item.parsed_data.phone}</span>
+                            </div>
+                          )}
+                          {item.parsed_data.experience &&
+                            item.parsed_data.experience.length > 0 && (
                               <div className="flex items-center gap-2 text-white/80">
-                                <User className="w-4 h-4 text-green-400" />
+                                <Briefcase className="w-4 h-4 text-orange-400" />
                                 <span className="text-sm">
-                                  {item.parsed_data.name}
+                                  {item.parsed_data.experience.length} experiences
                                 </span>
-                              </div>
-                            )}
-                            {item.parsed_data.email && (
-                              <div className="flex items-center gap-2 text-white/80">
-                                <Mail className="w-4 h-4 text-blue-400" />
-                                <span className="text-sm truncate">
-                                  {item.parsed_data.email}
-                                </span>
-                              </div>
-                            )}
-                            {item.parsed_data.phone && (
-                              <div className="flex items-center gap-2 text-white/80">
-                                <Phone className="w-4 h-4 text-purple-400" />
-                                <span className="text-sm">
-                                  {item.parsed_data.phone}
-                                </span>
-                              </div>
-                            )}
-                            {item.parsed_data.experience &&
-                              item.parsed_data.experience.length > 0 && (
-                                <div className="flex items-center gap-2 text-white/80">
-                                  <Briefcase className="w-4 h-4 text-orange-400" />
-                                  <span className="text-sm">
-                                    {item.parsed_data.experience.length}{" "}
-                                    experiences
-                                  </span>
-                                </div>
-                              )}
-                          </div>
-
-                          {/* Skills Preview */}
-                          {item.parsed_data.skills &&
-                            item.parsed_data.skills.length > 0 && (
-                              <div className="mt-4">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Code className="w-4 h-4 text-cyan-400" />
-                                  <span className="text-white/70 text-sm font-medium">
-                                    Skills
-                                  </span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  {item.parsed_data.skills
-                                    .slice(0, 5)
-                                    .map((skill, idx) => (
-                                      <span
-                                        key={`skill-${item._id}-${idx}`}
-                                        className="px-2 py-1 bg-cyan-500/20 rounded text-cyan-300 text-xs"
-                                      >
-                                        {skill}
-                                      </span>
-                                    ))}
-                                  {item.parsed_data.skills.length > 5 && (
-                                    <span className="px-2 py-1 bg-white/10 rounded text-white/60 text-xs">
-                                      +{item.parsed_data.skills.length - 5} more
-                                    </span>
-                                  )}
-                                </div>
                               </div>
                             )}
                         </div>
+
+                        {/* Skills Preview */}
+                        {item.parsed_data.skills &&
+                          item.parsed_data.skills.length > 0 && (
+                            <div className="mt-4">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Code className="w-4 h-4 text-cyan-400" />
+                                <span className="text-white/70 text-sm font-medium">
+                                  Skills
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {item.parsed_data.skills.slice(0, 5).map((skill, idx) => (
+                                  <span
+                                    key={`skill-${item._id}-${idx}`}
+                                    className="px-2 py-1 bg-cyan-500/20 rounded text-cyan-300 text-xs"
+                                  >
+                                    {skill}
+                                  </span>
+                                ))}
+                                {item.parsed_data.skills.length > 5 && (
+                                  <span className="px-2 py-1 bg-white/10 rounded text-white/60 text-xs">
+                                    +{item.parsed_data.skills.length - 5} more
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
                       </div>
                     </div>
+                  </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-2 lg:flex-col">
-                      <Button
-                        size="sm"
-                        className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg"
-                        onClick={() => setSelectedResume(item)}
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        View
-                      </Button>
-                    </div>
+                  {/* Actions */}
+                  <div className="flex gap-2 self-start lg:flex-col">
+                    <Button
+                      size="sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg"
+                      onClick={() => setSelectedResume(item)}
+                    >
+                      <Eye className="w-4 h-4 mr-1" />
+                      View
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -224,60 +207,54 @@ const HistoryPage = () => {
         )}
       </div>
 
-      {/* Modal for viewing resume details */}
+      {/* Modal */}
       {selectedResume && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-white/20">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-white">
-                  {selectedResume.filename}
-                </h2>
-                <Button
-                  className="text-white hover:bg-white/10"
-                  onClick={() => setSelectedResume(null)}
-                >
-                  ✕
-                </Button>
-              </div>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto border border-white/20">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-white/20 flex justify-between items-center sticky top-0 bg-gray-900">
+              <h2 className="text-2xl font-bold text-white break-all">
+                {selectedResume.filename}
+              </h2>
+              <Button
+                className="text-white hover:bg-white/10"
+                onClick={() => setSelectedResume(null)}
+              >
+                ✕
+              </Button>
             </div>
-            <div className="p-6">
-              {/* Display parsed data similar to ParsedResults.jsx */}
-              <div className="space-y-6">
-                {/* Personal Information */}
-                {(selectedResume.parsed_data.name ||
-                  selectedResume.parsed_data.email ||
-                  selectedResume.parsed_data.phone) && (
-                  <Card className="bg-white/10 border-white/20">
-                    <CardHeader>
-                      <CardTitle className="text-white flex items-center">
-                        <User className="w-5 h-5 mr-2" />
-                        Personal Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-white/80">
-                      {selectedResume.parsed_data.name && (
-                        <p>
-                          <strong>Name:</strong>{" "}
-                          {selectedResume.parsed_data.name}
-                        </p>
-                      )}
-                      {selectedResume.parsed_data.email && (
-                        <p>
-                          <strong>Email:</strong>{" "}
-                          {selectedResume.parsed_data.email}
-                        </p>
-                      )}
-                      {selectedResume.parsed_data.phone && (
-                        <p>
-                          <strong>Phone:</strong>{" "}
-                          {selectedResume.parsed_data.phone}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {(selectedResume.parsed_data.name ||
+                selectedResume.parsed_data.email ||
+                selectedResume.parsed_data.phone) && (
+                <Card className="bg-white/10 border-white/20">
+                  <CardHeader>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <User className="w-5 h-5" />
+                      Personal Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-white/80">
+                    {selectedResume.parsed_data.name && (
+                      <p>
+                        <strong>Name:</strong> {selectedResume.parsed_data.name}
+                      </p>
+                    )}
+                    {selectedResume.parsed_data.email && (
+                      <p>
+                        <strong>Email:</strong> {selectedResume.parsed_data.email}
+                      </p>
+                    )}
+                    {selectedResume.parsed_data.phone && (
+                      <p>
+                        <strong>Phone:</strong> {selectedResume.parsed_data.phone}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         </div>

@@ -162,7 +162,7 @@ const Dashboard = () => {
             </p>
           </div>
           <Link to="/upload">
-            <Button className="bg-white text-black hover:bg-white/90 transition-all duration-300 hover:shadow-lg">
+            <Button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-semibold">
               <Upload className="w-4 h-4 mr-2" />
               Upload Resume
             </Button>
@@ -177,7 +177,7 @@ const Dashboard = () => {
           <div className="lg:col-span-2 space-y-8">
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="bg-gradient-to-br from-blue-600/10 to-cyan-600/5 backdrop-blur-sm border-blue-500/20 hover:border-blue-500/40 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10">
+              <Card className="bg-gradient-to-br from-blue-600/10 to-cyan-600/5 backdrop-blur-sm border-blue-500/20 hover:border-blue-500/40 transition-all duration-200">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -199,7 +199,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-purple-600/10 to-pink-600/5 backdrop-blur-sm border-purple-500/20 hover:border-purple-500/40 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10">
+              <Card className="bg-gradient-to-br from-purple-600/10 to-pink-600/5 backdrop-blur-sm border-purple-500/20 hover:border-purple-500/40 transition-all duration-200">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -218,7 +218,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="bg-gradient-to-br from-green-600/10 to-emerald-600/5 backdrop-blur-sm border-green-500/20 hover:border-green-500/40 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/10">
+              <Card className="bg-gradient-to-br from-green-600/10 to-emerald-600/5 backdrop-blur-sm border-green-500/20 hover:border-green-500/40 transition-all duration-200">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -252,7 +252,7 @@ const Dashboard = () => {
                     {getRecentResumes().map((item, index) => (
                       <div
                         key={item._id || `resume-${index}`}
-                        className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 hover:border-white/30 transition-all duration-300 hover:bg-white/8"
+                        className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10 hover:border-white/30 transition-all duration-200 hover:bg-white/8"
                       >
                         <div className="flex items-center gap-4 flex-1">
                           <div className="p-2 bg-blue-500/20 rounded">
@@ -274,7 +274,7 @@ const Dashboard = () => {
                         </div>
                         <Button
                           size="sm"
-                          className="ml-4 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg"
+                          className="ml-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white transition-all duration-200 font-medium"
                           onClick={() =>
                             navigate("/parsed-results", {
                               state: {
@@ -294,7 +294,7 @@ const Dashboard = () => {
                     <FileText className="w-12 h-12 text-white/40 mx-auto mb-4" />
                     <p className="text-white/60 mb-4">No resumes parsed yet</p>
                     <Link to="/upload">
-                      <Button className="bg-white text-black hover:bg-white/90 transition-all duration-300 hover:shadow-lg">
+                      <Button className="bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-semibold">
                         <Upload className="w-4 h-4 mr-2" />
                         Upload First Resume
                       </Button>
@@ -305,7 +305,7 @@ const Dashboard = () => {
                 {history.length > 3 && (
                   <div className="mt-6 text-center">
                     <Link to="/history">
-                      <Button className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg">
+                      <Button className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 font-semibold">
                         View All Resumes
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
@@ -327,22 +327,24 @@ const Dashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Link to="/upload">
-                  <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg">
-                    <Upload className="w-4 h-4 mr-2" />
+                <Link to="/upload" className="block">
+                  <Button className="w-full justify-start bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white transition-all duration-200 font-medium h-12">
+                    <Upload className="w-4 h-4 mr-3" />
                     Upload New Resume
                   </Button>
                 </Link>
-                <Link to="/history">
-                  <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg">
-                    <History className="w-4 h-4 mr-2" />
+                
+                <Link to="/history" className="block">
+                  <Button className="w-full justify-start bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 text-white transition-all duration-200 font-medium h-12">
+                    <History className="w-4 h-4 mr-3" />
                     View History
                   </Button>
                 </Link>
+                
                 {history.length > 0 && (
-                  <Link to="/ai-insights">
-                    <Button className="w-full justify-start bg-purple-600 hover:bg-purple-700 text-white transition-all duration-300 hover:shadow-lg">
-                      <Brain className="w-4 h-4 mr-2" />
+                  <Link to="/ai-insights" className="block">
+                    <Button className="w-full justify-start bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white transition-all duration-200 font-medium h-12">
+                      <Brain className="w-4 h-4 mr-3" />
                       Get AI Insights
                     </Button>
                   </Link>
@@ -389,7 +391,7 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <Link to="/profile">
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 hover:shadow-lg">
+                  <Button className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white transition-all duration-200 font-medium h-12">
                     Edit Profile
                   </Button>
                 </Link>
