@@ -30,10 +30,9 @@ export default function Login() {
 
     try {
       const formData = new URLSearchParams();
-      formData.append("username", email); // email used as username
+      formData.append("username", email);
       formData.append("password", password);
 
-      // UPDATED: Changed endpoint from /token to /api/v1/auth/login
       const res = await fetch("http://127.0.0.1:8000/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },

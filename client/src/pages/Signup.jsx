@@ -41,9 +41,9 @@ export default function Signup() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           full_name,
-          username: email, // email used as username
+          username: email,
           email,
-          password, // backend will hash it
+          password,
         }),
       });
 
@@ -53,7 +53,7 @@ export default function Signup() {
       }
 
       setLoading(false);
-      navigate("/login"); // Redirect to login
+      navigate("/login");
     } catch (error) {
       setErrorMessage(error.message);
       setLoading(false);
