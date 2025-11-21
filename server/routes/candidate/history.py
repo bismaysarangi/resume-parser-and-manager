@@ -3,24 +3,23 @@ from typing import List
 from bson import ObjectId
 from models.resume import ResumeHistory
 from dependencies.auth import get_current_active_user
+from dependencies.role_based_auth import require_candidate
 from core.database import db
 
 router = APIRouter()
 
-# Collection for resume history
 resume_history_collection = db["resume_history"]
 
-@router.get("/resume-history", response_model=List[ResumeHistory])
+@router.get("/resume-history", response_model=List[ResumeHistory], dependencies=[Depends(require_candidate)])
 async def get_resume_history(current_user: dict = Depends(get_current_active_user)):
     """
-    Get all resume parsing history for the current user
+    Get resume parsing history (CANDIDATE ONLY)
     """
     try:
         history = list(resume_history_collection.find(
             {"user_email": current_user.email}
         ).sort("parsed_at", -1))
         
-        # Convert ObjectId to string for JSON serialization
         for item in history:
             item["_id"] = str(item["_id"])
             
@@ -28,10 +27,10 @@ async def get_resume_history(current_user: dict = Depends(get_current_active_use
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch history: {str(e)}")
 
-@router.delete("/resume-history/{resume_id}")
+@router.delete("/resume-history/{resume_id}", dependencies=[Depends(require_candidate)])
 async def delete_resume_history(resume_id: str, current_user: dict = Depends(get_current_active_user)):
     """
-    Delete a specific resume from history
+    Delete a resume (CANDIDATE ONLY)
     """
     try:
         result = resume_history_collection.delete_one({

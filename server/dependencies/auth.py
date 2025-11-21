@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from core.config import SECRET_KEY, ALGORITHM  
 from core.database import users_collection
-from models.user import UserInDB 
+from models.user import UserInDB, UserRole
 from schemas.token import TokenData  
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -23,9 +23,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
+        role: str = payload.get("role", "candidate")
         if username is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = TokenData(username=username, role=role)
     except JWTError:
         raise credentials_exception
 
