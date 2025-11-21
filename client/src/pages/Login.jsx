@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -18,6 +19,7 @@ export default function Login() {
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,14 +47,23 @@ export default function Login() {
         throw new Error(data.detail || "Login failed");
       }
 
-      // Save token for future protected requests
-      localStorage.setItem("token", data.access_token);
+      // Create user object with role
+      const user = {
+        username: data.username,
+        role: data.role,
+      };
 
-      // Dispatch a custom event to notify navbar about login status change
-      window.dispatchEvent(new Event("authStatusChanged"));
+      // Use login from useAuth hook
+      login(data.access_token, user);
 
       setLoading(false);
-      navigate("/"); // Redirect to home
+
+      // Redirect based on role
+      if (data.role === "recruiter") {
+        navigate("/recruiter/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error) {
       setErrorMessage(error.message);
       setLoading(false);
@@ -99,43 +110,47 @@ export default function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value.trim())}
-                  className="h-12 bg-white/8 border-white/15 text-white placeholder:text-white/35 focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all duration-300"
-                  placeholder="Enter your email"
-                  required
+                  className="h-12 bg-white/8 border-white/15 text-white placeholder:text-white/35 focus:border-white/30"
+                  placeholder="Enter your full name"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label
-                  htmlFor="password"
-                  className="text-white/70 text-sm font-medium"
-                >
-                  Password
+                <Label htmlFor="companyName" className="text-white/70">
+                  Company Name
                 </Label>
                 <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value.trim())}
-                  className="h-12 bg-white/8 border-white/15 text-white placeholder:text-white/35 focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all duration-300"
-                  placeholder="Enter your password"
-                  required
+                  id="companyName"
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className="h-12 bg-white/8 border-white/15 text-white placeholder:text-white/35 focus:border-white/30"
+                  placeholder="Enter your company name"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-white/70">
+                  Email Address
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  disabled
+                  className="h-12 bg-white/8 border-white/15 text-white/50 placeholder:text-white/35 focus:border-white/30 cursor-not-allowed"
+                />
+                <p className="text-white/50 text-sm">
+                  Email cannot be changed from profile
+                </p>
               </div>
 
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 cursor-pointer bg-white hover:bg-white/90 text-gray-900 font-medium transition-all duration-300 mt-8 shadow-lg hover:shadow-white/10"
+                className="w-full h-12 bg-white hover:bg-white/90 text-gray-900 font-medium"
               >
-                {loading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-gray-400 border-t-gray-900 rounded-full animate-spin"></div>
-                    <span>Signing in...</span>
-                  </div>
-                ) : (
-                  "Sign in"
-                )}
+                {loading ? "Saving..." : "Save Changes"}
               </Button>
             </form>
 

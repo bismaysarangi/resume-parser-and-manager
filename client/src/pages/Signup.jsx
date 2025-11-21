@@ -11,24 +11,32 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Signup() {
-  const [full_name, setFullName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState("candidate");
+  const [companyName, setCompanyName] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!full_name || !email || !password || !confirmPassword) {
+    if (!fullName || !email || !password || !confirmPassword) {
       setErrorMessage("Please fill in all fields.");
       return;
     }
     if (password !== confirmPassword) {
       setErrorMessage("Passwords do not match.");
+      return;
+    }
+    if (role === "recruiter" && !companyName) {
+      setErrorMessage("Company name is required for recruiters.");
       return;
     }
 
@@ -40,10 +48,12 @@ export default function Signup() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          full_name,
+          full_name: fullName,
           username: email,
           email,
           password,
+          role,
+          company_name: role === "recruiter" ? companyName : null,
         }),
       });
 
@@ -53,7 +63,33 @@ export default function Signup() {
       }
 
       setLoading(false);
-      navigate("/login");
+
+      // Auto login after signup
+      const loginRes = await fetch("http://127.0.0.1:8000/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          username: email,
+          password: password,
+        }),
+      });
+
+      const loginData = await loginRes.json();
+      if (loginRes.ok) {
+        const user = {
+          username: loginData.username,
+          role: loginData.role,
+        };
+        login(loginData.access_token, user);
+
+        if (loginData.role === "recruiter") {
+          navigate("/recruiter/dashboard");
+        } else {
+          navigate("/dashboard");
+        }
+      } else {
+        navigate("/login");
+      }
     } catch (error) {
       setErrorMessage(error.message);
       setLoading(false);
@@ -88,7 +124,37 @@ export default function Signup() {
             )}
 
             <form className="space-y-5" onSubmit={handleSubmit}>
-              {/* Full Name Field */}
+              {/* Role Selection */}
+              <div className="space-y-3">
+                <Label className="text-white/70 text-sm font-medium">
+                  I am a:
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRole("candidate")}
+                    className={`p-3 rounded-lg border transition-all ${
+                      role === "candidate"
+                        ? "bg-white/20 border-white/40 text-white"
+                        : "bg-white/5 border-white/15 text-white/60 hover:bg-white/10"
+                    }`}
+                  >
+                    Candidate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole("recruiter")}
+                    className={`p-3 rounded-lg border transition-all ${
+                      role === "recruiter"
+                        ? "bg-white/20 border-white/40 text-white"
+                        : "bg-white/5 border-white/15 text-white/60 hover:bg-white/10"
+                    }`}
+                  >
+                    Recruiter
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label
                   htmlFor="full_name"
@@ -99,13 +165,33 @@ export default function Signup() {
                 <Input
                   id="full_name"
                   type="text"
-                  value={full_name}
+                  value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="h-12 bg-white/8 border-white/15 text-white placeholder:text-white/35 focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all duration-300"
                   placeholder="Enter your full name"
                   required
                 />
               </div>
+
+              {role === "recruiter" && (
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="company"
+                    className="text-white/70 text-sm font-medium"
+                  >
+                    Company Name
+                  </Label>
+                  <Input
+                    id="company"
+                    type="text"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className="h-12 bg-white/8 border-white/15 text-white placeholder:text-white/35 focus:border-white/30 focus:ring-1 focus:ring-white/20 transition-all duration-300"
+                    placeholder="Enter your company name"
+                    required
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label

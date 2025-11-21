@@ -13,67 +13,23 @@ import {
   Sparkles,
   FileText,
   User,
-  Home,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const LandingPage = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userProfile, setUserProfile] = useState(null);
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsVisible(true);
     }, 100);
 
-    const checkAuthStatus = async () => {
-      const token = localStorage.getItem("token"); // Using 'token' key to match login component
-      setIsLoggedIn(!!token);
-
-      // If logged in, optionally fetch user profile
-      if (token) {
-        await fetchUserProfile(token);
-      }
-    };
-
-    checkAuthStatus();
-
-    // Listen for auth status changes
-    const handleAuthChange = () => {
-      checkAuthStatus();
-    };
-
-    const handleStorageChange = () => {
-      checkAuthStatus();
-    };
-
-    window.addEventListener("authStatusChanged", handleAuthChange);
-    window.addEventListener("storage", handleStorageChange);
-
     return () => {
       clearTimeout(timer);
-      window.removeEventListener("authStatusChanged", handleAuthChange);
-      window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
-
-  const fetchUserProfile = async (token) => {
-    try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/auth/me/", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const profile = await response.json();
-        setUserProfile(profile);
-      }
-    } catch (error) {
-      console.error("Failed to fetch user profile:", error);
-    }
-  };
 
   const AnimatedText = ({ text, delay = 0 }) => {
     return (
@@ -143,6 +99,17 @@ const LandingPage = () => {
     },
   ];
 
+  if (loading) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: "rgb(34, 24, 36)" }}
+      >
+        <div className="text-white text-lg">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       {/* Hero Section - Main Color Scheme */}
@@ -191,11 +158,11 @@ const LandingPage = () => {
               }`}
             >
               <p className="text-xl md:text-2xl text-white/70 mb-8 max-w-3xl mx-auto leading-relaxed">
-                {isLoggedIn && userProfile ? (
+                {user ? (
                   <>
-                    Welcome back,{" "}
-                    {userProfile.full_name || userProfile.username}! Continue
-                    managing your resumes with our AI-powered platform.
+                    Welcome back, {user.username}! Continue managing your{" "}
+                    {user.role === "recruiter" ? "recruitment" : "career"} with
+                    our AI-powered platform.
                   </>
                 ) : (
                   <>
@@ -215,17 +182,30 @@ const LandingPage = () => {
               }`}
             >
               <div className="flex justify-center">
-                {isLoggedIn ? (
-                  <Link to="/upload">
-                    <Button
-                      size="lg"
-                      className="bg-white text-black hover:bg-white/90 transition-all duration-300 px-8 py-6 text-lg font-semibold group hover:scale-105 shadow-lg"
-                    >
-                      <Upload className="w-5 h-5 mr-2 transition-transform duration-300 group-hover:rotate-12" />
-                      Upload Resume
-                      <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
-                    </Button>
-                  </Link>
+                {user ? (
+                  user.role === "recruiter" ? (
+                    <Link to="/recruiter/dashboard">
+                      <Button
+                        size="lg"
+                        className="bg-white text-black hover:bg-white/90 transition-all duration-300 px-8 py-6 text-lg font-semibold group hover:scale-105 shadow-lg"
+                      >
+                        <Users className="w-5 h-5 mr-2 transition-transform duration-300 group-hover:rotate-12" />
+                        Recruiter Dashboard
+                        <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Link to="/upload">
+                      <Button
+                        size="lg"
+                        className="bg-white text-black hover:bg-white/90 transition-all duration-300 px-8 py-6 text-lg font-semibold group hover:scale-105 shadow-lg"
+                      >
+                        <Upload className="w-5 h-5 mr-2 transition-transform duration-300 group-hover:rotate-12" />
+                        Upload Resume
+                        <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
+                      </Button>
+                    </Link>
+                  )
                 ) : (
                   <Link to="/login">
                     <Button
@@ -262,11 +242,13 @@ const LandingPage = () => {
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              {isLoggedIn ? "Your Tools" : "Powerful Features"}
+              {user ? "Your Tools" : "Powerful Features"}
             </h2>
             <p className="text-xl text-white/70 max-w-2xl mx-auto">
-              {isLoggedIn
-                ? "Access all the tools you need to manage your recruitment process effectively."
+              {user
+                ? user.role === "recruiter"
+                  ? "Access all the tools you need to manage your recruitment process effectively."
+                  : "Access all the tools you need to enhance your career profile."
                 : "Everything you need to streamline your recruitment process and make better hiring decisions."}
             </p>
           </div>
@@ -308,7 +290,7 @@ const LandingPage = () => {
               Why Choose Us?
             </h2>
             <p className="text-xl text-white/70 max-w-2xl mx-auto">
-              {isLoggedIn
+              {user
                 ? "You've already made the right choice! Here's why thousands trust our platform."
                 : "Join thousands of companies who trust our platform for their recruitment needs."}
             </p>
@@ -349,38 +331,66 @@ const LandingPage = () => {
           >
             <CardContent className="p-12 text-center">
               <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-                {isLoggedIn
-                  ? "Ready to Continue Your Work?"
+                {user
+                  ? user.role === "recruiter"
+                    ? "Ready to Find Top Talent?"
+                    : "Ready to Continue Your Work?"
                   : "Ready to Transform Your Hiring?"}
               </h2>
               <p className="text-xl text-white/70 mb-8 max-w-2xl mx-auto">
-                {isLoggedIn
-                  ? "Access your dashboard and continue managing your resumes with our powerful tools."
+                {user
+                  ? user.role === "recruiter"
+                    ? "Browse our candidate database and find the perfect fit for your team."
+                    : "Access your dashboard and continue managing your resumes with our powerful tools."
                   : "Start parsing resumes smarter, not harder. Join our platform today and experience the future of recruitment."}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                {isLoggedIn ? (
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Link to="/upload">
-                      <Button
-                        size="lg"
-                        className="bg-white text-black hover:bg-white/90 transition-all duration-300 px-8 py-6 text-lg font-semibold hover:scale-105 shadow-lg"
-                      >
-                        <Upload className="w-5 h-5 mr-2" />
-                        Upload Resume
-                      </Button>
-                    </Link>
-                    <Link to="/parsed-results">
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        className="bg-transparent hover:bg-white/10 text-white border-white/30 hover:border-white/50 px-8 py-6 text-lg font-semibold hover:scale-105 transition-all duration-300"
-                      >
-                        <FileText className="w-5 h-5 mr-2" />
-                        View Results
-                      </Button>
-                    </Link>
-                  </div>
+                {user ? (
+                  user.role === "recruiter" ? (
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <Link to="/recruiter/candidates">
+                        <Button
+                          size="lg"
+                          className="bg-white text-black hover:bg-white/90 transition-all duration-300 px-8 py-6 text-lg font-semibold hover:scale-105 shadow-lg"
+                        >
+                          <Users className="w-5 h-5 mr-2" />
+                          Browse Candidates
+                        </Button>
+                      </Link>
+                      <Link to="/recruiter/dashboard">
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="bg-transparent hover:bg-white/10 text-white border-white/30 hover:border-white/50 px-8 py-6 text-lg font-semibold hover:scale-105 transition-all duration-300"
+                        >
+                          <FileText className="w-5 h-5 mr-2" />
+                          Dashboard
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <Link to="/upload">
+                        <Button
+                          size="lg"
+                          className="bg-white text-black hover:bg-white/90 transition-all duration-300 px-8 py-6 text-lg font-semibold hover:scale-105 shadow-lg"
+                        >
+                          <Upload className="w-5 h-5 mr-2" />
+                          Upload Resume
+                        </Button>
+                      </Link>
+                      <Link to="/parsed-results">
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="bg-transparent hover:bg-white/10 text-white border-white/30 hover:border-white/50 px-8 py-6 text-lg font-semibold hover:scale-105 transition-all duration-300"
+                        >
+                          <FileText className="w-5 h-5 mr-2" />
+                          View Results
+                        </Button>
+                      </Link>
+                    </div>
+                  )
                 ) : (
                   <>
                     <Link to="/login">

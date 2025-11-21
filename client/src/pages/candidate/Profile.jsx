@@ -10,11 +10,24 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { User, Mail, Lock, Edit2, Save, X, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
+import {
+  User,
+  Mail,
+  Lock,
+  Edit2,
+  Save,
+  X,
+  CheckCircle,
+  AlertCircle,
+  ArrowLeft,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { token } = useAuth();
+
   const [formData, setFormData] = useState({
     full_name: "",
     email: "",
@@ -30,7 +43,6 @@ export default function Profile() {
 
   // Fetch profile data on load
   useEffect(() => {
-    const token = localStorage.getItem("token");
     if (!token) {
       setErrorMessage("Please log in first.");
       setFetchingProfile(false);
@@ -59,7 +71,7 @@ export default function Profile() {
       })
       .catch(() => setErrorMessage("Server error while fetching profile."))
       .finally(() => setFetchingProfile(false));
-  }, []);
+  }, [token]);
 
   // Handle input changes
   const handleChange = (e) => {
@@ -85,8 +97,6 @@ export default function Profile() {
     setLoading(true);
     setMessage("");
     setErrorMessage("");
-
-    const token = localStorage.getItem("token");
 
     // Prepare update data - only include changed fields
     const updateData = {};
@@ -133,10 +143,10 @@ export default function Profile() {
         full_name: data.user?.full_name || formData.full_name,
         email: data.user?.email || formData.email,
       });
-      setFormData({ 
+      setFormData({
         full_name: data.user?.full_name || formData.full_name,
         email: data.user?.email || formData.email,
-        password: "" 
+        password: "",
       });
       setEditMode(false);
       setShowBackButton(true);
@@ -160,7 +170,7 @@ export default function Profile() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4"
+      className="min-h-screen flex items-center justify-center p-4 pt-20"
       style={{ backgroundColor: "rgb(34, 24, 36)" }}
     >
       <div className="w-full max-w-2xl">
@@ -297,7 +307,8 @@ export default function Profile() {
                     placeholder="Leave blank to keep current password"
                   />
                   <p className="text-white/50 text-xs mt-2">
-                    Leave this field empty if you don't want to change your password
+                    Leave this field empty if you don't want to change your
+                    password
                   </p>
                 </div>
               )}
@@ -352,7 +363,8 @@ export default function Profile() {
             {!editMode && (
               <div className="mt-8 p-4 bg-white/5 border border-white/10 rounded-xl backdrop-blur-sm">
                 <p className="text-white/60 text-sm text-center">
-                  Keep your profile information up to date for the best experience
+                  Keep your profile information up to date for the best
+                  experience
                 </p>
               </div>
             )}
