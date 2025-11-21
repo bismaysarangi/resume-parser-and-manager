@@ -13,6 +13,8 @@ import {
   Info,
   Clock,
   BarChart3,
+  Users,
+  Building2,
 } from "lucide-react";
 
 const Navbar = () => {
@@ -59,7 +61,6 @@ const Navbar = () => {
 
   const fetchUserProfile = async (token) => {
     try {
-      // UPDATED: Changed endpoint from /users/me/ to /auth/me
       const response = await fetch("http://127.0.0.1:8000/api/v1/auth/me", {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -115,18 +116,39 @@ const Navbar = () => {
     };
   }, [isMobileMenuOpen]);
 
-  // Navigation items based on auth status
+  // Navigation items based on auth status and role
   const publicNavItems = [{ to: "/about", label: "About", icon: Info }];
 
-  const privateNavItems = [
-    { to: "/upload", label: "Upload", icon: Upload },
-    { to: "/parsed-results", label: "Results", icon: FileText },
-    { to: "/ai-insights", label: "AI Insights", icon: Brain },
-    { to: "/history", label: "History", icon: Clock },
-    { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
+  const candidateNavItems = [
+    { to: "/candidate/upload", label: "Upload", icon: Upload },
+    { to: "/candidate/parsed-results", label: "Results", icon: FileText },
+    { to: "/candidate/ai-insights", label: "AI Insights", icon: Brain },
+    { to: "/candidate/history", label: "History", icon: Clock },
+    { to: "/candidate/dashboard", label: "Dashboard", icon: BarChart3 },
   ];
 
-  const navItems = isLoggedIn ? privateNavItems : publicNavItems;
+  const recruiterNavItems = [
+    { to: "/recruiter/dashboard", label: "Dashboard", icon: BarChart3 },
+    { to: "/recruiter/candidates", label: "Candidates", icon: Users },
+    { to: "/recruiter/saved", label: "Saved", icon: FileText },
+  ];
+
+  // Determine which nav items to show
+  const getNavItems = () => {
+    if (!isLoggedIn) return publicNavItems;
+    if (userProfile?.role === "recruiter") return recruiterNavItems;
+    return candidateNavItems;
+  };
+
+  const navItems = getNavItems();
+
+  // Get profile link based on role
+  const getProfileLink = () => {
+    if (!userProfile) return "/profile";
+    return userProfile.role === "recruiter"
+      ? "/recruiter/profile"
+      : "/candidate/profile";
+  };
 
   return (
     <nav
@@ -145,12 +167,16 @@ const Navbar = () => {
               to="/"
               className="flex items-center text-xl font-semibold text-white hover:text-white/80 transition-all duration-300 hover:tracking-wide"
             >
-              <FileText className="h-5 w-5 mr-2" />
+              {userProfile?.role === "recruiter" ? (
+                <Building2 className="h-5 w-5 mr-2" />
+              ) : (
+                <FileText className="h-5 w-5 mr-2" />
+              )}
               <span>Resume Parser</span>
             </Link>
           </div>
 
-          {/* Desktop Navigation - UPDATED: Added icons to nav items */}
+          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => {
               const IconComponent = item.icon;
@@ -172,9 +198,26 @@ const Navbar = () => {
           <div className="hidden md:flex items-center space-x-4">
             {isLoggedIn ? (
               <div className="flex items-center space-x-4">
+                {/* Role Badge */}
+                {userProfile?.role && (
+                  <div className="flex items-center space-x-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-md text-xs text-white/70">
+                    {userProfile.role === "recruiter" ? (
+                      <>
+                        <Building2 className="h-3 w-3" />
+                        <span>Recruiter</span>
+                      </>
+                    ) : (
+                      <>
+                        <User className="h-3 w-3" />
+                        <span>Candidate</span>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {/* Profile Button */}
                 <Link
-                  to="/profile"
+                  to={getProfileLink()}
                   className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 backdrop-blur-sm transition-all duration-300 px-4 py-2 rounded-md text-sm"
                 >
                   <User className="h-4 w-4" />
@@ -250,19 +293,39 @@ const Navbar = () => {
                   {/* Mobile Header */}
                   <div className="p-6 border-b border-white/20">
                     <div className="flex items-center space-x-2">
-                      <FileText className="w-6 h-6 text-white" />
+                      {userProfile?.role === "recruiter" ? (
+                        <Building2 className="w-6 h-6 text-white" />
+                      ) : (
+                        <FileText className="w-6 h-6 text-white" />
+                      )}
                       <span className="text-xl font-bold text-white">
                         Resume Parser
                       </span>
                     </div>
                     {isLoggedIn && userProfile && (
-                      <div className="mt-3 text-sm text-white/60">
-                        Welcome, {userProfile.full_name || userProfile.username}
+                      <div className="mt-3">
+                        <div className="text-sm text-white/60">
+                          Welcome,{" "}
+                          {userProfile.full_name || userProfile.username}
+                        </div>
+                        <div className="flex items-center space-x-1 mt-2 text-xs text-white/50">
+                          {userProfile.role === "recruiter" ? (
+                            <>
+                              <Building2 className="h-3 w-3" />
+                              <span>Recruiter Account</span>
+                            </>
+                          ) : (
+                            <>
+                              <User className="h-3 w-3" />
+                              <span>Candidate Account</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {/* Mobile Navigation Links - UPDATED: Added icons */}
+                  {/* Mobile Navigation Links */}
                   <div className="flex-1 overflow-y-auto p-6 space-y-2">
                     <div className="text-sm font-semibold text-white/60 mb-6 uppercase tracking-wide">
                       Navigation
@@ -287,7 +350,7 @@ const Navbar = () => {
                     {/* Profile link for logged in users */}
                     {isLoggedIn && (
                       <Link
-                        to="/profile"
+                        to={getProfileLink()}
                         className="flex items-center px-4 py-4 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 touch-manipulation relative group"
                         onClick={() => setIsMobileMenuOpen(false)}
                       >

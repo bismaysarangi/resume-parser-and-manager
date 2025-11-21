@@ -195,7 +195,7 @@ const LandingPage = () => {
                       </Button>
                     </Link>
                   ) : (
-                    <Link to="/upload">
+                    <Link to="/candidate/upload">
                       <Button
                         size="lg"
                         className="bg-white text-black hover:bg-white/90 transition-all duration-300 px-8 py-6 text-lg font-semibold group hover:scale-105 shadow-lg"

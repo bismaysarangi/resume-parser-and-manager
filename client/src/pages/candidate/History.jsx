@@ -33,11 +33,14 @@ const HistoryPage = () => {
   const fetchResumeHistory = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://127.0.0.1:8000/api/resume-history", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get(
+        "http://127.0.0.1:8000/api/resume-history",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       setHistory(response.data);
     } catch (error) {
       console.error("Error fetching resume history:", error);
@@ -58,9 +61,7 @@ const HistoryPage = () => {
 
   if (loading) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center bg-[#221824]"
-      >
+      <div className="min-h-screen flex items-center justify-center bg-[#221824]">
         <div className="text-white text-xl">Loading...</div>
       </div>
     );
@@ -73,8 +74,8 @@ const HistoryPage = () => {
         <div className="container mx-auto max-w-6xl flex justify-between items-center">
           <Link to="/">
             {/* <Button className="bg-amber-100 hover:bg-amber-200 text-black transition-all duration-300 hover:shadow-lg"> */}
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              
+            <ArrowLeft className="w-4 h-4 mr-2" />
+
             {/* </Button> */}
           </Link>
           <h1 className="text-2xl font-bold text-white text-center w-full -ml-10 md:ml-0">
@@ -95,7 +96,7 @@ const HistoryPage = () => {
               <p className="text-white/70 mb-6">
                 You haven't parsed any resumes yet.
               </p>
-              <Link to="/upload">
+              <Link to="/candidate/upload">
                 <Button className="bg-white text-black hover:bg-white/90 transition-all duration-300 hover:shadow-lg">
                   Upload Your First Resume
                 </Button>
@@ -130,7 +131,9 @@ const HistoryPage = () => {
                           {item.parsed_data.name && (
                             <div className="flex items-center gap-2 text-white/80">
                               <User className="w-4 h-4 text-green-400" />
-                              <span className="text-sm">{item.parsed_data.name}</span>
+                              <span className="text-sm">
+                                {item.parsed_data.name}
+                              </span>
                             </div>
                           )}
                           {item.parsed_data.email && (
@@ -144,7 +147,9 @@ const HistoryPage = () => {
                           {item.parsed_data.phone && (
                             <div className="flex items-center gap-2 text-white/80">
                               <Phone className="w-4 h-4 text-purple-400" />
-                              <span className="text-sm">{item.parsed_data.phone}</span>
+                              <span className="text-sm">
+                                {item.parsed_data.phone}
+                              </span>
                             </div>
                           )}
                           {item.parsed_data.experience &&
@@ -152,7 +157,8 @@ const HistoryPage = () => {
                               <div className="flex items-center gap-2 text-white/80">
                                 <Briefcase className="w-4 h-4 text-orange-400" />
                                 <span className="text-sm">
-                                  {item.parsed_data.experience.length} experiences
+                                  {item.parsed_data.experience.length}{" "}
+                                  experiences
                                 </span>
                               </div>
                             )}
@@ -169,14 +175,16 @@ const HistoryPage = () => {
                                 </span>
                               </div>
                               <div className="flex flex-wrap gap-2">
-                                {item.parsed_data.skills.slice(0, 5).map((skill, idx) => (
-                                  <span
-                                    key={`skill-${item._id}-${idx}`}
-                                    className="px-2 py-1 bg-cyan-500/20 rounded text-cyan-300 text-xs"
-                                  >
-                                    {skill}
-                                  </span>
-                                ))}
+                                {item.parsed_data.skills
+                                  .slice(0, 5)
+                                  .map((skill, idx) => (
+                                    <span
+                                      key={`skill-${item._id}-${idx}`}
+                                      className="px-2 py-1 bg-cyan-500/20 rounded text-cyan-300 text-xs"
+                                    >
+                                      {skill}
+                                    </span>
+                                  ))}
                                 {item.parsed_data.skills.length > 5 && (
                                   <span className="px-2 py-1 bg-white/10 rounded text-white/60 text-xs">
                                     +{item.parsed_data.skills.length - 5} more
@@ -244,12 +252,14 @@ const HistoryPage = () => {
                     )}
                     {selectedResume.parsed_data.email && (
                       <p>
-                        <strong>Email:</strong> {selectedResume.parsed_data.email}
+                        <strong>Email:</strong>{" "}
+                        {selectedResume.parsed_data.email}
                       </p>
                     )}
                     {selectedResume.parsed_data.phone && (
                       <p>
-                        <strong>Phone:</strong> {selectedResume.parsed_data.phone}
+                        <strong>Phone:</strong>{" "}
+                        {selectedResume.parsed_data.phone}
                       </p>
                     )}
                   </CardContent>

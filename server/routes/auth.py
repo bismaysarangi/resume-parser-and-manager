@@ -7,8 +7,18 @@ from core.config import ACCESS_TOKEN_EXPIRE_MINUTES
 from models.user import UserCreate, UserInDB, UserOut, UserRole
 from schemas.token import Token
 from dependencies.auth import get_user_by_email, get_current_active_user
+from pydantic import BaseModel
+from typing import Optional
 
 router = APIRouter()
+
+class SignupRequest(BaseModel):
+    username: str
+    email: str
+    full_name: Optional[str] = None
+    password: str
+    role: UserRole = UserRole.CANDIDATE
+    company_name: Optional[str] = None
 
 def authenticate_user(email: str, password: str):
     user = get_user_by_email(email)
@@ -16,7 +26,7 @@ def authenticate_user(email: str, password: str):
         return False
     return user
 
-def create_user(user: UserCreate):
+def create_user(user: SignupRequest):
     hashed_password = get_password_hash(user.password)
     user_dict = {
         "username": user.username,
@@ -24,18 +34,22 @@ def create_user(user: UserCreate):
         "full_name": user.full_name or "",
         "hashed_password": hashed_password,
         "disabled": False,
-        "role": user.role.value,  # Store role as string
-        "company_name": None,
+        "role": user.role.value,
+        "company_name": user.company_name if user.role == UserRole.RECRUITER else None,
         "created_at": datetime.utcnow().isoformat()
     }
     users_collection.insert_one(user_dict)
     return UserInDB(**user_dict)
 
 @router.post("/signup", response_model=UserOut)
-async def signup(user: UserCreate):
+async def signup(user: SignupRequest):
     existing_user = get_user_by_email(user.email)
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
+    
+    # Validate company_name for recruiters
+    if user.role == UserRole.RECRUITER and not user.company_name:
+        raise HTTPException(status_code=400, detail="Company name is required for recruiters")
     
     new_user = create_user(user)
     print(f"New {user.role.value} created: {new_user.email}")

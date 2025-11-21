@@ -18,7 +18,7 @@ import Dashboard from "./pages/candidate/Dashboard";
 import Profile from "./pages/candidate/Profile";
 
 // Recruiter Pages
-import RecruiterDashboard from "./pages/recruiter/RecruiterDashboard";
+import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
 
 // Protected Route Component
 function ProtectedRoute({ children, requiredRole }) {
@@ -118,10 +118,10 @@ function App() {
 
         {/* Recruiter Routes */}
         <Route
-          path="/recruiter/dashboard"
+          path="/recruiter/profile"
           element={
             <ProtectedRoute requiredRole="recruiter">
-              <RecruiterDashboard />
+              <RecruiterProfile />
             </ProtectedRoute>
           }
         />

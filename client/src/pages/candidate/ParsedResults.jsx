@@ -40,7 +40,7 @@ const ParsedResults = () => {
               No Data Found
             </h2>
             <p className="text-white/70 mb-6">Please upload a resume first.</p>
-            <Link to="/upload">
+            <Link to="/candidate/upload">
               <Button className="bg-white text-black hover:bg-white/90">
                 Go to Upload
               </Button>

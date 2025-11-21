@@ -327,22 +327,22 @@ const Dashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Link to="/upload" className="block">
+                <Link to="/candidate/upload" className="block">
                   <Button className="w-full justify-start bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white transition-all duration-200 font-medium h-12">
                     <Upload className="w-4 h-4 mr-3" />
                     Upload New Resume
                   </Button>
                 </Link>
-                
-                <Link to="/history" className="block">
+
+                <Link to="/candidate/history" className="block">
                   <Button className="w-full justify-start bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 text-white transition-all duration-200 font-medium h-12">
                     <History className="w-4 h-4 mr-3" />
                     View History
                   </Button>
                 </Link>
-                
+
                 {history.length > 0 && (
-                  <Link to="/ai-insights" className="block">
+                  <Link to="/candidate/ai-insights" className="block">
                     <Button className="w-full justify-start bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white transition-all duration-200 font-medium h-12">
                       <Brain className="w-4 h-4 mr-3" />
                       Get AI Insights

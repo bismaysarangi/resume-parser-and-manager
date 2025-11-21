@@ -131,7 +131,7 @@ const UploadPage = () => {
       console.log("Sending upload request with token:", token);
 
       const response = await axios.post(
-        "http://127.0.0.1:8000/api/parse-resume",
+        "http://127.0.0.1:8000/api/candidate/parse-resume",
         formData,
         {
           headers: {
@@ -181,7 +181,7 @@ const UploadPage = () => {
 
   const handleNavigateToParsed = () => {
     if (result) {
-      navigate("/parsed-results", {
+      navigate("/candidate/parsed-results", {
         state: { parsedData: result, fileName: uploadedFile.name },
       });
     }
@@ -189,7 +189,7 @@ const UploadPage = () => {
 
   const handleNavigateToInsights = () => {
     if (result) {
-      navigate("/ai-insights", {
+      navigate("/candidate/ai-insights", {
         state: { parsedData: result, fileName: uploadedFile.name },
       });
     }

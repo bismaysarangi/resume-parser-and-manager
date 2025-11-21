@@ -128,7 +128,7 @@ const AiInsights = () => {
             <p className="text-white/70 mb-6">
               Please upload and parse a resume first.
             </p>
-            <Link to="/upload">
+            <Link to="/candidate/upload">
               <Button className="bg-white text-black hover:bg-white/90">
                 Go to Upload
               </Button>
@@ -349,7 +349,7 @@ const AiInsights = () => {
                 variant="outline"
                 className="border-white/20 text-black hover:bg-white/10"
                 onClick={() =>
-                  navigate("/parsed-results", {
+                  navigate("/candidate/parsed-results", {
                     state: { parsedData, fileName },
                   })
                 }

@@ -111,38 +111,25 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value.trim())}
                   className="h-12 bg-white/8 border-white/15 text-white placeholder:text-white/35 focus:border-white/30"
-                  placeholder="Enter your full name"
+                  placeholder="Enter your email"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="companyName" className="text-white/70">
-                  Company Name
+                <Label
+                  htmlFor="password"
+                  className="text-white/70 text-sm font-medium"
+                >
+                  Password
                 </Label>
                 <Input
-                  id="companyName"
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value.trim())}
                   className="h-12 bg-white/8 border-white/15 text-white placeholder:text-white/35 focus:border-white/30"
-                  placeholder="Enter your company name"
+                  placeholder="Enter your password"
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-white/70">
-                  Email Address
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  disabled
-                  className="h-12 bg-white/8 border-white/15 text-white/50 placeholder:text-white/35 focus:border-white/30 cursor-not-allowed"
-                />
-                <p className="text-white/50 text-sm">
-                  Email cannot be changed from profile
-                </p>
               </div>
 
               <Button
@@ -150,7 +137,14 @@ export default function Login() {
                 disabled={loading}
                 className="w-full h-12 bg-white hover:bg-white/90 text-gray-900 font-medium"
               >
-                {loading ? "Saving..." : "Save Changes"}
+                {loading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-gray-400 border-t-gray-900 rounded-full animate-spin"></div>
+                    <span>Signing in...</span>
+                  </div>
+                ) : (
+                  "Sign in"
+                )}
               </Button>
             </form>
 
