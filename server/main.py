@@ -25,11 +25,6 @@ app.include_router(
     prefix="/api/candidate", 
     tags=["candidate-resume"]
 )
-app.include_router(
-    candidate_history.router, 
-    prefix="/api/candidate", 
-    tags=["candidate-history"]
-)
 
 from routes.recruiter import candidates as recruiter_candidates
 app.include_router(
