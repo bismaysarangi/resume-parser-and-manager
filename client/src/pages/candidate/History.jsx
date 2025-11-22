@@ -34,7 +34,7 @@ const HistoryPage = () => {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        "http://127.0.0.1:8000/api/resume-history",
+        "http://127.0.0.1:8000/api/candidate/resume-history",
         {
           headers: {
             Authorization: `Bearer ${token}`,

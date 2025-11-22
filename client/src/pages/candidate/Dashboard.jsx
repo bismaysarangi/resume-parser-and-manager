@@ -57,7 +57,7 @@ const Dashboard = () => {
 
       // Fetch resume history
       const historyResponse = await axios.get(
-        "http://127.0.0.1:8000/api/resume-history",
+        "http://127.0.0.1:8000/api/candidate/resume-history",
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -390,7 +390,7 @@ const Dashboard = () => {
                     <p className="text-white/60 text-sm">Account Type</p>
                   </div>
                 </div>
-                <Link to="/profile">
+                <Link to="/candidate/profile">
                   <Button className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white transition-all duration-200 font-medium h-12">
                     Edit Profile
                   </Button>

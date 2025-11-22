@@ -22,9 +22,13 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 const ParsedResults = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { parsedData, fileName } = location.state || {};
+  const { parsedData: rawData, fileName } = location.state || {};
+
+  // Extract the actual data - handle both nested and direct formats
+  const parsedData = rawData?.data || rawData;
 
   // Debug: Log the parsed data to see its structure
+  console.log("Raw Data:", rawData);
   console.log("Parsed Data:", parsedData);
 
   if (!parsedData) {
@@ -80,13 +84,11 @@ const ParsedResults = () => {
 
   return (
     <div
-      className="min-h-screen pt-16" // Added pt-16 to account for navbar height
+      className="min-h-screen pt-16"
       style={{ backgroundColor: "rgb(34, 24, 36)" }}
     >
       {/* Main content with proper top padding */}
       <div className="container mx-auto max-w-7xl py-6 sm:py-8 px-4 sm:px-6 mt-4">
-        {" "}
-        {/* Added mt-4 */}
         <div className="space-y-6">
           {/* Personal Information */}
           {(parsedData.name || parsedData.email || parsedData.phone) && (
@@ -288,7 +290,7 @@ const ParsedResults = () => {
             </Card>
           )}
 
-          {/* Skills - FIXED: Using the special skills validation */}
+          {/* Skills */}
           {hasValidSkills(parsedData.skills) ? (
             <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:border-white/30 transition-all">
               <CardHeader className="pb-4">
@@ -306,7 +308,6 @@ const ParsedResults = () => {
               <CardContent>
                 <div className="flex flex-wrap gap-2">
                   {parsedData.skills.map((skill, index) => {
-                    // Handle different skill formats
                     const skillText =
                       typeof skill === "string"
                         ? skill
@@ -432,7 +433,7 @@ const ParsedResults = () => {
           )}
 
           {/* Academic Marks */}
-          {(parsedData["10th Marks"] || parsedData["12th Marks"]) && (
+          {(parsedData.tenth_marks || parsedData.twelfth_marks) && (
             <Card className="bg-gradient-to-br from-purple-600/10 to-pink-600/5 backdrop-blur-sm border-purple-500/20 hover:border-purple-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg sm:text-xl">
@@ -444,7 +445,7 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  {parsedData["10th Marks"] && (
+                  {parsedData.tenth_marks && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Award className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -452,12 +453,12 @@ const ParsedResults = () => {
                           10th Grade Marks
                         </p>
                         <p className="text-white font-medium text-sm sm:text-base">
-                          {parsedData["10th Marks"]}
+                          {parsedData.tenth_marks}
                         </p>
                       </div>
                     </div>
                   )}
-                  {parsedData["12th Marks"] && (
+                  {parsedData.twelfth_marks && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Award className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -465,7 +466,7 @@ const ParsedResults = () => {
                           12th Grade Marks
                         </p>
                         <p className="text-white font-medium text-sm sm:text-base">
-                          {parsedData["12th Marks"]}
+                          {parsedData.twelfth_marks}
                         </p>
                       </div>
                     </div>
@@ -481,7 +482,9 @@ const ParsedResults = () => {
             size="lg"
             className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-6 text-base sm:text-lg font-semibold w-full sm:w-auto"
             onClick={() =>
-              navigate("/ai-insights", { state: { parsedData, fileName } })
+              navigate("/candidate/ai-insights", {
+                state: { parsedData, fileName },
+              })
             }
           >
             <Brain className="w-5 h-5 mr-2" />

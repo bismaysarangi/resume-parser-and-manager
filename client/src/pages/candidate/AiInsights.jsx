@@ -42,14 +42,17 @@ const AiInsights = () => {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("http://127.0.0.1:8000/api/ai-insights", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ resume_data: parsedData }),
-      });
+      const response = await fetch(
+        "http://127.0.0.1:8000/api/candidate/ai-insights",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ resume_data: parsedData }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to generate insights");
@@ -341,7 +344,7 @@ const AiInsights = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
               <Button
                 className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
-                onClick={() => navigate("/upload")}
+                onClick={() => navigate("/candidate/upload")}
               >
                 Upload Another Resume
               </Button>

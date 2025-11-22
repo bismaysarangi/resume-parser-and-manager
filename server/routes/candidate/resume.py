@@ -1,88 +1,77 @@
-from fastapi import APIRouter, HTTPException, status, Depends
-from fastapi.security import OAuth2PasswordRequestForm
-from datetime import timedelta, datetime
-from core.database import users_collection
-from core.security import verify_password, get_password_hash, create_access_token
-from core.config import ACCESS_TOKEN_EXPIRE_MINUTES
-from models.user import UserCreate, UserInDB, UserOut, UserRole
-from schemas.token import Token
-from dependencies.auth import get_user_by_email, get_current_active_user
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
+from pydantic import BaseModel
+from dependencies.auth import get_current_active_user
+from dependencies.role_based_auth import require_candidate
+from services.resume_parser import parse_resume
+from models.resume import ResumeHistory, ResumeData
+from core.database import db
+from datetime import datetime
 
 router = APIRouter()
 
-def authenticate_user(email: str, password: str):
-    user = get_user_by_email(email)
-    if not user or not verify_password(password, user.hashed_password):
-        return False
-    return user
+resume_history_collection = db["resume_history"]
 
-def create_user(user: UserCreate):
-    hashed_password = get_password_hash(user.password)
-    user_dict = {
-        "username": user.username,
-        "email": user.email,
-        "full_name": user.full_name or "",
-        "hashed_password": hashed_password,
-        "disabled": False,
-        "role": user.role.value,  # Store role as string
-        "company_name": None,
-        "created_at": datetime.utcnow().isoformat()
-    }
-    users_collection.insert_one(user_dict)
-    return UserInDB(**user_dict)
+# Request model for AI insights
+class AIInsightsRequest(BaseModel):
+    resume_data: dict
 
-@router.post("/signup", response_model=UserOut)
-async def signup(user: UserCreate):
-    existing_user = get_user_by_email(user.email)
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    new_user = create_user(user)
-    print(f"New {user.role.value} created: {new_user.email}")
-    
-    return UserOut(
-        username=new_user.username,
-        email=new_user.email,
-        full_name=new_user.full_name,
-        disabled=new_user.disabled,
-        role=UserRole(new_user.role),
-        company_name=new_user.company_name
-    )
-
-@router.post("/login", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+@router.post("/parse-resume", dependencies=[Depends(require_candidate)])
+async def parse_resume_endpoint(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Parse uploaded resume (CANDIDATE ONLY)
+    """
+    try:
+        # Parse the resume
+        parsed_data = await parse_resume(file)
+        
+        # Create resume data object
+        resume_data = ResumeData(
+            name=parsed_data.get("name"),
+            email=parsed_data.get("email"),
+            phone=parsed_data.get("phone"),
+            education=parsed_data.get("education", []),
+            skills=parsed_data.get("skills", []),
+            experience=parsed_data.get("experience", []),
+            projects=parsed_data.get("projects", []),
+            tenth_marks=parsed_data.get("10th Marks"),
+            twelfth_marks=parsed_data.get("12th Marks")
         )
-    
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email, "role": user.role}, 
-        expires_delta=access_token_expires
-    )
-    
-    return {
-        "access_token": access_token, 
-        "token_type": "bearer",
-        "role": UserRole(user.role),
-        "username": user.username
-    }
+        
+        # Save to history
+        history_entry = {
+            "user_email": current_user.email,
+            "filename": parsed_data.get("filename"),
+            "parsed_data": resume_data.dict(),
+            "parsed_at": datetime.utcnow()
+        }
+        
+        resume_history_collection.insert_one(history_entry)
+        
+        return {
+            "message": "Resume parsed successfully",
+            "data": resume_data.dict(),
+            "filename": parsed_data.get("filename")
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse resume: {str(e)}")
 
-@router.get("/me", response_model=UserOut)
-async def read_users_me(current_user: UserInDB = Depends(get_current_active_user)):
-    return UserOut(
-        username=current_user.username,
-        email=current_user.email,
-        full_name=current_user.full_name,
-        disabled=current_user.disabled,
-        role=UserRole(current_user.role),
-        company_name=current_user.company_name
-    )
-
-@router.get("/me/items")
-async def read_own_items(current_user: UserInDB = Depends(get_current_active_user)):
-    return [{"item_id": 1, "owner": current_user.username}]
+@router.post("/ai-insights", dependencies=[Depends(require_candidate)])
+async def get_ai_insights(
+    request: AIInsightsRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Generate AI insights for resume (CANDIDATE ONLY)
+    """
+    try:
+        from services.ai_insights import generate_insights
+        insights = await generate_insights(request.resume_data)
+        return insights
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate insights: {str(e)}")
