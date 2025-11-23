@@ -57,7 +57,7 @@ const Navbar = () => {
       window.removeEventListener("authStatusChanged", handleAuthChange);
       window.removeEventListener("storage", handleStorageChange);
     };
-  }, []);
+  }, [navigate]);
 
   const fetchUserProfile = async (token) => {
     try {

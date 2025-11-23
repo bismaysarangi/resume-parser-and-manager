@@ -63,33 +63,8 @@ export default function Signup() {
       }
 
       setLoading(false);
-
-      // Auto login after signup
-      const loginRes = await fetch("http://127.0.0.1:8000/api/v1/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          username: email,
-          password: password,
-        }),
-      });
-
-      const loginData = await loginRes.json();
-      if (loginRes.ok) {
-        const user = {
-          username: loginData.username,
-          role: loginData.role,
-        };
-        login(loginData.access_token, user);
-
-        if (loginData.role === "recruiter") {
-          navigate("/recruiter/dashboard");
-        } else {
-          navigate("/dashboard");
-        }
-      } else {
-        navigate("/login");
-      }
+      navigate("/login");
+      
     } catch (error) {
       setErrorMessage(error.message);
       setLoading(false);
