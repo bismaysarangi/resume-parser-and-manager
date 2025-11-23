@@ -184,13 +184,13 @@ const LandingPage = () => {
               <div className="flex justify-center">
                 {user ? (
                   user.role === "recruiter" ? (
-                    <Link to="/recruiter/dashboard">
+                    <Link to="/recruiter/bulk-upload">
                       <Button
                         size="lg"
                         className="bg-white text-black hover:bg-white/90 transition-all duration-300 px-8 py-6 text-lg font-semibold group hover:scale-105 shadow-lg"
                       >
                         <Users className="w-5 h-5 mr-2 transition-transform duration-300 group-hover:rotate-12" />
-                        Recruiter Dashboard
+                        Upload Resumes
                         <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-300" />
                       </Button>
                     </Link>

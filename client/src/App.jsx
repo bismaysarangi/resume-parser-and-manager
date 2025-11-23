@@ -19,6 +19,8 @@ import Profile from "./pages/candidate/Profile";
 
 // Recruiter Pages
 import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
+import RecruiterBulkUpload from "./pages/recruiter/RecruiterBulkUpload";
+import RecruiterBulkResults from "./pages/recruiter/RecruiterBulkResults";
 
 // Protected Route Component
 function ProtectedRoute({ children, requiredRole }) {
@@ -125,6 +127,19 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route path="/recruiter/bulk-upload" element={<RecruiterBulkUpload />} />
+
+        
+        <Route
+          path="/recruiter/bulk-results"
+          element={
+            <ProtectedRoute requiredRole="recruiter">
+              <RecruiterBulkResults />
+            </ProtectedRoute>
+          }
+        />
+
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" />} />
