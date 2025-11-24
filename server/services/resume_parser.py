@@ -3,7 +3,7 @@ from docx import Document
 import re
 import json
 import httpx
-from core.config import GROQ_API_KEY, GROQ_URL
+from core.config import GROQ_API_KEY, GROQ_URL, GROQ_PARSING_MODEL
 
 
 async def extract_text_from_file(file):
@@ -63,13 +63,14 @@ async def call_groq_api(prompt, temperature=0.7):
     }
 
     payload = {
-        "model": "openai/gpt-oss-20b",
+        "model": GROQ_PARSING_MODEL,  # Use parsing model from config
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature
     }
 
     async with httpx.AsyncClient(timeout=60) as client:
         response = await client.post(GROQ_URL, headers=headers, json=payload)
+        response.raise_for_status()  # Raise error for bad status codes
 
     return response
 
@@ -98,6 +99,11 @@ async def parse_resume(file):
         response = await call_groq_api(prompt)
         data = response.json()
 
+        # Check if response has choices (handle API errors)
+        if "choices" not in data:
+            error_msg = data.get("error", {}).get("message", "Unknown API error")
+            raise Exception(f"API error: {error_msg}")
+
         # Parse response
         ai_text = data["choices"][0]["message"]["content"]
         parsed = parse_ai_response(ai_text)
@@ -106,5 +112,9 @@ async def parse_resume(file):
 
     except ValueError as e:
         raise ValueError(str(e))
+    except httpx.HTTPStatusError as e:
+        raise Exception(f"API request failed: {e.response.status_code} - {e.response.text}")
+    except KeyError as e:
+        raise Exception(f"Invalid API response format: missing {str(e)}")
     except Exception as e:
         raise Exception(f"Failed to parse resume: {str(e)}")

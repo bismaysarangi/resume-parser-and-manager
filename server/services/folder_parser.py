@@ -12,6 +12,10 @@ from services import resume_parser  # async parse_resume(file)
 
 ALLOWED_EXT = {".pdf", ".doc", ".docx", ".txt", ".docm"}
 
+# Rate limiting configuration (lighter since model is fixed)
+DELAY_BETWEEN_REQUESTS = 0.5  # 0.5 seconds between each resume parse
+MAX_CONCURRENT_PARSES = 3  # Process max 3 resumes at a time
+
 def _is_valid_resume(filename: str) -> bool:
     _, ext = os.path.splitext(filename.lower())
     return ext in ALLOWED_EXT
@@ -52,11 +56,45 @@ class FileLikeAsyncWrapper:
         except Exception:
             pass
 
+
+async def parse_single_resume_with_retry(wrapper, relpath, max_retries=2):
+    """
+    Parse a single resume with retry logic and better error handling
+    """
+    last_error = None
+    
+    for attempt in range(max_retries):
+        try:
+            # Call your async parser
+            parsed = await resume_parser.parse_resume(wrapper)
+            return {"success": True, "data": parsed}
+            
+        except Exception as e:
+            error_msg = str(e)
+            last_error = error_msg
+            
+            # Check if it's a 'choices' error (API error)
+            if "'choices'" in error_msg or "choices" in error_msg:
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 3  # 3s, 6s, 9s
+                    print(f"API error for {relpath}. Retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+                    continue
+            
+            # For other errors, don't retry
+            break
+    
+    # All retries failed or non-retryable error
+    return {"success": False, "error": last_error}
+
+
 async def process_zip_and_store(zip_path: str, uploader_email: str, db) -> List[Dict[str, Any]]:
     """
     Async: Extract zip at zip_path, parse each supported file with resume_parser.parse_resume,
     store parsed results into MongoDB `resumes` collection using provided `db` (core.database.db).
     Returns list of per-file result dicts: { filename, status, message }
+    
+    NOW WITH RATE LIMITING AND SEQUENTIAL PROCESSING
     """
     results: List[Dict[str, Any]] = []
     tmpdir = tempfile.mkdtemp(prefix="resumes_unzip_")
@@ -68,7 +106,8 @@ async def process_zip_and_store(zip_path: str, uploader_email: str, db) -> List[
 
         resumes_coll = db["resumes"]
 
-        # Walk extracted tree
+        # Collect all valid resume files first
+        resume_files = []
         for root, dirs, files in os.walk(tmpdir):
             for fname in files:
                 relpath = os.path.relpath(os.path.join(root, fname), tmpdir)
@@ -78,15 +117,25 @@ async def process_zip_and_store(zip_path: str, uploader_email: str, db) -> List[
                         "status": "skipped",
                         "message": "Unsupported file type"
                     })
-                    continue
+                else:
+                    file_path = os.path.join(root, fname)
+                    resume_files.append((file_path, relpath, fname))
 
-                file_path = os.path.join(root, fname)
-                wrapper = FileLikeAsyncWrapper(file_path, fname)
-
-                try:
-                    # Call your async parser directly
-                    parsed = await resume_parser.parse_resume(wrapper)
-
+        # Process resumes SEQUENTIALLY with delays (prevents rate limiting)
+        print(f"Processing {len(resume_files)} valid resumes sequentially...")
+        
+        for idx, (file_path, relpath, fname) in enumerate(resume_files):
+            wrapper = FileLikeAsyncWrapper(file_path, fname)
+            
+            try:
+                print(f"Parsing resume {idx + 1}/{len(resume_files)}: {relpath}")
+                
+                # Parse with retry logic
+                result = await parse_single_resume_with_retry(wrapper, relpath)
+                
+                if result["success"]:
+                    parsed = result["data"]
+                    
                     # Create MongoDB document
                     doc = {
                         "filename": relpath,
@@ -104,15 +153,29 @@ async def process_zip_and_store(zip_path: str, uploader_email: str, db) -> List[
                         "message": "Parsed and stored",
                         "inserted_id": str(insert_result.inserted_id)
                     })
-                except Exception as e:
-                    # include error message but avoid leaking very long traces
+                else:
+                    # Parsing failed after retries
                     results.append({
                         "filename": relpath,
                         "status": "error",
-                        "message": str(e)[:300]
+                        "message": f"Failed to parse resume: {result['error'][:200]}"
                     })
-                finally:
-                    wrapper.close()
+                
+            except Exception as e:
+                # Unexpected error during processing
+                results.append({
+                    "filename": relpath,
+                    "status": "error",
+                    "message": f"Unexpected error: {str(e)[:200]}"
+                })
+            finally:
+                wrapper.close()
+            
+            # Add delay between requests to avoid rate limiting
+            # Skip delay after the last file
+            if idx < len(resume_files) - 1:
+                print(f"Waiting {DELAY_BETWEEN_REQUESTS}s before next resume...")
+                await asyncio.sleep(DELAY_BETWEEN_REQUESTS)
 
     finally:
         # Cleanup extracted files and tempdir
