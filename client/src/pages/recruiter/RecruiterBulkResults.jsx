@@ -14,6 +14,7 @@ import {
   Building2,
   ChevronDown,
   ChevronUp,
+  Sparkles,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -50,7 +51,10 @@ const RecruiterBulkResults = () => {
 
   useEffect(() => {
     const stateFromRouter = location?.state || null;
-    if (stateFromRouter && (stateFromRouter.successful || stateFromRouter.failed)) {
+    if (
+      stateFromRouter &&
+      (stateFromRouter.successful || stateFromRouter.failed)
+    ) {
       setResults(stateFromRouter);
       return;
     }
@@ -69,8 +73,11 @@ const RecruiterBulkResults = () => {
 
   if (!results) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "rgb(34, 24, 36)" }}>
-        <Card className="bg-white/10 backdrop-blur-sm border-white/20 max-w-md mx-4">
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: "rgb(34, 24, 36)" }}
+      >
+        <Card className="bg-gray-900/60 backdrop-blur-sm border-white/10 max-w-md mx-4">
           <CardContent className="p-8 text-center">
             <div className="w-16 h-16 text-white/60 mx-auto mb-4 flex items-center justify-center">
               <User className="w-8 h-8" />
@@ -79,7 +86,7 @@ const RecruiterBulkResults = () => {
               No Data Found
             </h2>
             <p className="text-white/70 mb-6">Please upload resumes first.</p>
-            <Button 
+            <Button
               className="bg-white text-black hover:bg-white/90"
               onClick={() => navigate("/recruiter/bulk-upload")}
             >
@@ -95,7 +102,10 @@ const RecruiterBulkResults = () => {
   const failed = results.failed || [];
 
   return (
-    <div className="min-h-screen pt-16" style={{ backgroundColor: "rgb(34, 24, 36)" }}>
+    <div
+      className="min-h-screen pt-16"
+      style={{ backgroundColor: "rgb(34, 24, 36)" }}
+    >
       <div className="container mx-auto max-w-7xl py-6 sm:py-8 px-4 sm:px-6 mt-4">
         <div className="flex items-center justify-between mb-8">
           <Button
@@ -117,8 +127,18 @@ const RecruiterBulkResults = () => {
             const email = parsedData.email || "";
             const phone = parsedData.phone || "";
 
+            // Get both regular skills and derived skills
+            const regularSkills = parsedData.skills || [];
+            const derivedSkills = parsedData.derived_skills || [];
+            const hasAnySkills =
+              hasValidSkills(regularSkills) || hasValidSkills(derivedSkills);
+
             return (
-              <Card key={idx} className="bg-white/10 backdrop-blur-sm border-white/20 hover:border-white/30 transition-all">
+              <Card
+                key={idx}
+                // Changed from bg-white/10 to bg-gray-900/40 (Darker background)
+                className="bg-gray-900/40 backdrop-blur-md border-white/10 hover:border-white/30 transition-all"
+              >
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center text-white text-lg sm:text-xl">
@@ -132,13 +152,16 @@ const RecruiterBulkResults = () => {
                     </CardTitle>
                     <button
                       className="ml-3 p-2 rounded bg-white/5 hover:bg-white/10 transition-all"
-                      onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
+                      onClick={() =>
+                        setExpandedIdx(expandedIdx === idx ? null : idx)
+                      }
                       aria-label="Toggle details"
                     >
-                      {expandedIdx === idx ? 
-                        <ChevronUp className="w-5 h-5 text-white" /> : 
+                      {expandedIdx === idx ? (
+                        <ChevronUp className="w-5 h-5 text-white" />
+                      ) : (
                         <ChevronDown className="w-5 h-5 text-white" />
-                      }
+                      )}
                     </button>
                   </div>
                 </CardHeader>
@@ -146,8 +169,11 @@ const RecruiterBulkResults = () => {
                 {expandedIdx === idx && (
                   <CardContent className="space-y-6">
                     {/* Personal Information */}
-                    {(parsedData.name || parsedData.email || parsedData.phone) && (
-                      <Card className="bg-gradient-to-br from-blue-600/10 to-cyan-600/5 backdrop-blur-sm border-blue-500/20">
+                    {(parsedData.name ||
+                      parsedData.email ||
+                      parsedData.phone) && (
+                      // Darker background for section card
+                      <Card className="bg-black/20 backdrop-blur-sm border-blue-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
                             <div className="p-2 bg-blue-500/20 rounded-lg mr-3">
@@ -159,10 +185,11 @@ const RecruiterBulkResults = () => {
                         <CardContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {parsedData.name && (
-                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                              // Very dark background for individual items
+                              <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <User className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-white/60 text-xs sm:text-sm mb-1">
+                                  <p className="text-white/50 text-xs sm:text-sm mb-1">
                                     Full Name
                                   </p>
                                   <p className="text-white font-medium text-sm sm:text-base break-words">
@@ -172,10 +199,10 @@ const RecruiterBulkResults = () => {
                               </div>
                             )}
                             {parsedData.email && (
-                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                              <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Mail className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-white/60 text-xs sm:text-sm mb-1">
+                                  <p className="text-white/50 text-xs sm:text-sm mb-1">
                                     Email Address
                                   </p>
                                   <p className="text-white font-medium text-sm sm:text-base break-words">
@@ -185,10 +212,10 @@ const RecruiterBulkResults = () => {
                               </div>
                             )}
                             {parsedData.phone && (
-                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                              <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Phone className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-white/60 text-xs sm:text-sm mb-1">
+                                  <p className="text-white/50 text-xs sm:text-sm mb-1">
                                     Phone Number
                                   </p>
                                   <p className="text-white font-medium text-sm sm:text-base">
@@ -204,14 +231,14 @@ const RecruiterBulkResults = () => {
 
                     {/* Education */}
                     {hasValidItems(parsedData.education) ? (
-                      <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
                             <div className="p-2 bg-indigo-500/20 rounded-lg mr-3">
                               <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-400" />
                             </div>
                             Education
-                            <span className="ml-2 text-white/60 text-sm font-normal">
+                            <span className="ml-2 text-white/50 text-sm font-normal">
                               ({parsedData.education.length} institution
                               {parsedData.education.length !== 1 ? "s" : ""})
                             </span>
@@ -222,7 +249,8 @@ const RecruiterBulkResults = () => {
                             {parsedData.education.map((edu, index) => (
                               <div
                                 key={index}
-                                className="p-4 sm:p-5 bg-gradient-to-br from-indigo-500/5 to-blue-500/5 rounded-lg border border-indigo-500/10 hover:border-indigo-400/20 transition-all"
+                                // Dark gray background for list items
+                                className="p-4 sm:p-5 bg-gray-900/50 rounded-lg border border-indigo-500/10 hover:border-indigo-500/30 transition-all"
                               >
                                 <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
                                   <div className="flex-1">
@@ -232,19 +260,19 @@ const RecruiterBulkResults = () => {
                                       </h4>
                                     )}
                                     {edu.University && (
-                                      <p className="text-white/80 text-sm sm:text-base mb-2">
+                                      <p className="text-gray-300 text-sm sm:text-base mb-2">
                                         {edu.University}
                                       </p>
                                     )}
                                     {(edu.Grade || edu.Years) && (
                                       <div className="flex flex-wrap gap-4 mt-2">
                                         {edu.Grade && (
-                                          <span className="text-white/70 text-sm">
+                                          <span className="text-white/60 text-sm">
                                             Grade: {edu.Grade}
                                           </span>
                                         )}
                                         {edu.Years && (
-                                          <span className="text-white/70 text-sm">
+                                          <span className="text-white/60 text-sm">
                                             Years: {edu.Years}
                                           </span>
                                         )}
@@ -258,18 +286,18 @@ const RecruiterBulkResults = () => {
                         </CardContent>
                       </Card>
                     ) : (
-                      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
                         <CardHeader className="pb-4">
-                          <CardTitle className="flex items-center text-white/60 text-lg font-semibold">
-                            <div className="p-2 bg-gray-500/20 rounded-lg mr-3">
-                              <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
+                          <CardTitle className="flex items-center text-white/50 text-lg font-semibold">
+                            <div className="p-2 bg-gray-800/50 rounded-lg mr-3">
+                              <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
                             </div>
                             Education
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-white/40 text-center py-4">
-                            No education data found in the resume
+                          <p className="text-white/30 text-center py-4">
+                            No education data found
                           </p>
                         </CardContent>
                       </Card>
@@ -277,14 +305,14 @@ const RecruiterBulkResults = () => {
 
                     {/* Work Experience */}
                     {hasValidItems(parsedData.experience) ? (
-                      <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
                             <div className="p-2 bg-green-500/20 rounded-lg mr-3">
                               <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" />
                             </div>
                             Work Experience
-                            <span className="ml-2 text-white/60 text-sm font-normal">
+                            <span className="ml-2 text-white/50 text-sm font-normal">
                               ({parsedData.experience.length} position
                               {parsedData.experience.length !== 1 ? "s" : ""})
                             </span>
@@ -295,7 +323,8 @@ const RecruiterBulkResults = () => {
                             {parsedData.experience.map((exp, index) => (
                               <div
                                 key={index}
-                                className="p-4 sm:p-5 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-lg border border-green-500/10 hover:border-green-400/20 transition-all"
+                                // Dark gray background
+                                className="p-4 sm:p-5 bg-gray-900/50 rounded-lg border border-green-500/10 hover:border-green-500/30 transition-all"
                               >
                                 <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
                                   <div className="flex-1">
@@ -305,7 +334,7 @@ const RecruiterBulkResults = () => {
                                       </h4>
                                     )}
                                     {exp.Company && (
-                                      <div className="flex items-center gap-2 text-white/80 mb-2">
+                                      <div className="flex items-center gap-2 text-gray-300 mb-2">
                                         <Building2 className="w-4 h-4 text-green-400 flex-shrink-0" />
                                         <span className="text-sm sm:text-base">
                                           {exp.Company}
@@ -314,7 +343,7 @@ const RecruiterBulkResults = () => {
                                     )}
                                   </div>
                                   {exp.Years && (
-                                    <div className="flex items-center gap-2 text-white/60 bg-green-500/10 px-3 py-1 rounded-full">
+                                    <div className="flex items-center gap-2 text-white/70 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20">
                                       <Calendar className="w-4 h-4 text-green-400 flex-shrink-0" />
                                       <span className="text-xs sm:text-sm whitespace-nowrap">
                                         {exp.Years}
@@ -328,67 +357,117 @@ const RecruiterBulkResults = () => {
                         </CardContent>
                       </Card>
                     ) : (
-                      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
                         <CardHeader className="pb-4">
-                          <CardTitle className="flex items-center text-white/60 text-lg font-semibold">
-                            <div className="p-2 bg-gray-500/20 rounded-lg mr-3">
-                              <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
+                          <CardTitle className="flex items-center text-white/50 text-lg font-semibold">
+                            <div className="p-2 bg-gray-800/50 rounded-lg mr-3">
+                              <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
                             </div>
                             Work Experience
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-white/40 text-center py-4">
-                            No work experience data found in the resume
+                          <p className="text-white/30 text-center py-4">
+                            No work experience data found
                           </p>
                         </CardContent>
                       </Card>
                     )}
 
-                    {/* Skills */}
-                    {hasValidSkills(parsedData.skills) ? (
-                      <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+                    {/* Enhanced Skills Section */}
+                    {hasAnySkills ? (
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
                             <div className="p-2 bg-orange-500/20 rounded-lg mr-3">
                               <Code className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400" />
                             </div>
-                            Skills
-                            <span className="ml-2 text-white/60 text-sm font-normal">
-                              ({parsedData.skills.length} skill
-                              {parsedData.skills.length !== 1 ? "s" : ""})
+                            Skills & Technologies
+                            <span className="ml-2 text-white/50 text-sm font-normal">
+                              ({regularSkills.length + derivedSkills.length}{" "}
+                              total)
                             </span>
                           </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                          <div className="flex flex-wrap gap-2">
-                            {parsedData.skills.map((skill, index) => {
-                              const skillText = typeof skill === "string" ? skill : skill.name || JSON.stringify(skill);
-                              return skillText && skillText.trim() !== "" ? (
-                                <span
-                                  key={index}
-                                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-orange-600/20 to-red-600/20 border border-orange-500/30 rounded-full text-white text-xs sm:text-sm font-medium hover:border-orange-400/50 hover:scale-105 transition-all"
-                                >
-                                  {skillText}
+                        <CardContent className="space-y-6">
+                          {/* Regular Skills */}
+                          {hasValidSkills(regularSkills) && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-3">
+                                <Code className="w-4 h-4 text-orange-400" />
+                                <h4 className="text-white/90 text-sm font-semibold">
+                                  Listed Skills
+                                </h4>
+                                <span className="text-white/40 text-xs">
+                                  ({regularSkills.length})
                                 </span>
-                              ) : null;
-                            })}
-                          </div>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {regularSkills.map((skill, index) => {
+                                  const skillText =
+                                    typeof skill === "string"
+                                      ? skill
+                                      : skill.name || JSON.stringify(skill);
+                                  return skillText &&
+                                    skillText.trim() !== "" ? (
+                                    <span
+                                      key={index}
+                                      className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-800 border border-orange-500/30 rounded-full text-white text-xs sm:text-sm font-medium hover:bg-gray-700 transition-all"
+                                    >
+                                      {skillText}
+                                    </span>
+                                  ) : null;
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Derived Skills */}
+                          {hasValidSkills(derivedSkills) && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-3">
+                                <Sparkles className="w-4 h-4 text-cyan-400" />
+                                <h4 className="text-white/90 text-sm font-semibold">
+                                  Derived from Projects & Experience
+                                </h4>
+                                <span className="text-white/40 text-xs">
+                                  ({derivedSkills.length})
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {derivedSkills.map((skill, index) => {
+                                  const skillText =
+                                    typeof skill === "string"
+                                      ? skill
+                                      : skill.name || JSON.stringify(skill);
+                                  return skillText &&
+                                    skillText.trim() !== "" ? (
+                                    <span
+                                      key={index}
+                                      className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-800 border border-cyan-500/30 rounded-full text-cyan-200 text-xs sm:text-sm font-medium hover:bg-gray-700 transition-all"
+                                    >
+                                      {skillText}
+                                    </span>
+                                  ) : null;
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     ) : (
-                      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
                         <CardHeader className="pb-4">
-                          <CardTitle className="flex items-center text-white/60 text-lg font-semibold">
-                            <div className="p-2 bg-gray-500/20 rounded-lg mr-3">
-                              <Code className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
+                          <CardTitle className="flex items-center text-white/50 text-lg font-semibold">
+                            <div className="p-2 bg-gray-800/50 rounded-lg mr-3">
+                              <Code className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
                             </div>
                             Skills
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-white/40 text-center py-4">
-                            No skills data found in the resume
+                          <p className="text-white/30 text-center py-4">
+                            No skills data found
                           </p>
                         </CardContent>
                       </Card>
@@ -396,14 +475,14 @@ const RecruiterBulkResults = () => {
 
                     {/* Projects */}
                     {hasValidItems(parsedData.projects) ? (
-                      <Card className="bg-white/10 backdrop-blur-sm border-white/20">
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
                             <div className="p-2 bg-cyan-500/20 rounded-lg mr-3">
                               <Award className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-400" />
                             </div>
                             Projects
-                            <span className="ml-2 text-white/60 text-sm font-normal">
+                            <span className="ml-2 text-white/50 text-sm font-normal">
                               ({parsedData.projects.length} project
                               {parsedData.projects.length !== 1 ? "s" : ""})
                             </span>
@@ -414,7 +493,8 @@ const RecruiterBulkResults = () => {
                             {parsedData.projects.map((project, index) => (
                               <div
                                 key={index}
-                                className="p-4 sm:p-5 bg-gradient-to-br from-cyan-500/5 to-teal-500/5 rounded-lg border border-cyan-500/10 hover:border-cyan-400/20 transition-all"
+                                // Dark gray background
+                                className="p-4 sm:p-5 bg-gray-900/50 rounded-lg border border-cyan-500/10 hover:border-cyan-500/30 transition-all"
                               >
                                 <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
                                   <div className="flex-1">
@@ -425,7 +505,7 @@ const RecruiterBulkResults = () => {
                                     )}
                                   </div>
                                   {project.Date && (
-                                    <div className="flex items-center gap-2 text-white/60 bg-cyan-500/10 px-3 py-1 rounded-full">
+                                    <div className="flex items-center gap-2 text-cyan-200 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
                                       <Calendar className="w-4 h-4 text-cyan-400 flex-shrink-0" />
                                       <span className="text-xs sm:text-sm">
                                         {project.Date}
@@ -435,7 +515,7 @@ const RecruiterBulkResults = () => {
                                 </div>
 
                                 {project.Description && (
-                                  <p className="text-white/70 text-sm sm:text-base leading-relaxed mb-3">
+                                  <p className="text-gray-300 text-sm sm:text-base leading-relaxed mb-3">
                                     {project.Description}
                                   </p>
                                 )}
@@ -446,13 +526,14 @@ const RecruiterBulkResults = () => {
                                       Technologies Used:
                                     </h4>
                                     <div className="flex flex-wrap gap-2">
-                                      {(typeof project["Tech Stack"] === "string"
+                                      {(typeof project["Tech Stack"] ===
+                                      "string"
                                         ? project["Tech Stack"].split(",")
                                         : [project["Tech Stack"]]
                                       ).map((tech, i) => (
                                         <span
                                           key={i}
-                                          className="px-3 py-1 bg-cyan-500/20 rounded-full text-cyan-300 text-xs font-medium"
+                                          className="px-3 py-1 bg-gray-800 border border-cyan-500/20 rounded-full text-cyan-300 text-xs font-medium"
                                         >
                                           {tech.trim()}
                                         </span>
@@ -466,18 +547,18 @@ const RecruiterBulkResults = () => {
                         </CardContent>
                       </Card>
                     ) : (
-                      <Card className="bg-white/5 backdrop-blur-sm border-white/10">
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
                         <CardHeader className="pb-4">
-                          <CardTitle className="flex items-center text-white/60 text-lg font-semibold">
-                            <div className="p-2 bg-gray-500/20 rounded-lg mr-3">
-                              <Award className="w-5 h-5 sm:w-6 sm:h-6 text-gray-400" />
+                          <CardTitle className="flex items-center text-white/50 text-lg font-semibold">
+                            <div className="p-2 bg-gray-800/50 rounded-lg mr-3">
+                              <Award className="w-5 h-5 sm:w-6 sm:h-6 text-gray-500" />
                             </div>
                             Projects
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-white/40 text-center py-4">
-                            No projects data found in the resume
+                          <p className="text-white/30 text-center py-4">
+                            No projects data found
                           </p>
                         </CardContent>
                       </Card>
@@ -485,7 +566,7 @@ const RecruiterBulkResults = () => {
 
                     {/* Academic Marks */}
                     {(parsedData.tenth_marks || parsedData.twelfth_marks) && (
-                      <Card className="bg-gradient-to-br from-purple-600/10 to-pink-600/5 backdrop-blur-sm border-purple-500/20">
+                      <Card className="bg-black/20 backdrop-blur-sm border-purple-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
                             <div className="p-2 bg-purple-500/20 rounded-lg mr-3">
@@ -497,10 +578,10 @@ const RecruiterBulkResults = () => {
                         <CardContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {parsedData.tenth_marks && (
-                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                              <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Award className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-white/60 text-xs sm:text-sm mb-1">
+                                  <p className="text-white/50 text-xs sm:text-sm mb-1">
                                     10th Grade Marks
                                   </p>
                                   <p className="text-white font-medium text-sm sm:text-base">
@@ -510,10 +591,10 @@ const RecruiterBulkResults = () => {
                               </div>
                             )}
                             {parsedData.twelfth_marks && (
-                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                              <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Award className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-white/60 text-xs sm:text-sm mb-1">
+                                  <p className="text-white/50 text-xs sm:text-sm mb-1">
                                     12th Grade Marks
                                   </p>
                                   <p className="text-white font-medium text-sm sm:text-base">
@@ -536,16 +617,20 @@ const RecruiterBulkResults = () => {
         {/* Failed parses */}
         {failed.length > 0 && (
           <div className="mt-8">
-            <Card className="bg-red-900/10 backdrop-blur-sm border-red-500/20">
+            <Card className="bg-red-950/30 backdrop-blur-sm border-red-500/20">
               <CardHeader>
                 <CardTitle className="flex items-center text-red-400 text-lg">
-                  Failed to Parse ({failed.length} file{failed.length !== 1 ? "s" : ""})
+                  Failed to Parse ({failed.length} file
+                  {failed.length !== 1 ? "s" : ""})
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   {failed.map((f, i) => (
-                    <div key={i} className="p-3 bg-red-900/20 rounded text-red-200">
+                    <div
+                      key={i}
+                      className="p-3 bg-red-950/50 rounded text-red-200 border border-red-900/50"
+                    >
                       <div className="font-medium">{f.filename}</div>
                       <div className="text-sm text-red-300">{f.error}</div>
                     </div>
