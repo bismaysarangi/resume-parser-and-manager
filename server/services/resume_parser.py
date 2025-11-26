@@ -31,7 +31,7 @@ async def extract_text_from_file(file):
 
 def create_resume_parse_prompt(text):
     """
-    Create prompt for resume parsing
+    Create prompt for resume parsing with enhanced skill extraction
     """
     prompt = f"""
     Extract structured resume data from the following text and return strict JSON only:
@@ -41,11 +41,23 @@ def create_resume_parse_prompt(text):
       "phone": "",
       "education": [{{"Degree": "", "University": "", "Grade": "", "Years": ""}}],
       "skills": [],
+      "derived_skills": [],
       "experience": [{{"Company": "", "Role": "", "Years": ""}}],
       "projects": [{{"Name": "", "Description": "", "Tech Stack": "", "Date": ""}}],
       "10th Marks": "",
       "12th Marks": ""
     }}
+
+    IMPORTANT INSTRUCTIONS:
+    1. "skills": Extract skills explicitly mentioned in the skills section
+    2. "derived_skills": Extract additional technical skills, tools, frameworks, and technologies mentioned in the Experience and Projects sections that are NOT already in the skills list. Look for:
+       - Programming languages (Python, Java, JavaScript, etc.)
+       - Frameworks (React, Django, Spring Boot, etc.)
+       - Databases (MySQL, MongoDB, PostgreSQL, etc.)
+       - Tools (Git, Docker, Kubernetes, AWS, etc.)
+       - Technologies and platforms mentioned in project descriptions and work experience
+    3. Do NOT duplicate skills between "skills" and "derived_skills"
+    4. Be thorough in extracting derived_skills from project descriptions and experience details
 
     Resume text:
     {text[:6000]}
@@ -107,6 +119,10 @@ async def parse_resume(file):
         # Parse response
         ai_text = data["choices"][0]["message"]["content"]
         parsed = parse_ai_response(ai_text)
+
+        # Ensure derived_skills exists
+        if "derived_skills" not in parsed:
+            parsed["derived_skills"] = []
 
         return {"filename": file.filename, **parsed}
 

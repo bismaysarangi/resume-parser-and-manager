@@ -8,6 +8,7 @@ class ResumeData(BaseModel):
     phone: Optional[str] = None
     education: List[Dict[str, Any]] = []
     skills: List[str] = []
+    derived_skills: List[str] = []  
     experience: List[Dict[str, Any]] = []
     projects: List[Dict[str, Any]] = []
     tenth_marks: Optional[str] = None

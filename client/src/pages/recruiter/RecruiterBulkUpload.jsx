@@ -13,6 +13,7 @@ import {
   CheckCircle,
   XCircle,
   ArrowRight,
+  AlertCircle,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -32,6 +33,7 @@ const RecruiterBulkUpload = () => {
   const [result, setResult] = useState(null);
   const [user, setUser] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [fileWarning, setFileWarning] = useState(null);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -56,7 +58,7 @@ const RecruiterBulkUpload = () => {
         );
         setUser(response.data);
         console.log("User is authenticated:", response.data);
-        
+
         // Redirect if not recruiter
         if (response.data.role !== "recruiter") {
           navigate("/candidate/upload");
@@ -111,7 +113,9 @@ const RecruiterBulkUpload = () => {
             if (entries.length === 0) {
               resolve(files);
             } else {
-              const promises = entries.map((ent) => traverseFileTree(ent, path + entry.name + "/"));
+              const promises = entries.map((ent) =>
+                traverseFileTree(ent, path + entry.name + "/")
+              );
               const nested = await Promise.all(promises);
               nested.forEach((arr) => files.push(...arr));
               readEntries();
@@ -127,7 +131,7 @@ const RecruiterBulkUpload = () => {
   const gatherFilesFromDataTransfer = async (dataTransfer) => {
     const items = dataTransfer.items;
     if (!items) return Array.from(dataTransfer.files || []);
-    
+
     if (items[0] && items[0].webkitGetAsEntry) {
       const entries = [];
       for (let i = 0; i < items.length; i++) {
@@ -146,8 +150,10 @@ const RecruiterBulkUpload = () => {
 
   const processSelectedFiles = (files) => {
     if (!files || files.length === 0) return;
-    
-    const valid = files.filter((f) => ALLOWED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE);
+
+    const valid = files.filter(
+      (f) => ALLOWED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE
+    );
     if (valid.length === 0) {
       setUploadStatus({
         type: "error",
@@ -155,12 +161,18 @@ const RecruiterBulkUpload = () => {
       });
       return;
     }
-    
+
     let final = valid.slice(0, MAX_FILES);
+
+    // Show warning instead of alert if files exceed limit
     if (valid.length > MAX_FILES) {
-      alert(`Only the first ${MAX_FILES} resumes will be processed.`);
+      setFileWarning(
+        `You selected ${valid.length} files. Only the first ${MAX_FILES} resumes will be processed.`
+      );
+    } else {
+      setFileWarning(null);
     }
-    
+
     setSelectedFiles(final);
     setUploadStatus(null);
     setResult(null);
@@ -186,10 +198,13 @@ const RecruiterBulkUpload = () => {
     setIsUploading(true);
     setUploadStatus(null);
     setShowLoginPrompt(false);
+    setFileWarning(null);
 
     try {
       const formData = new FormData();
-      selectedFiles.forEach((file) => formData.append("files", file, file.name));
+      selectedFiles.forEach((file) =>
+        formData.append("files", file, file.name)
+      );
 
       console.log("Sending bulk upload request with token:", token);
 
@@ -210,7 +225,7 @@ const RecruiterBulkUpload = () => {
       setIsUploading(false);
       setUploadStatus({
         type: "success",
-        message: `${selectedFiles.length} resume(s) uploaded successfully!`,
+        message: `${response.data.summary.successful} resume(s) uploaded successfully!`,
       });
 
       // Save results to localStorage for the results page
@@ -241,6 +256,7 @@ const RecruiterBulkUpload = () => {
     setUploadStatus(null);
     setResult(null);
     setShowLoginPrompt(false);
+    setFileWarning(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -259,7 +275,10 @@ const RecruiterBulkUpload = () => {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "rgb(34, 24, 36)" }}>
+    <div
+      className="min-h-screen"
+      style={{ backgroundColor: "rgb(34, 24, 36)" }}
+    >
       {/* Header */}
       <header className="pt-6 px-6">
         <div className="container mx-auto max-w-6xl flex justify-between items-center">
@@ -273,7 +292,9 @@ const RecruiterBulkUpload = () => {
             </Button>
           </Link>
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-white">Bulk Resume Parser</h1>
+            <h1 className="text-2xl font-bold text-white">
+              Bulk Resume Parser
+            </h1>
             {user && (
               <div className="flex items-center gap-2 text-white/70">
                 <User className="w-4 h-4" />
@@ -290,8 +311,8 @@ const RecruiterBulkUpload = () => {
             Upload Multiple Resumes
           </h2>
           <p className="text-xl text-white/70 max-w-2xl mx-auto">
-            Upload multiple resumes in PDF or Word format to parse them all at once. 
-            Perfect for processing candidate batches.
+            Upload multiple resumes in PDF or Word format to parse them all at
+            once. Perfect for processing candidate batches.
           </p>
         </div>
 
@@ -327,6 +348,18 @@ const RecruiterBulkUpload = () => {
                     Go to Login
                   </Button>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* File Warning */}
+        {fileWarning && (
+          <Card className="backdrop-blur-sm border-orange-500/50 bg-orange-500/10 mb-6">
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <AlertCircle className="w-5 h-5 text-orange-400 mr-3 flex-shrink-0" />
+                <p className="text-orange-300">{fileWarning}</p>
               </div>
             </CardContent>
           </Card>
@@ -405,9 +438,20 @@ const RecruiterBulkUpload = () => {
                           <h3 className="text-2xl font-semibold text-white mb-2">
                             Upload Successful!
                           </h3>
-                          <p className="text-white/70 mb-6">
-                            {selectedFiles.length} resume(s) processed
+                          <p className="text-white/70 mb-2">
+                            {result?.summary?.successful || 0} resume(s)
+                            processed successfully
                           </p>
+                          {result?.summary?.duplicates > 0 && (
+                            <p className="text-orange-400 text-sm mb-2">
+                              {result.summary.duplicates} duplicate(s) skipped
+                            </p>
+                          )}
+                          {result?.summary?.failed > 0 && (
+                            <p className="text-red-400 text-sm mb-6">
+                              {result.summary.failed} failed to parse
+                            </p>
+                          )}
 
                           {/* Navigation Card */}
                           <div className="w-full max-w-md mt-8">
@@ -421,7 +465,8 @@ const RecruiterBulkUpload = () => {
                                   View Parsed Results
                                 </h3>
                                 <p className="text-white/70 mb-6">
-                                  Review all parsed candidate data in a structured format
+                                  Review all parsed candidate data in a
+                                  structured format
                                 </p>
                                 <Button
                                   className="bg-blue-600 hover:bg-blue-700 text-white w-full"
@@ -436,7 +481,7 @@ const RecruiterBulkUpload = () => {
 
                           <Button
                             variant="outline"
-                            className="bg-white text-black hover:bg-white/90 px-7 py-5 text-lg font-semibold"
+                            className="bg-white text-black hover:bg-white/90 px-7 py-5 text-lg font-semibold mt-6"
                             onClick={resetUpload}
                           >
                             Upload More Resumes
@@ -478,7 +523,9 @@ const RecruiterBulkUpload = () => {
                               ) : (
                                 <Upload className="w-5 h-5 mr-2" />
                               )}
-                              {isUploading ? "Processing..." : `Upload ${selectedFiles.length} Resume(s)`}
+                              {isUploading
+                                ? "Processing..."
+                                : `Upload ${selectedFiles.length} Resume(s)`}
                             </Button>
                             <Button
                               size="lg"
@@ -492,12 +539,19 @@ const RecruiterBulkUpload = () => {
 
                           {/* Files preview */}
                           <div className="w-full max-w-2xl mt-4">
-                            <div className="text-white/70 text-sm mb-2">Selected files:</div>
+                            <div className="text-white/70 text-sm mb-2">
+                              Selected files:
+                            </div>
                             <div className="max-h-48 overflow-auto bg-white/5 rounded-lg p-4">
                               <ul className="text-white text-sm space-y-2">
                                 {selectedFiles.map((file, index) => (
-                                  <li key={index} className="flex justify-between items-center">
-                                    <span className="truncate flex-1">{file.name}</span>
+                                  <li
+                                    key={index}
+                                    className="flex justify-between items-center"
+                                  >
+                                    <span className="truncate flex-1">
+                                      {file.name}
+                                    </span>
                                     <span className="text-white/60 text-xs ml-2">
                                       {Math.round(file.size / 1024)} KB
                                     </span>
@@ -525,7 +579,8 @@ const RecruiterBulkUpload = () => {
                 Bulk Processing
               </h3>
               <p className="text-white/70">
-                Upload and parse multiple resumes simultaneously to save time on candidate screening.
+                Upload and parse multiple resumes simultaneously to save time on
+                candidate screening.
               </p>
             </CardContent>
           </Card>
@@ -537,7 +592,8 @@ const RecruiterBulkUpload = () => {
                 Folder Support
               </h3>
               <p className="text-white/70">
-                Drag and drop entire folders of resumes for batch processing (Chrome/Edge).
+                Drag and drop entire folders of resumes for batch processing
+                (Chrome/Edge).
               </p>
             </CardContent>
           </Card>

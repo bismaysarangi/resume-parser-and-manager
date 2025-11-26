@@ -34,6 +34,7 @@ async def parse_resume_endpoint(
             phone=parsed_data.get("phone"),
             education=parsed_data.get("education", []),
             skills=parsed_data.get("skills", []),
+            derived_skills=parsed_data.get("derived_skills", []),
             experience=parsed_data.get("experience", []),
             projects=parsed_data.get("projects", []),
             tenth_marks=parsed_data.get("10th Marks"),
