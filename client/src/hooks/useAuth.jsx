@@ -7,14 +7,41 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  // Function to load auth from localStorage
+  const loadAuthFromStorage = () => {
     const storedToken = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
     if (storedToken && storedUser) {
       setToken(storedToken);
       setUser(JSON.parse(storedUser));
+    } else {
+      setToken(null);
+      setUser(null);
     }
     setLoading(false);
+  };
+
+  // Initial load
+  useEffect(() => {
+    loadAuthFromStorage();
+  }, []);
+
+  // Listen for auth changes (logout from Navbar)
+  useEffect(() => {
+    const handleAuthChange = () => {
+      loadAuthFromStorage();
+    };
+
+    // Listen for the custom event dispatched by Navbar
+    window.addEventListener("authStatusChanged", handleAuthChange);
+
+    // Listen for storage changes (logout from another tab)
+    window.addEventListener("storage", handleAuthChange);
+
+    return () => {
+      window.removeEventListener("authStatusChanged", handleAuthChange);
+      window.removeEventListener("storage", handleAuthChange);
+    };
   }, []);
 
   const login = (token, user) => {
@@ -22,6 +49,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("user", JSON.stringify(user));
     setToken(token);
     setUser(user);
+    // Dispatch event so Navbar updates too
+    window.dispatchEvent(new Event("authStatusChanged"));
   };
 
   const logout = () => {
@@ -29,6 +58,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("user");
     setToken(null);
     setUser(null);
+    // Dispatch event so Navbar updates too
+    window.dispatchEvent(new Event("authStatusChanged"));
   };
 
   return (
