@@ -128,9 +128,9 @@ const Navbar = () => {
   ];
 
   const recruiterNavItems = [
-    { to: "/recruiter/dashboard", label: "Dashboard", icon: BarChart3 },
+    { to: "/recruiter/bulk-upload", label: "Bulk Upload", icon: Upload },
     { to: "/recruiter/candidates", label: "Candidates", icon: Users },
-    { to: "/recruiter/saved", label: "Saved", icon: FileText },
+    { to: "recruiter/bulk-results", label: "Results", icon: FileText },
   ];
 
   // Determine which nav items to show
