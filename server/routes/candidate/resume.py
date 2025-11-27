@@ -6,6 +6,7 @@ from services.resume_parser import parse_resume
 from models.resume import ResumeHistory, ResumeData
 from core.database import db
 from datetime import datetime
+import traceback
 
 router = APIRouter()
 
@@ -69,10 +70,56 @@ async def get_ai_insights(
 ):
     """
     Generate AI insights for resume (CANDIDATE ONLY)
+    Enhanced error handling and logging
     """
     try:
+        print(f"Generating AI insights for user: {current_user.email}")
+        
+        # Validate input
+        if not request.resume_data:
+            raise HTTPException(
+                status_code=400, 
+                detail="Resume data is required"
+            )
+        
+        # Import here to avoid circular imports
         from services.ai_insights import generate_insights
+        
+        # Generate insights with timeout
         insights = await generate_insights(request.resume_data)
+        
+        print(f"✓ Successfully generated insights for {current_user.email}")
         return insights
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate insights: {str(e)}")
+        # Log the full error for debugging
+        error_trace = traceback.format_exc()
+        print(f"❌ Error generating insights for {current_user.email}:")
+        print(error_trace)
+        
+        # Return user-friendly error message
+        error_message = str(e)
+        if "rate limit" in error_message.lower() or "429" in error_message:
+            raise HTTPException(
+                status_code=429,
+                detail="AI service is currently busy. Please try again in a few moments."
+            )
+        elif "timeout" in error_message.lower():
+            raise HTTPException(
+                status_code=504,
+                detail="AI service took too long to respond. Please try again."
+            )
+        elif "choices" in error_message or "Invalid API response" in error_message:
+            raise HTTPException(
+                status_code=502,
+                detail="AI service returned an invalid response. Please try again."
+            )
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to generate insights: {error_message}"
+            )

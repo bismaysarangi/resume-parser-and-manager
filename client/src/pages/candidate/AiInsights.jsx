@@ -18,6 +18,7 @@ import {
   Award,
   Sparkles,
   Loader2,
+  RefreshCw,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -29,9 +30,10 @@ const AiInsights = () => {
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    if (parsedData && !insights) {
+    if (parsedData && !insights && retryCount === 0) {
       generateInsights();
     }
   }, [parsedData]);
@@ -42,6 +44,9 @@ const AiInsights = () => {
 
     try {
       const token = localStorage.getItem("token");
+
+      console.log("Requesting AI insights...");
+
       const response = await fetch(
         "http://127.0.0.1:8000/api/candidate/ai-insights",
         {
@@ -54,69 +59,45 @@ const AiInsights = () => {
         }
       );
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to generate insights");
+        // Handle specific error codes
+        if (response.status === 429) {
+          throw new Error(
+            "AI service is busy. Please wait a moment and try again."
+          );
+        } else if (response.status === 504) {
+          throw new Error("Request timed out. Please try again.");
+        } else if (response.status === 502) {
+          throw new Error(
+            "AI service returned invalid response. Please retry."
+          );
+        } else {
+          throw new Error(data.detail || "Failed to generate insights");
+        }
       }
 
-      const data = await response.json();
+      console.log("✓ Insights generated successfully");
       setInsights(data.insights);
+      setRetryCount(0); // Reset retry count on success
     } catch (err) {
+      console.error("Error generating insights:", err);
       setError(err.message);
-      // Fallback to mock data for demo
-      setInsights(generateMockInsights());
+      setRetryCount((prev) => prev + 1);
+
+      // Auto-retry once after 3 seconds if it's the first failure
+      if (retryCount === 0) {
+        console.log("First attempt failed, will show retry button");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Mock insights for demo purposes
-  const generateMockInsights = () => {
-    return {
-      strengths: [
-        "Strong educational background with relevant degrees",
-        "Diverse technical skill set matching current market demands",
-        "Progressive work experience showing career growth",
-        "Project portfolio demonstrates practical application of skills",
-      ],
-      improvements: [
-        "Consider adding more quantifiable achievements in experience section",
-        "Include specific technologies and frameworks in projects",
-        "Add links to GitHub repositories or live projects",
-        "Consider obtaining industry certifications",
-      ],
-      skillGaps: {
-        "Frontend Developer": [
-          "Advanced React patterns",
-          "State management",
-          "Testing frameworks",
-        ],
-        "Full Stack Developer": [
-          "Database optimization",
-          "API design",
-          "DevOps basics",
-        ],
-        "Tech Lead": [
-          "Project management",
-          "Team leadership",
-          "System architecture",
-        ],
-      },
-      careerSuggestions: [
-        "Senior Software Engineer",
-        "Full Stack Developer",
-        "Technical Team Lead",
-        "Solutions Architect",
-      ],
-      interviewTips: [
-        "Prepare to discuss your most complex project in detail",
-        "Practice explaining your technical decisions",
-        "Be ready for system design questions",
-        "Highlight your learning agility and adaptability",
-      ],
-      overallScore: 78,
-      summary:
-        "A solid technical profile with good foundation. Shows potential for senior roles with some additional specialization and demonstrated leadership experience.",
-    };
+  const handleRetry = () => {
+    console.log(`Manual retry attempt ${retryCount + 1}`);
+    generateInsights();
   };
 
   if (!parsedData) {
@@ -152,24 +133,46 @@ const AiInsights = () => {
             <h3 className="text-white text-lg font-semibold mb-2">
               Analyzing Your Resume
             </h3>
-            <p className="text-white/60 text-center">
+            <p className="text-white/60 text-center max-w-md">
               Our AI is generating personalized career insights...
+              {retryCount > 0 && ` (Attempt ${retryCount + 1})`}
             </p>
           </div>
         ) : error ? (
-          <Card className="bg-red-500/10 border-red-500/20 backdrop-blur-sm">
-            <CardContent className="p-6 text-center">
-              <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-              <h3 className="text-white text-lg font-semibold mb-2">
-                Analysis Failed
+          <Card className="bg-red-500/10 border-red-500/20 backdrop-blur-sm max-w-2xl mx-auto">
+            <CardContent className="p-8 text-center">
+              <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+              <h3 className="text-white text-xl font-semibold mb-3">
+                Analysis Temporarily Unavailable
               </h3>
-              <p className="text-white/70 mb-4">{error}</p>
-              <Button
-                onClick={generateInsights}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                Try Again
-              </Button>
+              <p className="text-white/80 mb-2 text-sm">{error}</p>
+              <p className="text-white/60 text-xs mb-6">
+                {retryCount > 0
+                  ? `Failed ${retryCount} time${
+                      retryCount > 1 ? "s" : ""
+                    }. The AI service may be experiencing high demand.`
+                  : "This usually resolves quickly. Please try again."}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  onClick={handleRetry}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Try Again
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    navigate("/candidate/parsed-results", {
+                      state: { parsedData, fileName },
+                    })
+                  }
+                  className="border-white/20 text-white hover:bg-white/10"
+                >
+                  Back to Resume Details
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : insights ? (

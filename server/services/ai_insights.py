@@ -1,5 +1,6 @@
 import json
 import httpx
+import asyncio
 from core.config import GROQ_API_KEY, GROQ_URL, GROQ_INSIGHTS_MODEL
 
 
@@ -31,9 +32,9 @@ def create_insights_prompt(resume_data):
     return prompt
 
 
-async def call_groq_for_insights(prompt, temperature=0.7):
+async def call_groq_for_insights(prompt, temperature=0.7, max_retries=3):
     """
-    Call Groq API specifically for insights generation
+    Call Groq API specifically for insights generation with retry logic
     """
     headers = {
         "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -41,16 +42,57 @@ async def call_groq_for_insights(prompt, temperature=0.7):
     }
 
     payload = {
-        "model": GROQ_INSIGHTS_MODEL,  # Use insights model from config
+        "model": GROQ_INSIGHTS_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature
     }
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        response = await client.post(GROQ_URL, headers=headers, json=payload)
-        response.raise_for_status()  # Raise error for bad status codes
-
-    return response
+    last_error = None
+    
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=90) as client:
+                response = await client.post(GROQ_URL, headers=headers, json=payload)
+                
+                # Check for rate limiting
+                if response.status_code == 429:
+                    wait_time = min((2 ** attempt) * 2, 30)  # Exponential backoff
+                    print(f"Rate limited. Waiting {wait_time}s before retry {attempt + 1}/{max_retries}")
+                    await asyncio.sleep(wait_time)
+                    continue
+                
+                # Raise for other HTTP errors
+                response.raise_for_status()
+                return response
+                
+        except httpx.TimeoutException as e:
+            last_error = f"Request timeout (attempt {attempt + 1}/{max_retries})"
+            print(last_error)
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2 ** attempt)
+                continue
+                
+        except httpx.HTTPStatusError as e:
+            last_error = f"HTTP {e.response.status_code}: {e.response.text}"
+            print(f"API error (attempt {attempt + 1}/{max_retries}): {last_error}")
+            
+            # Don't retry on client errors (4xx except 429)
+            if 400 <= e.response.status_code < 500 and e.response.status_code != 429:
+                raise
+                
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2 ** attempt)
+                continue
+                
+        except Exception as e:
+            last_error = str(e)
+            print(f"Unexpected error (attempt {attempt + 1}/{max_retries}): {last_error}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2 ** attempt)
+                continue
+    
+    # All retries exhausted
+    raise Exception(f"Failed after {max_retries} attempts. Last error: {last_error}")
 
 
 def parse_ai_response(response_text):
@@ -65,23 +107,27 @@ def parse_ai_response(response_text):
 
 async def generate_insights(resume_data):
     """
-    Generate AI-powered career insights with error handling
+    Generate AI-powered career insights with enhanced error handling
     """
     try:
         # Validate input
         if not resume_data:
             raise ValueError("Resume data cannot be empty")
         
+        print(f"Generating insights for resume...")
+        
         # Create prompt
         prompt = create_insights_prompt(resume_data)
         
-        # Call Groq API with insights model
+        # Call Groq API with insights model and retry logic
         response = await call_groq_for_insights(prompt, temperature=0.7)
         data = response.json()
         
-        # Check if response has choices (handle API errors)
-        if "choices" not in data:
-            error_msg = data.get("error", {}).get("message", "Unknown API error")
+        # Validate response structure
+        if "choices" not in data or not data["choices"]:
+            error_detail = data.get("error", {})
+            error_msg = error_detail.get("message", "Invalid API response structure")
+            print(f"API response error: {json.dumps(data, indent=2)}")
             raise Exception(f"API error: {error_msg}")
         
         # Parse response
@@ -94,6 +140,8 @@ async def generate_insights(resume_data):
         missing_fields = [field for field in required_fields if field not in insights]
         
         if missing_fields:
+            print(f"AI response missing fields: {missing_fields}")
+            print(f"Raw AI response: {ai_text}")
             raise ValueError(f"AI response missing required fields: {', '.join(missing_fields)}")
         
         # Ensure overallScore is a number between 40-95
@@ -103,13 +151,22 @@ async def generate_insights(resume_data):
         except (ValueError, TypeError):
             insights["overallScore"] = 70  # Default score
         
+        print("✓ Insights generated successfully")
         return {"insights": insights}
     
     except json.JSONDecodeError as e:
-        raise Exception(f"Failed to parse AI insights response as JSON: {str(e)}")
+        error_msg = f"Failed to parse AI insights response as JSON: {str(e)}"
+        print(error_msg)
+        raise Exception(error_msg)
     except httpx.HTTPStatusError as e:
-        raise Exception(f"API request failed: {e.response.status_code} - {e.response.text}")
+        error_msg = f"API request failed: {e.response.status_code} - {e.response.text}"
+        print(error_msg)
+        raise Exception(error_msg)
     except KeyError as e:
-        raise Exception(f"Invalid API response format: missing {str(e)}")
+        error_msg = f"Invalid API response format: missing {str(e)}"
+        print(error_msg)
+        raise Exception(error_msg)
     except Exception as e:
-        raise Exception(f"Failed to generate insights: {str(e)}")
+        error_msg = f"Failed to generate insights: {str(e)}"
+        print(error_msg)
+        raise Exception(error_msg)
