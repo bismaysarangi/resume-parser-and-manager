@@ -1,6 +1,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from routes.recruiter import chatbot
 
 app = FastAPI()
 
@@ -39,6 +40,8 @@ app.include_router(
 )
 from routes.recruiter import bulk_upload
 app.include_router(bulk_upload.router, prefix="/api/recruiter", tags=["recruiter-bulk"])
+
+app.include_router(chatbot.router, prefix="/api/recruiter", tags=["recruiter-chatbot"])
 
 @app.middleware("http")
 async def limit_upload_size(request: Request, call_next):

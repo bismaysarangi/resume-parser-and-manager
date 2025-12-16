@@ -22,6 +22,7 @@ import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
 import RecruiterBulkUpload from "./pages/recruiter/RecruiterBulkUpload";
 import RecruiterBulkResults from "./pages/recruiter/RecruiterBulkResults";
 import RecruiterCandidates from "./pages/recruiter/RecruiterCandidates";
+import RecruiterChatbot from "./pages/recruiter/RecruiterChatbot";
 
 // Protected Route Component
 function ProtectedRoute({ children, requiredRole }) {
@@ -148,6 +149,15 @@ function App() {
           element={
             <ProtectedRoute requiredRole="recruiter">
               <RecruiterCandidates />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/recruiter/chatbot"
+          element={
+            <ProtectedRoute requiredRole="recruiter">
+              <RecruiterChatbot />
             </ProtectedRoute>
           }
         />

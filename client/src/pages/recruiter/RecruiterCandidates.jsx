@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,12 @@ import {
   Users,
   Sparkles,
   X,
+  MessageCircle,
+  Send,
+  Bot,
+  Minimize2,
+  Maximize2,
+  ArrowLeft,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -110,7 +116,7 @@ const RecruiterCandidates = () => {
 
       const data = await response.json();
 
-      // --- IMPROVED DEDUPLICATION LOGIC START ---
+      // Deduplication logic
       const uniqueCandidates = [];
       const seenEmails = new Set();
       const seenPhones = new Set();
@@ -121,26 +127,19 @@ const RecruiterCandidates = () => {
         const parsed = candidate.parsed_data || {};
         const id = candidate._id;
 
-        // 1. Prepare Identifiers
         const email = parsed.email ? parsed.email.trim().toLowerCase() : null;
-
-        // Normalize phone: remove spaces, dashes, parentheses to match "123-456" with "123456"
         let phone = parsed.phone
           ? parsed.phone.toString().replace(/\D/g, "")
           : null;
-        // Only consider phone valid if it has at least 6 digits (avoids matching garbage data)
         if (phone && phone.length < 6) phone = null;
-
         const name = parsed.name ? parsed.name.trim().toLowerCase() : null;
 
         let isDuplicate = false;
 
-        // 2. Check Database ID (Absolute Duplicate)
         if (seenIds.has(id)) {
           isDuplicate = true;
         }
 
-        // 3. Check Email (Strongest Identifier)
         if (!isDuplicate && email && email !== "no email") {
           if (seenEmails.has(email)) {
             isDuplicate = true;
@@ -149,8 +148,6 @@ const RecruiterCandidates = () => {
           }
         }
 
-        // 4. Check Phone (Strong Identifier)
-        // If we haven't found a duplicate yet, check phone
         if (!isDuplicate && phone) {
           if (seenPhones.has(phone)) {
             isDuplicate = true;
@@ -159,8 +156,6 @@ const RecruiterCandidates = () => {
           }
         }
 
-        // 5. Check Name (Weakest Identifier)
-        // Only check name if we haven't matched email or phone yet
         if (!isDuplicate && name && name !== "unknown candidate") {
           if (seenNames.has(name)) {
             isDuplicate = true;
@@ -169,13 +164,11 @@ const RecruiterCandidates = () => {
           }
         }
 
-        // 6. If passed all checks, add to list
         if (!isDuplicate) {
-          seenIds.add(id); // Mark ID as seen
+          seenIds.add(id);
           uniqueCandidates.push(candidate);
         }
       });
-      // --- IMPROVED DEDUPLICATION LOGIC END ---
 
       setCandidates(uniqueCandidates);
       setFilteredCandidates(uniqueCandidates);
@@ -275,12 +268,21 @@ const RecruiterCandidates = () => {
                 </p>
               </div>
             </div>
-            <Button
-              className="bg-blue-500 text-white hover:bg-blue-600"
-              onClick={() => navigate("/recruiter/bulk-upload")}
-            >
-              Upload More Resumes
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white"
+                onClick={() => navigate("/recruiter/chatbot")}
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Chatbot
+              </Button>
+              <Button
+                className="bg-blue-500 text-white hover:bg-blue-600"
+                onClick={() => navigate("/recruiter/bulk-upload")}
+              >
+                Upload More
+              </Button>
+            </div>
           </div>
 
           {/* Search Bar */}
