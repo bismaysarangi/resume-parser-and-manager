@@ -3,12 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  User,
-  Mail,
-  Phone,
-  GraduationCap,
-  Briefcase,
-  Code,
   Send,
   Bot,
   ArrowLeft,
@@ -17,6 +11,9 @@ import {
   MessageCircle,
   Lightbulb,
   TrendingUp,
+  Award,
+  Target,
+  Code,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -24,20 +21,18 @@ const API_BASE_URL = "http://localhost:8000";
 
 const RecruiterChatbot = () => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    total_candidates: 0,
-    unique_skills: 0,
-  });
+  const [stats, setStats] = useState({ total_candidates: 0, unique_skills: 0 });
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState([
     {
       role: "assistant",
       content:
-        "Hello! I'm your AI-powered candidate search assistant. I have access to all your candidate data and can help you find the perfect match for any role.\n\nTry asking me:\n• 'Find top 5 candidates with Python skills'\n• 'Who has worked at Google or Microsoft?'\n• 'Show me candidates with 5+ years of experience'\n• 'Find full-stack developers with React'\n• 'Who knows machine learning?'\n\nWhat would you like to know about your candidates?",
+        "Hello! I'm your AI-powered candidate search assistant. I analyze all profiles and rank them by relevance. How can I help you today?",
     },
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [lastQueryInfo, setLastQueryInfo] = useState(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -46,7 +41,7 @@ const RecruiterChatbot = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isLoading]);
 
   useEffect(() => {
     fetchStats();
@@ -55,24 +50,12 @@ const RecruiterChatbot = () => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem("token");
-      if (!token) {
-        navigate("/login");
-        return;
-      }
-
       const response = await fetch(
         `${API_BASE_URL}/api/recruiter/chatbot/stats`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch stats");
-      }
-
       const data = await response.json();
       setStats(data);
     } catch (err) {
@@ -82,14 +65,17 @@ const RecruiterChatbot = () => {
     }
   };
 
-  const searchCandidates = async (query) => {
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+
+    const userMessage = { role: "user", content: input };
+    setMessages((prev) => [...prev, userMessage]);
+    const currentInput = input;
+    setInput("");
+    setIsLoading(true);
+
     try {
       const token = localStorage.getItem("token");
-      if (!token) {
-        navigate("/login");
-        return "Please log in to continue.";
-      }
-
       const response = await fetch(`${API_BASE_URL}/api/recruiter/chatbot`, {
         method: "POST",
         headers: {
@@ -97,259 +83,190 @@ const RecruiterChatbot = () => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          query: query,
+          query: currentInput,
           conversation_history: messages,
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to process query");
-      }
-
       const data = await response.json();
-      return data.response;
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.response },
+      ]);
+
+      if (data.ranking_applied) {
+        setLastQueryInfo({
+          analyzed: data.candidates_analyzed,
+          shown: data.candidates_shown,
+          intent: data.intent_detected || {},
+        });
+      }
     } catch (error) {
-      console.error("Chatbot error:", error);
-      return `I apologize, but I encountered an error: ${error.message}. Please try again.`;
-    }
-  };
-
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMessage = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
-
-    try {
-      const response = await searchCandidates(input);
-      const assistantMessage = { role: "assistant", content: response };
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      const errorMessage = {
-        role: "assistant",
-        content: "I apologize, but I encountered an error. Please try again.",
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Error processing request." },
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const handleSuggestionClick = (suggestion) => {
-    setInput(suggestion);
-  };
-
-  const suggestions = [
-    "Find top 5 candidates with Python skills",
-    "Who knows React and Node.js?",
-    "Show me full-stack developers",
-    "Find candidates with 5+ years experience",
-    "Who has machine learning skills?",
-    "Find candidates from top companies",
-  ];
-
-  if (loading) {
+  if (loading)
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: "rgb(34, 24, 36)" }}
-      >
-        <Card className="bg-white/10 backdrop-blur-sm border-white/20 max-w-md mx-4">
-          <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Loading AI Assistant...
-            </h2>
-            <p className="text-white/70">Preparing your candidate data</p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-[#221824] flex items-center justify-center text-white">
+        Loading...
       </div>
     );
-  }
 
   return (
-    <div
-      className="min-h-screen pt-16"
-      style={{ backgroundColor: "rgb(34, 24, 36)" }}
-    >
-      <div className="container mx-auto max-w-6xl py-6 px-4 mt-4">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                className="text-white/60 hover:text-white hover:bg-white/10"
-                onClick={() => navigate("/recruiter/candidates")}
-              >
-                <ArrowLeft className="w-5 h-5 mr-2" />
-                Back to Candidates
-              </Button>
-            </div>
-          </div>
+    <div className="h-screen flex flex-col bg-[#221824] overflow-hidden">
+      {/* Top Navigation - Fixed Height */}
+      <nav className="h-16 border-b border-white/10 flex items-center px-6 shrink-0">
+        <Button
+          variant="ghost"
+          className="text-white/60 hover:text-white"
+          onClick={() => navigate("/recruiter/candidates")}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back
+        </Button>
+      </nav>
 
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-4 bg-gradient-to-r from-purple-500/20 to-pink-600/20 rounded-xl border border-purple-500/30">
-              <Bot className="w-10 h-10 text-purple-400" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-white">
-                AI Candidate Assistant
-              </h1>
-              <p className="text-white/60 text-lg mt-1">
-                Powered by Groq AI • {stats.total_candidates} candidates in database
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Chat Interface */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Chat Area */}
-          <div className="lg:col-span-2">
-            <Card className="bg-gradient-to-br from-gray-900 to-gray-800 border-white/20 h-[calc(100vh-280px)] flex flex-col">
-              <CardHeader className="border-b border-white/10 flex-shrink-0">
-                <CardTitle className="flex items-center text-white text-xl">
-                  <MessageCircle className="w-6 h-6 text-purple-400 mr-2" />
-                  Conversation
-                </CardTitle>
-              </CardHeader>
-
-              {/* Messages */}
-              <CardContent className="flex-1 overflow-y-auto p-6 space-y-6">
-                {messages.map((msg, idx) => (
-                  <div
-                    key={idx}
-                    className={`flex ${
-                      msg.role === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[85%] ${
-                        msg.role === "user"
-                          ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl rounded-tr-sm"
-                          : "bg-white/10 text-white rounded-2xl rounded-tl-sm"
-                      } p-4 shadow-lg`}
-                    >
-                      {msg.role === "assistant" && (
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="p-1.5 bg-purple-500/20 rounded-lg">
-                            <Bot className="w-4 h-4 text-purple-400" />
-                          </div>
-                          <span className="text-xs text-white/60 font-semibold uppercase tracking-wide">
-                            AI Assistant
-                          </span>
-                        </div>
-                      )}
-                      <p className="text-sm whitespace-pre-wrap leading-relaxed">
-                        {msg.content}
-                      </p>
-                    </div>
+      <div className="flex-1 flex overflow-hidden container mx-auto max-w-7xl py-6 gap-6">
+        {/* Left Side: Chat (Takes up most space) */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <Card className="flex-1 flex flex-col bg-gray-900/50 border-white/10 overflow-hidden">
+            <CardHeader className="border-b border-white/5 bg-gray-900/80 shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Bot className="w-6 h-6 text-purple-400" />
+                  <div>
+                    <CardTitle className="text-white text-lg">
+                      AI Candidate Assistant
+                    </CardTitle>
+                    <p className="text-xs text-white/50">
+                      Smart Ranking Active
+                    </p>
                   </div>
-                ))}
-                {isLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-white/10 rounded-2xl rounded-tl-sm p-4 shadow-lg">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 bg-purple-400 rounded-full animate-bounce"></div>
-                        <div
-                          className="w-2.5 h-2.5 bg-purple-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.2s" }}
-                        ></div>
-                        <div
-                          className="w-2.5 h-2.5 bg-purple-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.4s" }}
-                        ></div>
-                      </div>
+                </div>
+                {/* Ranking Info moved INSIDE header to prevent shifting main content */}
+                {lastQueryInfo && (
+                  <div className="hidden md:flex gap-4 text-[10px] uppercase tracking-wider text-white/40">
+                    <div className="flex items-center gap-1">
+                      <Target className="w-3 h-3" /> {lastQueryInfo.analyzed}{" "}
+                      Scanned
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Award className="w-3 h-3" /> {lastQueryInfo.shown} Ranked
                     </div>
                   </div>
                 )}
-                <div ref={messagesEndRef} />
-              </CardContent>
-
-              {/* Input Area */}
-              <div className="border-t border-white/10 p-6 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <Input
-                    type="text"
-                    placeholder="Ask about candidates..."
-                    className="flex-1 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-purple-400 focus:ring-purple-400 text-base py-6"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    disabled={isLoading}
-                  />
-                  <Button
-                    className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white px-8 py-6"
-                    onClick={handleSend}
-                    disabled={isLoading || !input.trim()}
-                  >
-                    <Send className="w-5 h-5" />
-                  </Button>
-                </div>
               </div>
-            </Card>
-          </div>
+            </CardHeader>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Stats */}
-            <Card className="bg-gradient-to-br from-blue-600/10 to-purple-600/10 border-blue-500/20">
-              <CardHeader>
-                <CardTitle className="flex items-center text-white text-lg">
-                  <Users className="w-5 h-5 text-blue-400 mr-2" />
-                  Database Stats
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                  <span className="text-white/70 text-sm">Total Candidates</span>
-                  <span className="text-white font-bold text-xl">
-                    {stats.total_candidates}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
-                  <span className="text-white/70 text-sm">Unique Skills</span>
-                  <span className="text-white font-bold text-xl">
-                    {stats.unique_skills}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Suggested Queries */}
-            <Card className="bg-gradient-to-br from-purple-600/10 to-pink-600/10 border-purple-500/20">
-              <CardHeader>
-                <CardTitle className="flex items-center text-white text-lg">
-                  <Lightbulb className="w-5 h-5 text-yellow-400 mr-2" />
-                  Try Asking
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {suggestions.map((suggestion, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="w-full text-left p-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-purple-400/30 rounded-lg text-white/80 hover:text-white text-sm transition-all"
-                    disabled={isLoading}
+            {/* Scrollable Message Area */}
+            <CardContent className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+              {messages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex ${
+                    msg.role === "user" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-[80%] p-4 rounded-2xl ${
+                      msg.role === "user"
+                        ? "bg-purple-600 text-white rounded-tr-none"
+                        : "bg-white/5 text-white border border-white/10 rounded-tl-none"
+                    }`}
                   >
-                    {suggestion}
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {msg.content}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex gap-2 p-4 bg-white/5 w-fit rounded-xl animate-pulse">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce [animation-delay:0.4s]" />
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </CardContent>
 
-          </div>
+            {/* Fixed Bottom Input Area */}
+            <div className="p-4 border-t border-white/5 bg-gray-900/80 shrink-0">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="e.g., Find me top 3 React developers..."
+                  className="bg-white/5 border-white/10 text-white h-12"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                  disabled={isLoading}
+                />
+                <Button
+                  onClick={handleSend}
+                  disabled={isLoading || !input.trim()}
+                  className="bg-purple-600 hover:bg-purple-700 h-12 px-6"
+                >
+                  <Send className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Right Side: Stats & Suggestions (Fixed Width) */}
+        <div className="w-80 hidden lg:flex flex-col gap-4 shrink-0">
+          <Card className="bg-white/5 border-white/10">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-sm flex items-center gap-2">
+                <Users className="w-4 h-4 text-blue-400" /> Database
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-2">
+              <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                <p className="text-[10px] text-white/40 uppercase">Total</p>
+                <p className="text-xl font-bold text-white">
+                  {stats.total_candidates}
+                </p>
+              </div>
+              <div className="bg-white/5 p-3 rounded-lg border border-white/5">
+                <p className="text-[10px] text-white/40 uppercase">Skills</p>
+                <p className="text-xl font-bold text-white">
+                  {stats.unique_skills}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="flex-1 bg-white/5 border-white/10 overflow-hidden flex flex-col">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-sm flex items-center gap-2">
+                <Lightbulb className="w-4 h-4 text-yellow-400" /> Suggestions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 overflow-y-auto">
+              {[
+                "Top 5 Python Developers",
+                "Top React Developers",
+                "Machine Learning Experts",
+                "Fullstack with 5+ years",
+                "Best in Data Science/Analytics",
+                "Candidates from Top Companies",
+              ].map((text, i) => (
+                <button
+                  key={i}
+                  onClick={() => setInput(text)}
+                  className="w-full text-left p-3 rounded-lg bg-white/5 border border-white/5 hover:border-purple-500/50 hover:bg-purple-500/10 text-xs text-white/70 transition-all"
+                >
+                  {text}
+                </button>
+              ))}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
