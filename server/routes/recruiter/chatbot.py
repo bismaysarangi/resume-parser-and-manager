@@ -125,7 +125,8 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
         'companies': [...],
         'education_level': str,
         'top_n': int,
-        'query_type': 'ranking'|'filter'|'general'
+        'query_type': 'ranking'|'filter'|'general',
+        'company_filter': bool
     }
     """
     query_lower = query.lower()
@@ -135,7 +136,8 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
         'companies': [],
         'education_level': None,
         'top_n': None,
-        'query_type': 'general'
+        'query_type': 'general',
+        'company_filter': False
     }
 
 
@@ -164,6 +166,31 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
     for skill in common_skills:
         if skill in query_lower:
             intent['skills'].append(skill)
+    
+    # Handle generic role-based queries (web developer, full stack, etc.)
+    role_skill_mapping = {
+        'web developer': ['javascript', 'html', 'css', 'react', 'node', 'nodejs'],
+        'web development': ['javascript', 'html', 'css', 'react', 'node', 'nodejs'],
+        'full stack': ['javascript', 'react', 'node', 'nodejs', 'python', 'sql'],
+        'frontend': ['javascript', 'react', 'html', 'css', 'typescript'],
+        'backend': ['python', 'java', 'nodejs', 'sql', 'api'],
+        'mobile developer': ['react native', 'flutter', 'swift', 'kotlin'],
+        'data scientist': ['python', 'machine learning', 'tensorflow', 'sql'],
+        'devops': ['docker', 'kubernetes', 'aws', 'jenkins', 'linux'],
+        'ml engineer': ['python', 'machine learning', 'tensorflow', 'pytorch']
+    }
+    
+    # Check if query matches any generic role
+    for role, skills in role_skill_mapping.items():
+        if role in query_lower:
+            # Add these skills if not already present
+            for skill in skills:
+                if skill not in intent['skills']:
+                    intent['skills'].append(skill)
+            # Mark as ranking query if not already
+            if intent['query_type'] == 'general':
+                intent['query_type'] = 'ranking'
+            break
 
 
     # Extract experience requirements
@@ -172,9 +199,22 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
         intent['min_experience'] = int(exp_match.group(1))
 
 
-    # Extract company mentions
+    # Detect company filter queries
+    company_keywords = ['company', 'companies', 'intern', 'internship', 'full-time', 'full time', 
+                       'position', 'worked at', 'experience at', 'employed']
+    if any(keyword in query_lower for keyword in company_keywords):
+        intent['company_filter'] = True
+        intent['query_type'] = 'ranking'
+        if not intent['top_n']:
+            intent['top_n'] = 10  # Show more for company queries
+
+
+    # Extract specific company mentions
     companies = ['google', 'microsoft', 'amazon', 'facebook', 'meta', 'apple', 
-                 'netflix', 'uber', 'airbnb', 'linkedin', 'twitter', 'tesla']
+                 'netflix', 'uber', 'airbnb', 'linkedin', 'twitter', 'tesla',
+                 'ibm', 'oracle', 'salesforce', 'adobe', 'intel', 'nvidia',
+                 'samsung', 'dell', 'cisco', 'vmware', 'sap', 'accenture',
+                 'deloitte', 'wipro', 'tcs', 'infosys', 'cognizant', 'hcl']
     for company in companies:
         if company in query_lower:
             intent['companies'].append(company)
@@ -264,10 +304,21 @@ def calculate_skill_proficiency_score(candidate: Dict, required_skills: List[str
     # Normalize to 0-100 scale
     normalized_score = (total_score / max_possible_score * 100) if max_possible_score > 0 else 0
     
+    # If candidate has SOME relevant skills (even if not all), give them credit
+    # This helps with generic queries like "web developer"
+    skills_matched = sum(1 for s in skill_scores.values() if s['score'] > 0)
+    if skills_matched > 0 and len(required_skills) > 3:
+        # For queries with many skills (like "web developer" = 6 skills)
+        # Having 50%+ of skills should give decent score
+        match_ratio = skills_matched / len(required_skills)
+        if match_ratio >= 0.5:  # Has at least half the skills
+            # Boost the score proportionally
+            normalized_score = max(normalized_score, 50 * match_ratio)
+    
     return {
         'total_score': min(100, normalized_score),
         'skill_breakdown': skill_scores,
-        'skills_matched': sum(1 for s in skill_scores.values() if s['score'] > 0),
+        'skills_matched': skills_matched,
         'total_skills_required': len(required_skills)
     }
 
@@ -580,6 +631,86 @@ def calculate_project_quality_score(candidate: Dict, required_skills: List[str])
 
 
 
+def calculate_company_score(candidate: Dict, intent: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Calculate company quality score based on:
+    - Working at top companies
+    - Full-time positions vs internships
+    - Company reputation
+    """
+    parsed = candidate.get("parsed_data", {})
+    experiences = parsed.get("experience", []) if parsed else []
+    
+    if not experiences:
+        return {
+            'score': 0,
+            'top_companies': [],
+            'has_fulltime': False,
+            'has_internship': False,
+            'company_count': 0
+        }
+    
+    # Expanded list of top companies
+    top_companies = [
+        'google', 'microsoft', 'amazon', 'facebook', 'meta', 'apple', 
+        'netflix', 'uber', 'airbnb', 'linkedin', 'twitter', 'tesla',
+        'ibm', 'oracle', 'salesforce', 'adobe', 'intel', 'nvidia',
+        'samsung', 'dell', 'cisco', 'vmware', 'sap', 'accenture',
+        'deloitte', 'wipro', 'tcs', 'infosys', 'cognizant', 'hcl',
+        'goldman sachs', 'morgan stanley', 'jp morgan', 'mckinsey',
+        'bain', 'bcg', 'stripe', 'spotify', 'slack', 'atlassian'
+    ]
+    
+    found_top_companies = []
+    has_fulltime = False
+    has_internship = False
+    score = 0
+    
+    for exp in experiences:
+        company = exp.get("Company", "")
+        role = exp.get("Role", "")
+        
+        if company:
+            company_lower = company.lower()
+            # Check if any top company name is in the company field
+            for top_co in top_companies:
+                if top_co in company_lower:
+                    found_top_companies.append(company)
+                    score += 25  # 25 points per top company
+                    break
+        
+        if role:
+            role_lower = role.lower()
+            # Check for full-time indicators
+            if any(term in role_lower for term in ['full-time', 'full time', 'engineer', 'developer', 
+                                                     'manager', 'lead', 'senior', 'architect']):
+                has_fulltime = True
+            
+            # Check for internship
+            if 'intern' in role_lower:
+                has_internship = True
+    
+    # Bonus for having both internship and full-time
+    if has_fulltime and has_internship:
+        score += 20
+    elif has_fulltime:
+        score += 15
+    elif has_internship:
+        score += 10
+    
+    # Cap score at 100
+    score = min(100, score)
+    
+    return {
+        'score': score,
+        'top_companies': found_top_companies,
+        'has_fulltime': has_fulltime,
+        'has_internship': has_internship,
+        'company_count': len(found_top_companies)
+    }
+
+
+
 def rank_candidates(candidates: List[Dict], intent: Dict[str, Any]) -> List[CandidateScore]:
     """
     Rank candidates based on query intent using weighted scoring
@@ -593,23 +724,35 @@ def rank_candidates(candidates: List[Dict], intent: Dict[str, Any]) -> List[Cand
             experience_analysis = calculate_experience_score(candidate, intent.get('min_experience'))
             education_analysis = calculate_education_score(candidate, intent.get('education_level'))
             project_analysis = calculate_project_quality_score(candidate, intent.get('skills', []))
+            company_analysis = calculate_company_score(candidate, intent)
             
             # Weight the scores based on query type
-            if intent.get('query_type') == 'ranking' and intent.get('skills'):
+            if intent.get('company_filter'):
+                # Company-focused queries: prioritize company experience
+                weights = {
+                    'company': 0.50,
+                    'experience': 0.25,
+                    'skills': 0.15,
+                    'projects': 0.05,
+                    'education': 0.05
+                }
+            elif intent.get('query_type') == 'ranking' and intent.get('skills'):
                 # Skill-based queries: prioritize skills and projects
                 weights = {
                     'skills': 0.45,
                     'projects': 0.30,
                     'experience': 0.15,
-                    'education': 0.10
+                    'education': 0.05,
+                    'company': 0.05
                 }
             else:
                 # General queries: balanced approach
                 weights = {
-                    'skills': 0.35,
+                    'skills': 0.30,
                     'experience': 0.25,
-                    'projects': 0.25,
-                    'education': 0.15
+                    'projects': 0.20,
+                    'company': 0.15,
+                    'education': 0.10
                 }
             
             # Calculate weighted total score
@@ -617,7 +760,8 @@ def rank_candidates(candidates: List[Dict], intent: Dict[str, Any]) -> List[Cand
                 skill_analysis['total_score'] * weights['skills'] +
                 experience_analysis['score'] * weights['experience'] +
                 education_analysis['score'] * weights['education'] +
-                project_analysis['score'] * weights['projects']
+                project_analysis['score'] * weights['projects'] +
+                company_analysis['score'] * weights.get('company', 0)
             )
             
             # Penalize if doesn't meet hard requirements
@@ -627,6 +771,10 @@ def rank_candidates(candidates: List[Dict], intent: Dict[str, Any]) -> List[Cand
             if intent.get('education_level') is not None and not education_analysis['meets_requirement']:
                 total_score *= 0.8
             
+            # For company filter queries, heavily penalize candidates without top company experience
+            if intent.get('company_filter') and company_analysis['company_count'] == 0:
+                total_score *= 0.3
+            
             # Create score breakdown for transparency
             score_breakdown = {
                 'skill_score': round(skill_analysis['total_score'], 1),
@@ -635,6 +783,8 @@ def rank_candidates(candidates: List[Dict], intent: Dict[str, Any]) -> List[Cand
                 'experience_details': experience_analysis,
                 'education_score': round(education_analysis['score'], 1),
                 'project_score': round(project_analysis['score'], 1),
+                'company_score': round(company_analysis['score'], 1),
+                'company_details': company_analysis,
                 'weights_used': weights
             }
             
@@ -649,6 +799,8 @@ def rank_candidates(candidates: List[Dict], intent: Dict[str, Any]) -> List[Cand
                 'experience_details': {'score': 0},
                 'education_score': 0,
                 'project_score': 0,
+                'company_score': 0,
+                'company_details': {'score': 0},
                 'weights_used': {}
             }))
     
@@ -682,7 +834,8 @@ def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Opt
                 "skill_proficiency": scored_candidate.score_breakdown.get('skill_score', 0),
                 "experience_quality": scored_candidate.score_breakdown.get('experience_score', 0),
                 "project_relevance": scored_candidate.score_breakdown.get('project_score', 0),
-                "education": scored_candidate.score_breakdown.get('education_score', 0)
+                "education": scored_candidate.score_breakdown.get('education_score', 0),
+                "company_quality": scored_candidate.score_breakdown.get('company_score', 0)
             }
         }
         
@@ -690,12 +843,17 @@ def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Opt
         experiences = parsed.get("experience", []) if parsed else []
         if experiences:
             exp_details = scored_candidate.score_breakdown.get('experience_details', {})
+            company_details = scored_candidate.score_breakdown.get('company_details', {})
+            
             # Use the display version with proper decimal formatting
             total_years_display = exp_details.get('total_years_display', '0 years')
             candidate_info["experience_summary"] = {
                 "total_years": total_years_display,  # Use formatted string
                 "latest_role": experiences[0].get("Role", "N/A"),
-                "latest_company": experiences[0].get("Company", "N/A")
+                "latest_company": experiences[0].get("Company", "N/A"),
+                "top_companies": company_details.get('top_companies', []),
+                "has_fulltime": company_details.get('has_fulltime', False),
+                "has_internship": company_details.get('has_internship', False)
             }
         
         # Add relevant projects
@@ -724,11 +882,25 @@ def create_enhanced_prompt(query: str, ranked_data: str, intent: Dict, total_sho
     """
     ranking_note = ""
     if intent.get('query_type') == 'ranking':
-        ranking_note = f"""
+        if intent.get('company_filter'):
+            ranking_note = f"""
+IMPORTANT: These candidates are RANKED by overall fit score (0-100) with EMPHASIS ON COMPANY EXPERIENCE:
+- Company Quality (50%): Experience at top tech companies, full-time vs internships
+- Experience Quality (25%): Years, seniority, and role progression
+- Skill Proficiency (15%): Technical skills and expertise
+- Project Relevance (5%): Relevant project experience
+- Education Level (5%): Academic qualifications
+
+Top companies include: Google, Microsoft, Amazon, Facebook/Meta, Apple, Netflix, Uber, Airbnb, 
+LinkedIn, Twitter, Tesla, IBM, Oracle, Salesforce, Adobe, Intel, Nvidia, Samsung, and many others.
+"""
+        else:
+            ranking_note = f"""
 IMPORTANT: These candidates are RANKED by overall fit score (0-100) based on:
 - Skill Proficiency: How well they demonstrate the required skills
 - Experience Quality: Years, seniority, and company diversity
 - Project Relevance: Projects using the required technologies
+- Company Quality: Experience at reputable companies
 - Education Level: Highest degree attained
 
 The ranking considers ALL aspects of their profile, not just presence of skills.
@@ -775,11 +947,26 @@ IMPORTANT FORMATTING RULES:
    - Top Skills: Python, Java, SQL, HTML/CSS
    - Total Experience: 0.3 years (approximately 4 months)
 
+4. Company Experience Example (Overall Score: 88.5/100)
+   - Email: topco@email.com
+   - Key Strengths:
+     * Company Quality: 90/100 (Worked at Google and Microsoft)
+     * Experience: Full-time Software Engineer at Google, Intern at Microsoft
+     * Skills: Python, Java, Kubernetes
+   - Top Companies: Google, Microsoft
+   - Total Experience: 3 years
+
 SPECIAL INSTRUCTIONS FOR EXPERIENCE:
 - If "total_years" is less than 1 (e.g., "0.3 years"), show it exactly as provided
 - For fractional years, mention approximate months in parentheses
 - Example: "0.3 years (approximately 4 months)"
 - DO NOT round fractional experience to "0 years"
+
+SPECIAL INSTRUCTIONS FOR COMPANY QUERIES:
+- If the query mentions companies, internships, or full-time positions, PRIORITIZE "top_companies" in experience_summary
+- Highlight specific company names from "top_companies" array
+- Mention if candidate has both full-time and internship experience
+- Example: "Worked at Google (full-time) and Microsoft (internship)"
 
 INSTRUCTIONS:
 1. Present candidates in EXACT RANKED ORDER provided (by overall_score)
@@ -882,9 +1069,9 @@ async def chatbot_query(
         # Determine how many to show
         top_n = intent.get('top_n', 5)  # Default to top 5 for ranking queries
         
-        # Filter out candidates with very low scores
+        # Filter out candidates with very low scores (lowered threshold)
         if len(ranked_candidates) > top_n:
-            ranked_candidates = [c for c in ranked_candidates if c.score > 20][:top_n]
+            ranked_candidates = [c for c in ranked_candidates if c.score > 10][:top_n]
         
         if not ranked_candidates:
             return {
