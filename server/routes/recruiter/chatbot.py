@@ -323,7 +323,6 @@ def calculate_skill_proficiency_score(candidate: Dict, required_skills: List[str
     }
 
 
-
 def parse_experience_years(years_str: str) -> float:
     """
     Safely parse years from experience string
@@ -535,15 +534,15 @@ def calculate_education_score(candidate: Dict, required_level: Optional[str] = N
         'phd': 100,
         'doctorate': 100,
         'doctoral': 100,
-        'masters': 75,
-        'msc': 75,
-        'm.sc': 75,
+        'masters': 70,
+        'msc': 70,
+        'm.sc': 70,
         'mtech': 75,
         'm.tech': 75,
         'mba': 75,
         'bachelor': 50,
-        'btech': 50,
-        'b.tech': 50,
+        'btech': 70,
+        'b.tech': 70,
         'be': 50,
         'b.e': 50,
         'bsc': 50,
@@ -813,7 +812,8 @@ def rank_candidates(candidates: List[Dict], intent: Dict[str, Any]) -> List[Cand
 
 def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Optional[int] = None) -> str:
     """
-    Format ranked candidates for LLM with scoring details
+    Format ranked candidates for LLM WITHOUT exposing scores
+    Only include meaningful information for natural conversation
     """
     if top_n:
         ranked_candidates = ranked_candidates[:top_n]
@@ -825,162 +825,247 @@ def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Opt
         parsed = candidate.get("parsed_data", {})
         
         candidate_info = {
-            "rank": idx,
-            "overall_score": round(scored_candidate.score, 1),
+            "rank": idx,  # Keep rank but hide score
             "name": parsed.get("name", "Unknown") if parsed else "Unknown",
             "email": parsed.get("email", "N/A") if parsed else "N/A",
-            "skills": (parsed.get("skills", []) + parsed.get("derived_skills", []))[:8] if parsed else [],
-            "score_breakdown": {
-                "skill_proficiency": scored_candidate.score_breakdown.get('skill_score', 0),
-                "experience_quality": scored_candidate.score_breakdown.get('experience_score', 0),
-                "project_relevance": scored_candidate.score_breakdown.get('project_score', 0),
-                "education": scored_candidate.score_breakdown.get('education_score', 0),
-                "company_quality": scored_candidate.score_breakdown.get('company_score', 0)
-            }
+            "skills": (parsed.get("skills", []) + parsed.get("derived_skills", []))[:10] if parsed else [],
         }
         
-        # Add experience with proper formatting
+        # Add experience details
         experiences = parsed.get("experience", []) if parsed else []
         if experiences:
             exp_details = scored_candidate.score_breakdown.get('experience_details', {})
             company_details = scored_candidate.score_breakdown.get('company_details', {})
             
-            # Use the display version with proper decimal formatting
             total_years_display = exp_details.get('total_years_display', '0 years')
-            candidate_info["experience_summary"] = {
-                "total_years": total_years_display,  # Use formatted string
-                "latest_role": experiences[0].get("Role", "N/A"),
-                "latest_company": experiences[0].get("Company", "N/A"),
-                "top_companies": company_details.get('top_companies', []),
+            candidate_info["experience"] = {
+                "total_years": total_years_display,
+                "roles": [
+                    {
+                        "role": exp.get("Role", "N/A"),
+                        "company": exp.get("Company", "N/A"),
+                        "duration": exp.get("Years", "N/A")
+                    }
+                    for exp in experiences[:3]  # Show top 3 roles
+                ],
+                "notable_companies": company_details.get('top_companies', []),
                 "has_fulltime": company_details.get('has_fulltime', False),
                 "has_internship": company_details.get('has_internship', False)
             }
         
-        # Add relevant projects
+        # Add education
+        education = parsed.get("education", []) if parsed else []
+        if education:
+            candidate_info["education"] = [
+                {
+                    "degree": edu.get("Degree", "N/A"),
+                    "institution": edu.get("Institution", "N/A"),
+                    "year": edu.get("Year", "N/A")
+                }
+                for edu in education[:2]  # Show top 2
+            ]
+        
+        # Add relevant projects (without scores)
+        projects = parsed.get("projects", []) if parsed else []
+        if projects:
+            candidate_info["projects"] = [
+                {
+                    "name": proj.get("Name", "Unnamed Project"),
+                    "description": proj.get("Description", "")[:150] + "..." if len(proj.get("Description", "")) > 150 else proj.get("Description", "")
+                }
+                for proj in projects[:3]  # Show top 3 projects
+            ]
+        
+        # Add skill evidence WITHOUT scores - just which skills were demonstrated
         skill_details = scored_candidate.score_breakdown.get('skill_details', {})
         if skill_details.get('skill_breakdown'):
-            skills_with_evidence = []
+            demonstrated_skills = []
             for skill, details in skill_details['skill_breakdown'].items():
                 if details.get('score', 0) > 0:
-                    skills_with_evidence.append({
-                        "skill": skill,
-                        "proficiency_score": round(details.get('score', 0), 1),
-                        "evidence": details.get('evidence', [])[:2]
-                    })
-            if skills_with_evidence:
-                candidate_info["skill_evidence"] = skills_with_evidence
+                    evidence = details.get('evidence', [])
+                    if evidence:
+                        demonstrated_skills.append({
+                            "skill": skill,
+                            "evidence": evidence[:2]  # Show where skill was used
+                        })
+            if demonstrated_skills:
+                candidate_info["skill_evidence"] = demonstrated_skills
         
         formatted.append(candidate_info)
     
     return json.dumps(formatted, indent=2)
 
 
-
 def create_enhanced_prompt(query: str, ranked_data: str, intent: Dict, total_shown: int, total_unique: int) -> str:
     """
-    Create enhanced prompt with ranking information
+    Create enhanced prompt that lets AI determine its own format
+    WITHOUT exposing internal scoring
     """
-    ranking_note = ""
+    ranking_context = ""
     if intent.get('query_type') == 'ranking':
         if intent.get('company_filter'):
-            ranking_note = f"""
-IMPORTANT: These candidates are RANKED by overall fit score (0-100) with EMPHASIS ON COMPANY EXPERIENCE:
-- Company Quality (50%): Experience at top tech companies, full-time vs internships
-- Experience Quality (25%): Years, seniority, and role progression
-- Skill Proficiency (15%): Technical skills and expertise
-- Project Relevance (5%): Relevant project experience
-- Education Level (5%): Academic qualifications
-
-Top companies include: Google, Microsoft, Amazon, Facebook/Meta, Apple, Netflix, Uber, Airbnb, 
-LinkedIn, Twitter, Tesla, IBM, Oracle, Salesforce, Adobe, Intel, Nvidia, Samsung, and many others.
+            ranking_context = """
+These candidates are ranked based on their company experience, role progression, and overall career quality.
+Pay special attention to candidates who have worked at notable companies or held significant positions.
 """
         else:
-            ranking_note = f"""
-IMPORTANT: These candidates are RANKED by overall fit score (0-100) based on:
-- Skill Proficiency: How well they demonstrate the required skills
-- Experience Quality: Years, seniority, and company diversity
-- Project Relevance: Projects using the required technologies
-- Company Quality: Experience at reputable companies
-- Education Level: Highest degree attained
-
-The ranking considers ALL aspects of their profile, not just presence of skills.
+            ranking_context = """
+These candidates are ranked based on their overall fit for the query, considering:
+- Relevant skills and how they've been applied
+- Professional experience and career progression
+- Project work and practical demonstrations
+- Educational background
+- Company experience and reputation
 """
     
-    # Updated prompt with specific instructions about experience formatting
-    prompt = f"""You are an AI recruiter assistant with advanced candidate ranking capabilities.
+    prompt = f"""You are an experienced technical recruiter helping to find the best candidates.
 
-{ranking_note}
+{ranking_context}
 
-RANKED CANDIDATES (Top {total_shown} of {total_unique} distinct candidates):
+CANDIDATE DATA (Top {total_shown} of {total_unique} candidates):
 {ranked_data}
 
-ORIGINAL QUERY: "{query}"
-
-IMPORTANT FORMATTING RULES:
-1. DO NOT use markdown formatting like **bold**, *italic*, or # headers
-2. DO NOT use asterisks or special characters for emphasis
-3. Use plain text with clear numbering and bullet points
-4. For experience: Use the exact "total_years" value provided in the data
-5. Format like this example:
-
-1. John Doe (Overall Score: 87.5/100)
-   - Email: john@email.com
-   - Key Strengths: 
-     * Skill Proficiency: 90.2/100 (Python used in 3 projects)
-     * Experience: 6 years including Senior Developer at Google
-     * Projects: Built e-commerce platform using React & Node.js
-   - Top Skills: Python, React, AWS, Node.js
-   - Total Experience: 6 years
-
-2. Jane Smith (Overall Score: 82.3/100)
-   - Email: jane@email.com
-   - Key Strengths:
-     * Project Relevance: 85/100 (2 ML projects with TensorFlow)
-     * Experience: 4 years at Microsoft
-   - Top Skills: Python, Machine Learning, TensorFlow, SQL
-
-3. Recent Graduate Example (Overall Score: 65.8/100)
-   - Email: recent@email.com
-   - Key Strengths:
-     * Skill Proficiency: 75/100 (Strong academic projects in Python)
-     * Education: Bachelor's in Computer Science
-   - Top Skills: Python, Java, SQL, HTML/CSS
-   - Total Experience: 0.3 years (approximately 4 months)
-
-4. Company Experience Example (Overall Score: 88.5/100)
-   - Email: topco@email.com
-   - Key Strengths:
-     * Company Quality: 90/100 (Worked at Google and Microsoft)
-     * Experience: Full-time Software Engineer at Google, Intern at Microsoft
-     * Skills: Python, Java, Kubernetes
-   - Top Companies: Google, Microsoft
-   - Total Experience: 3 years
-
-SPECIAL INSTRUCTIONS FOR EXPERIENCE:
-- If "total_years" is less than 1 (e.g., "0.3 years"), show it exactly as provided
-- For fractional years, mention approximate months in parentheses
-- Example: "0.3 years (approximately 4 months)"
-- DO NOT round fractional experience to "0 years"
-
-SPECIAL INSTRUCTIONS FOR COMPANY QUERIES:
-- If the query mentions companies, internships, or full-time positions, PRIORITIZE "top_companies" in experience_summary
-- Highlight specific company names from "top_companies" array
-- Mention if candidate has both full-time and internship experience
-- Example: "Worked at Google (full-time) and Microsoft (internship)"
+USER QUERY: "{query}"
 
 INSTRUCTIONS:
-1. Present candidates in EXACT RANKED ORDER provided (by overall_score)
-2. For each candidate, explain WHY they are ranked at their position using score_breakdown
-3. Highlight specific evidence from skill_evidence (projects, experience)
-4. Mention overall_score and key metrics (use exact "total_years" value from data)
-5. Keep explanations concise and data-driven
-6. Use the format shown above - plain text with numbers and bullet points
+1. Answer the user's query naturally and conversationally
+2. DO NOT reveal any numerical scores, rankings, or internal metrics
+3. DO NOT use rigid formatting templates - adapt your response style to the question
+4. Determine the best way to present information based on what the user is asking
+5. Focus on qualitative insights about candidates rather than quantitative scores
+6. Use natural language to describe why certain candidates stand out
+7. If showing multiple candidates, present them in the order provided but don't mention "rank 1", "rank 2" etc.
+8. Be concise unless the user asks for detailed information
 
-Now, provide the ranked candidates for the query: "{query}"
+IMPORTANT - Response Style Guidelines:
+- For "who" questions: Present candidates with brief highlights
+- For "tell me about" questions: Provide detailed insights
+- For "how many" questions: Give counts and summaries
+- For "best/top" questions: Explain what makes candidates strong without numbers
+- For comparison questions: Compare qualitatively, not with scores
+- For specific skill questions: Focus on evidence and experience
+
+WHAT NOT TO DO:
+- Don't use phrases like "Overall Score: 87.5/100"
+- Don't say "Skill Proficiency: 90.2/100"
+- Don't mention "ranked by score" or "ranking system"
+- Don't use bullet-point templates unless it truly fits the query
+- Don't reveal that candidates are numerically scored
+
+Examples of good responses:
+
+Query: "Who are the best Python developers?"
+Good: "I found several strong Python developers. Sarah Johnson has extensive Python experience across multiple projects including a machine learning platform at Google. She's also used Python in her work at Microsoft. John Smith has demonstrated Python skills through several full-stack applications and has 5 years of backend development experience."
+
+Query: "Tell me about candidates with AWS experience"
+Good: "I found 3 candidates with notable AWS experience. Maria Garcia has been working with AWS for the past 3 years in her role as a Cloud Engineer at Amazon, where she architected several microservices solutions. Tom Wilson has AWS certifications and has deployed production applications on AWS infrastructure..."
+
+Query: "Do we have any candidates from Google?"
+Good: "Yes, we have 2 candidates with Google experience. Sarah Johnson worked as a Software Engineer at Google for 2 years, focusing on backend infrastructure. Additionally, Alex Chen completed a software engineering internship at Google last summer."
+
+Now respond to: "{query}"
 """
     
     return prompt
 
+
+@router.post("/chatbot", dependencies=[Depends(require_recruiter)])
+async def chatbot_query(
+    request: ChatRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Enhanced chatbot with intelligent ranking system
+    AI determines response format naturally
+    """
+    try:
+        print(f"Received query: {request.query}")
+        
+        # Fetch all candidates
+        all_candidates = list(resume_history_collection.find(
+            {"recruiter_email": current_user.email}
+        ).sort("parsed_at", -1))
+        
+        if not all_candidates:
+            return {
+                "response": "You don't have any candidates in your database yet. Please upload some resumes first.",
+                "candidates_analyzed": 0,
+                "candidates_shown": 0
+            }
+        
+        # Convert ObjectId and deduplicate
+        for candidate in all_candidates:
+            candidate["_id"] = str(candidate["_id"])
+        
+        unique_candidates = deduplicate_candidates(all_candidates)
+        
+        if not unique_candidates:
+            return {
+                "response": "No distinct candidates found in your database.",
+                "candidates_analyzed": 0,
+                "candidates_shown": 0
+            }
+        
+        print(f"Total candidates: {len(all_candidates)}, Unique: {len(unique_candidates)}")
+        
+        # Extract query intent
+        intent = extract_query_intent(request.query)
+        print(f"Query intent: {intent}")
+        
+        # Rank candidates based on intent
+        ranked_candidates = rank_candidates(unique_candidates, intent)
+        
+        # Determine how many to show
+        top_n = intent.get('top_n', 5)
+        
+        # Filter out candidates with very low scores (internal only)
+        if len(ranked_candidates) > top_n:
+            ranked_candidates = [c for c in ranked_candidates if c.score > 10][:top_n]
+        
+        if not ranked_candidates:
+            return {
+                "response": f"I analyzed {len(unique_candidates)} candidates, but none matched your criteria for '{request.query}'. Try broadening your search criteria.",
+                "candidates_analyzed": len(unique_candidates),
+                "candidates_shown": 0
+            }
+        
+        # Format for LLM WITHOUT scores
+        ranked_data = format_ranked_candidates(ranked_candidates, top_n)
+        
+        # Create enhanced prompt that encourages natural formatting
+        prompt = create_enhanced_prompt(
+            request.query,
+            ranked_data,
+            intent,
+            min(top_n, len(ranked_candidates)),
+            len(unique_candidates)
+        )
+        
+        print(f"Sending top {min(top_n, len(ranked_candidates))} candidates to LLM")
+        
+        # Call Groq API with slightly higher temperature for more natural responses
+        response = await call_groq_api(prompt, temperature=0.8)
+        
+        if "choices" in response and len(response["choices"]) > 0:
+            ai_response = response["choices"][0]["message"]["content"]
+            
+            return {
+                "response": ai_response,
+                "candidates_analyzed": len(unique_candidates),
+                "candidates_shown": min(top_n, len(ranked_candidates))
+            }
+        else:
+            raise Exception("Invalid API response")
+            
+    except Exception as e:
+        print(f"Error in chatbot: {str(e)}")
+        print(traceback.format_exc())
+        
+        return {
+            "response": f"I apologize, but I encountered an error while processing your query. Please try a different question or check if you have candidates in your database.",
+            "candidates_analyzed": 0,
+            "candidates_shown": 0
+        }
 
 
 async def call_groq_api(prompt: str, temperature: float = 0.7):
