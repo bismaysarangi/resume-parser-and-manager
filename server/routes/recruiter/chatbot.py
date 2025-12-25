@@ -9,6 +9,7 @@ from dependencies.auth import get_current_active_user
 from dependencies.role_based_auth import require_recruiter
 from core.database import db
 from core.config import GROQ_API_KEY, GROQ_URL
+from core.config import GROQ_PARSING_MODEL
 
 
 router = APIRouter()
@@ -1077,7 +1078,7 @@ async def call_groq_api(prompt: str, temperature: float = 0.7):
 
 
     payload = {
-        "model": "llama-3.3-70b-versatile",
+        "model": GROQ_PARSING_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature,
         "max_tokens": 2000

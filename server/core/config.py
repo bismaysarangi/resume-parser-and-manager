@@ -19,8 +19,20 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-GROQ_PARSING_MODEL = "llama-3.3-70b-versatile"  # For resume parsing (structured data)
-GROQ_INSIGHTS_MODEL = "openai/gpt-oss-20b"  # For AI insights (was working before)
+# OPTION A: Use smaller, faster models (recommended to avoid rate limits)
+# GROQ_PARSING_MODEL = "llama-3.1-8b-instant"  # Much faster, separate rate limit
+# GROQ_INSIGHTS_MODEL = "llama-3.1-8b-instant"  # Same for insights
+# GROQ_CHATBOT_MODEL = "llama-3.1-8b-instant"   # Same for chatbot
+
+# OPTION B: Use mixtral (another good alternative)
+# GROQ_PARSING_MODEL = "mixtral-8x7b-32768"
+# GROQ_INSIGHTS_MODEL = "mixtral-8x7b-32768"
+# GROQ_CHATBOT_MODEL = "mixtral-8x7b-32768"
+
+# OPTION C: Keep your original models (but you'll hit rate limits)
+GROQ_PARSING_MODEL = "llama-3.3-70b-versatile"
+GROQ_INSIGHTS_MODEL = "llama-3.1-8b-instant"
+GROQ_CHATBOT_MODEL = "llama-3.3-70b-versatile"
 
 # CORS Configuration
 CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]

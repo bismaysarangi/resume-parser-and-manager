@@ -55,6 +55,7 @@ async def parse_single_resume_safe(file: UploadFile, current_user: dict, seen_ha
     
     for attempt in range(max_retries):
         try:
+            await file.seek(0)
             # Record this request timestamp for rate limiting
             request_timestamps.append(time.time())
             
