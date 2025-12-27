@@ -16,11 +16,6 @@ def create_insights_prompt(resume_data):
     {{
       "strengths": ["list of 3-4 key strengths"],
       "improvements": ["list of 3-4 areas for improvement"],
-      "skillGaps": {{
-        "Frontend Developer": ["gap1", "gap2"],
-        "Backend Developer": ["gap1", "gap2"],
-        "Full Stack Developer": ["gap1", "gap2"]
-      }},
       "careerSuggestions": ["list of suitable job roles"],
       "interviewTips": ["list of 4-5 interview preparation tips"],
       "overallScore": <calculate a score between 40-95 based on resume quality, experience, skills, and achievements>,

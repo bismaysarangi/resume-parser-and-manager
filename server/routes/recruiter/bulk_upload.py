@@ -13,74 +13,72 @@ import time
 router = APIRouter()
 resume_history_collection = db["resume_history"]
 
-# Enhanced rate limiting configuration
-BASE_DELAY = 0.5  # Base delay between requests
-MAX_DELAY = 5.0   # Maximum delay if rate limited
-RATE_LIMIT_WINDOW = 60  # 1 minute window for tracking
+# Rate limiting configuration
+BASE_DELAY = 3.0
+MAX_DELAY = 10.0
+RATE_LIMIT_WINDOW = 60 * 8
+MAX_REQUESTS_PER_MINUTE = 8
 
-# Track request timing for adaptive rate limiting
+# ✅ Token tracking
 request_timestamps = []
+total_tokens_used = 0
+total_prompt_tokens = 0
+total_completion_tokens = 0
 
 def is_rate_limited():
-    """Check if we're approaching rate limits based on recent requests"""
+    """Check if we're approaching rate limits"""
     now = time.time()
-    # Remove timestamps older than our window
     global request_timestamps
     request_timestamps = [ts for ts in request_timestamps if now - ts < RATE_LIMIT_WINDOW]
     
-    # If we have many recent requests, slow down
-    if len(request_timestamps) > 10:  # More than 10 requests in last minute
+    if len(request_timestamps) >= MAX_REQUESTS_PER_MINUTE:
         return True
     return False
 
 def calculate_dynamic_delay():
     """Calculate delay based on recent request patterns"""
-    if is_rate_limited():
-        return min(BASE_DELAY * 3, MAX_DELAY)  # Triple the delay if approaching limits
-    return BASE_DELAY
+    now = time.time()
+    recent_requests = len([ts for ts in request_timestamps if now - ts < RATE_LIMIT_WINDOW])
+    
+    if recent_requests >= MAX_REQUESTS_PER_MINUTE:
+        return MAX_DELAY
+    elif recent_requests >= MAX_REQUESTS_PER_MINUTE * 0.75:
+        return BASE_DELAY * 2
+    elif recent_requests >= MAX_REQUESTS_PER_MINUTE * 0.5:
+        return BASE_DELAY * 1.5
+    else:
+        return BASE_DELAY
 
 def generate_resume_hash(parsed_data: dict) -> str:
-    """
-    Generate a hash from resume content to detect duplicates
-    Uses email, name, and phone as unique identifiers
-    """
+    """Generate hash for duplicate detection"""
     unique_string = f"{parsed_data.get('email', '')}|{parsed_data.get('name', '')}|{parsed_data.get('phone', '')}"
     return hashlib.md5(unique_string.lower().encode()).hexdigest()
 
 async def parse_single_resume_safe(file: UploadFile, current_user: dict, seen_hashes: set, max_retries=3):
-    """
-    Parse a single resume with enhanced retry logic and rate limit handling
-    """
+    """Parse a single resume with enhanced retry logic"""
     last_error = None
     
     for attempt in range(max_retries):
         try:
             await file.seek(0)
-            # Record this request timestamp for rate limiting
             request_timestamps.append(time.time())
             
-            # Attempt to parse
             parsed_data = await parse_resume(file)
             
-            # Validate that we got data back
             if not isinstance(parsed_data, dict):
                 raise ValueError("Parser returned invalid data format")
             
-            # Generate hash to check for duplicates
             resume_hash = generate_resume_hash(parsed_data)
             
-            # Check if this resume is a duplicate
             if resume_hash in seen_hashes:
                 return {
                     "success": False,
                     "is_duplicate": True,
-                    "error": f"Duplicate resume detected (same email/name/phone as another uploaded resume)"
+                    "error": f"Duplicate resume detected"
                 }
             
-            # Add hash to seen set
             seen_hashes.add(resume_hash)
             
-            # Create resume data model
             resume_data = ResumeData(
                 name=parsed_data.get("name"),
                 email=parsed_data.get("email"),
@@ -94,7 +92,6 @@ async def parse_single_resume_safe(file: UploadFile, current_user: dict, seen_ha
                 twelfth_marks=parsed_data.get("12th Marks")
             )
 
-            # Create history entry
             history_entry = {
                 "recruiter_email": current_user.email,
                 "filename": parsed_data.get("filename"),
@@ -105,7 +102,6 @@ async def parse_single_resume_safe(file: UploadFile, current_user: dict, seen_ha
                 "resume_hash": resume_hash
             }
 
-            # Insert into MongoDB
             result = resume_history_collection.insert_one(history_entry)
 
             return {
@@ -122,38 +118,31 @@ async def parse_single_resume_safe(file: UploadFile, current_user: dict, seen_ha
             error_msg = str(e)
             last_error = error_msg
             
-            # Enhanced error handling for rate limits
             if any(term in error_msg.lower() for term in ['rate limit', '429', 'too many requests', 'tokens per minute']):
-                # Exponential backoff for rate limits
-                wait_time = min((2 ** attempt) * 2, 30)  # 2s, 4s, 8s, max 30s
-                print(f"Rate limit hit for {file.filename}. Waiting {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                wait_time = min((2 ** attempt) * 5, 30)
+                print(f"⏳ Rate limit for {file.filename}. Waiting {wait_time}s (attempt {attempt + 1}/{max_retries})")
                 await asyncio.sleep(wait_time)
                 
-                # Reset file pointer for retry
                 try:
                     await file.seek(0)
                 except:
                     pass
                 continue
                 
-            # Check if it's an API error that might succeed on retry
             elif any(term in error_msg for term in ["'choices'", "choices", "Failed to parse resume"]):
                 if attempt < max_retries - 1:
-                    wait_time = (attempt + 1) * 3  # 3s, 6s, 9s
-                    print(f"API error for {file.filename}. Retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
+                    wait_time = (attempt + 1) * 4
+                    print(f"🔄 API error for {file.filename}. Retrying in {wait_time}s (attempt {attempt + 1}/{max_retries})")
                     await asyncio.sleep(wait_time)
                     
-                    # Reset file pointer for retry
                     try:
                         await file.seek(0)
                     except:
                         pass
                     continue
             
-            # For other errors, don't retry
             break
     
-    # All retries failed
     return {
         "success": False,
         "is_duplicate": False,
@@ -165,56 +154,91 @@ async def bulk_parse_resume_endpoint(
     files: List[UploadFile] = File(...),
     current_user: dict = Depends(get_current_active_user)
 ):
-    """
-    Parse multiple resumes for recruiter bulk upload with enhanced rate limiting
-    """
-    # Validate file count to prevent abuse
+    """Parse multiple resumes with improved rate limiting and token tracking"""
     if len(files) > 50:
         raise HTTPException(
             status_code=400,
             detail="Maximum 50 resumes allowed per bulk upload"
         )
     
+    # ✅ Reset token counters for this batch
+    global total_tokens_used, total_prompt_tokens, total_completion_tokens
+    total_tokens_used = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+    
     results = {"successful": [], "failed": [], "duplicates": []}
     seen_hashes = set()
 
-    print(f"Processing {len(files)} resumes sequentially with enhanced rate limiting...")
+    print(f"\n{'='*70}")
+    print(f"🚀 BULK UPLOAD STARTED")
+    print(f"{'='*70}")
+    print(f"📦 Total files: {len(files)}")
+    print(f"⏱️  Estimated time: ~{len(files) * BASE_DELAY / 60:.1f} minutes")
+    print(f"👤 Recruiter: {current_user.email}")
+    print(f"{'='*70}\n")
     
-    # Process files SEQUENTIALLY with dynamic delays
+    start_time = time.time()
+    
     for idx, file in enumerate(files):
-        print(f"Processing file {idx + 1}/{len(files)}: {file.filename}")
+        print(f"\n{'='*70}")
+        print(f"📄 [{idx + 1}/{len(files)}] Processing: {file.filename}")
+        print(f"{'='*70}")
         
-        # Parse with retry logic and duplicate detection
         result = await parse_single_resume_safe(file, current_user, seen_hashes)
         
         if result["success"]:
             results["successful"].append(result["data"])
+            print(f"✅ SUCCESS")
         elif result.get("is_duplicate"):
             results["duplicates"].append({
                 "filename": file.filename,
                 "reason": result["error"]
             })
+            print(f"⚠️  DUPLICATE")
         else:
             results["failed"].append({
                 "filename": file.filename,
                 "error": result["error"]
             })
+            print(f"❌ FAILED: {result['error'][:100]}")
         
-        # Dynamic delay based on current rate limiting status
+        # Show progress
+        completed = idx + 1
+        progress = (completed / len(files)) * 100
+        print(f"\n📊 Progress: {completed}/{len(files)} ({progress:.1f}%)")
+        
+        # Dynamic delay
         if idx < len(files) - 1:
             delay = calculate_dynamic_delay()
-            print(f"Waiting {delay}s before next resume (adaptive rate limiting)...")
+            print(f"⏳ Waiting {delay:.1f}s before next resume...")
             await asyncio.sleep(delay)
 
-    # Return results even if some failed
+    elapsed_time = time.time() - start_time
+    
     total_files = len(files)
     successful_count = len(results["successful"])
     failed_count = len(results["failed"])
     duplicate_count = len(results["duplicates"])
     
-    print(f"Bulk parsing complete: {successful_count}/{total_files} successful, {failed_count}/{total_files} failed, {duplicate_count}/{total_files} duplicates")
+    print(f"\n{'='*70}")
+    print(f"🏁 BULK UPLOAD COMPLETED")
+    print(f"{'='*70}")
+    print(f"📊 RESULTS:")
+    print(f"   ✅ Successful: {successful_count}/{total_files} ({successful_count/total_files*100:.1f}%)")
+    print(f"   ⚠️  Duplicates: {duplicate_count}/{total_files} ({duplicate_count/total_files*100:.1f}%)")
+    print(f"   ❌ Failed: {failed_count}/{total_files} ({failed_count/total_files*100:.1f}%)")
+    print(f"\n⏱️  TIME:")
+    print(f"   └─ Total: {elapsed_time:.1f}s ({elapsed_time/60:.1f} min)")
+    print(f"   └─ Average per resume: {elapsed_time/total_files:.1f}s")
     
-    # Only raise error if ALL files failed
+    # ✅ Show cumulative token usage (if available)
+    # Note: Token tracking happens in resume_parser.py via print statements
+    # This is a placeholder for future enhancement where we track tokens globally
+    print(f"\n💡 TIP: Check individual resume logs above for detailed token usage")
+    print(f"{'='*70}\n")
+    
+    # Only error if ALL failed
     if successful_count == 0 and duplicate_count == 0:
         raise HTTPException(
             status_code=500, 
@@ -227,6 +251,8 @@ async def bulk_parse_resume_endpoint(
             "total": total_files,
             "successful": successful_count,
             "failed": failed_count,
-            "duplicates": duplicate_count
+            "duplicates": duplicate_count,
+            "elapsed_time_seconds": round(elapsed_time, 2),
+            "average_time_per_resume": round(elapsed_time / total_files, 2)
         }
     }

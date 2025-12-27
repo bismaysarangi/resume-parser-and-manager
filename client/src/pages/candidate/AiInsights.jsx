@@ -313,7 +313,7 @@ const AiInsights = () => {
             </div>
 
             {/* Skill Gaps */}
-            <Card className="bg-white/10 backdrop-blur-sm border-orange-500/20 hover:border-orange-400/30 transition-all">
+            {/* <Card className="bg-white/10 backdrop-blur-sm border-orange-500/20 hover:border-orange-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg">
                   <div className="p-2 bg-orange-500/20 rounded-lg mr-3">
@@ -341,7 +341,7 @@ const AiInsights = () => {
                   ))}
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">

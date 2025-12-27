@@ -22,8 +22,8 @@ const ALLOWED_TYPES = [
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_FILES = 100;
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const MAX_FILES = 50;
 
 const RecruiterBulkUpload = () => {
   const [isDragging, setIsDragging] = useState(false);
@@ -35,17 +35,15 @@ const RecruiterBulkUpload = () => {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [fileWarning, setFileWarning] = useState(null);
   const fileInputRef = useRef(null);
+  const folderInputRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     checkAuthStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkAuthStatus = async () => {
     const token = localStorage.getItem("token");
-    console.log("Current token:", token);
-
     if (token) {
       try {
         const response = await axios.get(
@@ -57,14 +55,11 @@ const RecruiterBulkUpload = () => {
           }
         );
         setUser(response.data);
-        console.log("User is authenticated:", response.data);
-
-        // Redirect if not recruiter
         if (response.data.role !== "recruiter") {
           navigate("/candidate/upload");
         }
       } catch (error) {
-        console.error("Token invalid or expired:", error);
+        console.error("Token invalid:", error);
         localStorage.removeItem("token");
         setShowLoginPrompt(true);
       }
@@ -94,6 +89,12 @@ const RecruiterBulkUpload = () => {
 
   const handleFileInput = (e) => {
     const files = Array.from(e.target.files || []);
+    processSelectedFiles(files);
+  };
+
+  const handleFolderInput = async (e) => {
+    const files = Array.from(e.target.files || []);
+    console.log("📁 Folder selected, processing", files.length, "files");
     processSelectedFiles(files);
   };
 
@@ -132,10 +133,10 @@ const RecruiterBulkUpload = () => {
     const items = dataTransfer.items;
     if (!items) return Array.from(dataTransfer.files || []);
 
-    if (items[0] && items[0].webkitGetAsEntry) {
+    if (items[0]?.webkitGetAsEntry) {
       const entries = [];
       for (let i = 0; i < items.length; i++) {
-        const entry = items[i].webkitGetAsEntry && items[i].webkitGetAsEntry();
+        const entry = items[i].webkitGetAsEntry();
         if (entry) entries.push(entry);
       }
       const all = [];
@@ -154,6 +155,7 @@ const RecruiterBulkUpload = () => {
     const valid = files.filter(
       (f) => ALLOWED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE
     );
+
     if (valid.length === 0) {
       setUploadStatus({
         type: "error",
@@ -164,14 +166,19 @@ const RecruiterBulkUpload = () => {
 
     let final = valid.slice(0, MAX_FILES);
 
-    // Show warning instead of alert if files exceed limit
     if (valid.length > MAX_FILES) {
       setFileWarning(
-        `You selected ${valid.length} files. Only the first ${MAX_FILES} resumes will be processed.`
+        `⚠️ You selected ${valid.length} files. Only the first ${MAX_FILES} resumes will be processed to avoid rate limits.`
       );
     } else {
       setFileWarning(null);
     }
+
+    // Estimate processing time
+    const estimatedMinutes = Math.ceil((final.length * 3) / 60);
+    console.log(
+      `📊 ${final.length} files selected, estimated time: ~${estimatedMinutes} minutes`
+    );
 
     setSelectedFiles(final);
     setUploadStatus(null);
@@ -188,8 +195,6 @@ const RecruiterBulkUpload = () => {
     }
 
     const token = localStorage.getItem("token");
-    console.log("Upload - Token from localStorage:", token);
-
     if (!token) {
       setShowLoginPrompt(true);
       return;
@@ -206,7 +211,10 @@ const RecruiterBulkUpload = () => {
         formData.append("files", file, file.name)
       );
 
-      console.log("Sending bulk upload request with token:", token);
+      const estimatedMinutes = Math.ceil((selectedFiles.length * 3) / 60);
+      console.log(
+        `⏱️  Starting upload of ${selectedFiles.length} files (~${estimatedMinutes} min)`
+      );
 
       const response = await axios.post(
         "http://127.0.0.1:8000/api/recruiter/bulk-parse-resume",
@@ -216,36 +224,67 @@ const RecruiterBulkUpload = () => {
             "Content-Type": "multipart/form-data",
             Authorization: `Bearer ${token}`,
           },
-          timeout: 120000,
+          timeout: 600000, // 10 minutes for large batches
         }
       );
 
-      console.log("Bulk upload successful:", response.data);
+      console.log("✅ Upload complete:", response.data);
+
+      const successCount = response.data?.summary?.successful || 0;
+      const failedCount = response.data?.summary?.failed || 0;
+      const duplicateCount = response.data?.summary?.duplicates || 0;
+
       setResult(response.data);
       setIsUploading(false);
-      setUploadStatus({
-        type: "success",
-        message: `${response.data.summary.successful} resume(s) uploaded successfully!`,
-      });
 
-      // Save results to localStorage for the results page
+      if (successCount > 0) {
+        setUploadStatus({
+          type: "success",
+          message: `✅ ${successCount} resume(s) uploaded successfully!${
+            duplicateCount > 0 ? ` (${duplicateCount} duplicates)` : ""
+          }${failedCount > 0 ? ` (${failedCount} failed)` : ""}`,
+        });
+      } else if (duplicateCount > 0) {
+        setUploadStatus({
+          type: "warning",
+          message: `⚠️ All ${duplicateCount} resume(s) were duplicates.`,
+        });
+      } else {
+        setUploadStatus({
+          type: "error",
+          message: `❌ Failed to parse ${failedCount} resume(s).`,
+        });
+      }
+
       localStorage.setItem("bulkResults", JSON.stringify(response.data));
     } catch (error) {
-      console.error("Error uploading files:", error);
-      console.error("Error response:", error.response?.data);
+      console.error("❌ Upload error:", error);
       setIsUploading(false);
 
-      if (error.response && error.response.status === 401) {
+      if (error.response?.status === 401) {
         setUploadStatus({
           type: "error",
           message: "Session expired. Please login again.",
         });
         localStorage.removeItem("token");
         setShowLoginPrompt(true);
-      } else {
+      } else if (error.response?.status === 429) {
         setUploadStatus({
           type: "error",
-          message: "Failed to upload resumes. Please try again.",
+          message:
+            "Rate limit exceeded. Please wait a few minutes or reduce the number of files.",
+        });
+      } else if (error.code === "ECONNABORTED") {
+        setUploadStatus({
+          type: "error",
+          message: "Upload timed out. Try fewer files at once.",
+        });
+      } else {
+        const errorMsg =
+          error.response?.data?.detail || error.message || "Unknown error";
+        setUploadStatus({
+          type: "error",
+          message: `Upload failed: ${errorMsg}`,
         });
       }
     }
@@ -257,21 +296,14 @@ const RecruiterBulkUpload = () => {
     setResult(null);
     setShowLoginPrompt(false);
     setFileWarning(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (folderInputRef.current) folderInputRef.current.value = "";
   };
 
   const handleNavigateToResults = () => {
     if (result) {
-      navigate("/recruiter/bulk-results", {
-        state: result,
-      });
+      navigate("/recruiter/bulk-results", { state: result });
     }
-  };
-
-  const handleLoginRedirect = () => {
-    navigate("/login");
   };
 
   return (
@@ -279,7 +311,6 @@ const RecruiterBulkUpload = () => {
       className="min-h-screen"
       style={{ backgroundColor: "rgb(34, 24, 36)" }}
     >
-      {/* Header */}
       <header className="pt-6 px-6">
         <div className="container mx-auto max-w-6xl flex justify-between items-center">
           <Link to="/recruiter/profile">
@@ -298,7 +329,7 @@ const RecruiterBulkUpload = () => {
             {user && (
               <div className="flex items-center gap-2 text-white/70">
                 <User className="w-4 h-4" />
-                <span>Welcome, {user.full_name || user.username}</span>
+                <span>{user.full_name || user.username}</span>
               </div>
             )}
           </div>
@@ -311,12 +342,11 @@ const RecruiterBulkUpload = () => {
             Upload Multiple Resumes
           </h2>
           <p className="text-xl text-white/70 max-w-2xl mx-auto">
-            Upload multiple resumes in PDF or Word format to parse them all at
-            once. Perfect for processing candidate batches.
+            Upload up to {MAX_FILES} resumes in PDF or Word format. Processing
+            takes ~3 seconds per resume.
           </p>
         </div>
 
-        {/* Login Prompt */}
         {showLoginPrompt && (
           <Card className="backdrop-blur-sm border-yellow-500/50 bg-yellow-500/10 mb-6">
             <CardContent className="p-6">
@@ -328,7 +358,7 @@ const RecruiterBulkUpload = () => {
                       Login Required
                     </h3>
                     <p className="text-yellow-300/80">
-                      Please log in to upload and analyze resumes.
+                      Please log in to upload resumes.
                     </p>
                   </div>
                 </div>
@@ -342,7 +372,7 @@ const RecruiterBulkUpload = () => {
                   </Button>
                   <Button
                     className="bg-yellow-600 hover:bg-yellow-700 text-white"
-                    onClick={handleLoginRedirect}
+                    onClick={() => navigate("/login")}
                   >
                     <LogIn className="w-4 h-4 mr-2" />
                     Go to Login
@@ -353,7 +383,6 @@ const RecruiterBulkUpload = () => {
           </Card>
         )}
 
-        {/* File Warning */}
         {fileWarning && (
           <Card className="backdrop-blur-sm border-orange-500/50 bg-orange-500/10 mb-6">
             <CardContent className="p-4">
@@ -365,11 +394,10 @@ const RecruiterBulkUpload = () => {
           </Card>
         )}
 
-        {/* Upload Area */}
         <Card className="backdrop-blur-sm border-white/20 bg-white/5">
           <CardContent className="p-8">
             <div
-              className={`border-2 border-dashed rounded-xl p-10 text-center transition-all duration-300 ${
+              className={`border-2 border-dashed rounded-xl p-10 text-center transition-all ${
                 isDragging ? "border-white bg-white/10" : "border-white/30"
               } ${showLoginPrompt ? "opacity-50" : ""}`}
               onDragOver={handleDragOver}
@@ -378,45 +406,62 @@ const RecruiterBulkUpload = () => {
             >
               {selectedFiles.length === 0 ? (
                 <>
-                  <div className="mb-6">
-                    <FolderOpen className="w-16 h-16 text-white/60 mx-auto" />
-                  </div>
+                  <FolderOpen className="w-16 h-16 text-white/60 mx-auto mb-6" />
                   <h3 className="text-2xl font-semibold text-white mb-4">
-                    Drag & Drop Resumes or Folder
+                    Drag & Drop Folder or Select Files
                   </h3>
                   <p className="text-white/70 mb-6">
-                    PDF or Word documents, max 5MB each, up to {MAX_FILES} files
+                    PDF/Word documents, max 5MB each, up to {MAX_FILES} files
                   </p>
+
+                  {/* Hidden file inputs */}
                   <input
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileInput}
                     accept=".pdf,.doc,.docx"
                     className="hidden"
-                    id="bulk-resume-upload"
                     multiple
+                  />
+                  <input
+                    type="file"
+                    ref={folderInputRef}
+                    onChange={handleFolderInput}
+                    className="hidden"
                     webkitdirectory=""
                     directory=""
                   />
-                  <Button
-                    size="lg"
-                    className="bg-white text-black hover:bg-white/90 px-8 py-6 text-lg font-semibold"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={showLoginPrompt}
-                  >
-                    <Upload className="w-5 h-5 mr-2" />
-                    Select Files/Folder
-                  </Button>
 
-                  {/* User status info */}
-                  <div className="mt-4">
+                  <div className="flex gap-4 justify-center">
+                    <Button
+                      size="lg"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-6"
+                      onClick={() => folderInputRef.current?.click()}
+                      disabled={showLoginPrompt}
+                    >
+                      <FolderOpen className="w-5 h-5 mr-2" />
+                      Select Folder
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="border-white/30 text-black hover:bg-white/10 px-6 py-6"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={showLoginPrompt}
+                    >
+                      <Upload className="w-5 h-5 mr-2" />
+                      Select Files
+                    </Button>
+                  </div>
+
+                  <div className="mt-6">
                     {user ? (
                       <p className="text-green-400 text-sm">
                         ✓ Logged in as {user.email}
                       </p>
                     ) : (
                       <p className="text-yellow-400 text-sm">
-                        You need to be logged in to upload resumes
+                        Login required to upload
                       </p>
                     )}
                   </div>
@@ -427,142 +472,114 @@ const RecruiterBulkUpload = () => {
                     <div className="flex flex-col items-center">
                       <Loader2 className="w-12 h-12 text-white animate-spin mb-4" />
                       <p className="text-white text-lg">
-                        Uploading and parsing {selectedFiles.length} resumes...
+                        Processing {selectedFiles.length} resumes...
+                      </p>
+                      <p className="text-white/60 text-sm mt-2">
+                        This will take ~
+                        {Math.ceil((selectedFiles.length * 3) / 60)} minutes
                       </p>
                     </div>
-                  ) : (
-                    <>
-                      {uploadStatus?.type === "success" ? (
-                        <div className="flex flex-col items-center">
-                          <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
+                  ) : uploadStatus?.type === "success" ? (
+                    <div className="flex flex-col items-center">
+                      <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
+                      <h3 className="text-2xl font-semibold text-white mb-2">
+                        Upload Successful!
+                      </h3>
+                      <p className="text-white/70 mb-2">
+                        {uploadStatus.message}
+                      </p>
+
+                      <Card
+                        className="w-full max-w-md mt-8 bg-blue-900/30 border-blue-500/30 cursor-pointer hover:scale-105 transition-all"
+                        onClick={handleNavigateToResults}
+                      >
+                        <CardContent className="p-8 text-center">
+                          <FileText className="w-16 h-16 text-blue-400 mx-auto mb-4" />
                           <h3 className="text-2xl font-semibold text-white mb-2">
-                            Upload Successful!
+                            View Results
+                          </h3>
+                          <Button className="bg-blue-600 hover:bg-blue-700 text-white w-full mt-4">
+                            View Parsed Data
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                          </Button>
+                        </CardContent>
+                      </Card>
+
+                      <Button
+                        variant="outline"
+                        className="bg-white text-black hover:bg-white/90 mt-6"
+                        onClick={resetUpload}
+                      >
+                        Upload More
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      {uploadStatus?.type === "error" && (
+                        <>
+                          <XCircle className="w-16 h-16 text-red-500 mb-4" />
+                          <h3 className="text-2xl font-semibold text-white mb-2">
+                            Upload Failed
+                          </h3>
+                          <p className="text-white/70 mb-6 max-w-md">
+                            {uploadStatus.message}
+                          </p>
+                        </>
+                      )}
+
+                      {!uploadStatus && (
+                        <>
+                          <FileText className="w-16 h-16 text-white/60 mb-4" />
+                          <h3 className="text-2xl font-semibold text-white mb-2">
+                            {selectedFiles.length} Resume(s) Ready
                           </h3>
                           <p className="text-white/70 mb-2">
-                            {result?.summary?.successful || 0} resume(s)
-                            processed successfully
+                            Estimated time: ~
+                            {Math.ceil((selectedFiles.length * 3) / 60)} minutes
                           </p>
-                          {result?.summary?.duplicates > 0 && (
-                            <p className="text-orange-400 text-sm mb-2">
-                              {result.summary.duplicates} duplicate(s) skipped
-                            </p>
-                          )}
-                          {result?.summary?.failed > 0 && (
-                            <p className="text-red-400 text-sm mb-6">
-                              {result.summary.failed} failed to parse
-                            </p>
-                          )}
-
-                          {/* Navigation Card */}
-                          <div className="w-full max-w-md mt-8">
-                            <Card
-                              className="bg-gradient-to-br from-blue-900/30 to-blue-800/20 border-blue-500/30 cursor-pointer hover:border-blue-400/50 transition-all duration-300 hover:scale-105"
-                              onClick={handleNavigateToResults}
-                            >
-                              <CardContent className="p-8 text-center">
-                                <FileText className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-                                <h3 className="text-2xl font-semibold text-white mb-2">
-                                  View Parsed Results
-                                </h3>
-                                <p className="text-white/70 mb-6">
-                                  Review all parsed candidate data in a
-                                  structured format
-                                </p>
-                                <Button
-                                  className="bg-blue-600 hover:bg-blue-700 text-white w-full"
-                                  onClick={handleNavigateToResults}
-                                >
-                                  View Results
-                                  <ArrowRight className="w-4 h-4 ml-2" />
-                                </Button>
-                              </CardContent>
-                            </Card>
-                          </div>
-
-                          <Button
-                            variant="outline"
-                            className="bg-white text-black hover:bg-white/90 px-7 py-5 text-lg font-semibold mt-6"
-                            onClick={resetUpload}
-                          >
-                            Upload More Resumes
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center">
-                          {uploadStatus?.type === "error" ? (
-                            <>
-                              <XCircle className="w-16 h-16 text-red-500 mb-4" />
-                              <h3 className="text-2xl font-semibold text-white mb-2">
-                                Upload Failed
-                              </h3>
-                              <p className="text-white/70 mb-6">
-                                {uploadStatus?.message}
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <FileText className="w-16 h-16 text-white/60 mb-4" />
-                              <h3 className="text-2xl font-semibold text-white mb-2">
-                                {selectedFiles.length} Resume(s) Ready
-                              </h3>
-                              <p className="text-white/70 mb-6">
-                                Ready to upload and parse
-                              </p>
-                            </>
-                          )}
-
-                          <div className="flex gap-4 mb-6">
-                            <Button
-                              size="lg"
-                              className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 text-lg font-semibold"
-                              onClick={handleBulkUpload}
-                              disabled={isUploading || showLoginPrompt}
-                            >
-                              {isUploading ? (
-                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                              ) : (
-                                <Upload className="w-5 h-5 mr-2" />
-                              )}
-                              {isUploading
-                                ? "Processing..."
-                                : `Upload ${selectedFiles.length} Resume(s)`}
-                            </Button>
-                            <Button
-                              size="lg"
-                              variant="outline"
-                              className="bg-white text-black hover:bg-white/90 px-8 py-6 text-lg font-semibold"
-                              onClick={resetUpload}
-                            >
-                              Reset Selection
-                            </Button>
-                          </div>
-
-                          {/* Files preview */}
-                          <div className="w-full max-w-2xl mt-4">
-                            <div className="text-white/70 text-sm mb-2">
-                              Selected files:
-                            </div>
-                            <div className="max-h-48 overflow-auto bg-white/5 rounded-lg p-4">
-                              <ul className="text-white text-sm space-y-2">
-                                {selectedFiles.map((file, index) => (
-                                  <li
-                                    key={index}
-                                    className="flex justify-between items-center"
-                                  >
-                                    <span className="truncate flex-1">
-                                      {file.name}
-                                    </span>
-                                    <span className="text-white/60 text-xs ml-2">
-                                      {Math.round(file.size / 1024)} KB
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          </div>
-                        </div>
+                        </>
                       )}
-                    </>
+
+                      <div className="flex gap-4 mb-6 mt-4">
+                        <Button
+                          size="lg"
+                          className="bg-green-600 hover:bg-green-700 text-white px-8 py-6"
+                          onClick={handleBulkUpload}
+                          disabled={isUploading || showLoginPrompt}
+                        >
+                          <Upload className="w-5 h-5 mr-2" />
+                          Upload {selectedFiles.length} Resume(s)
+                        </Button>
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          className="bg-white text-black hover:bg-white/90 px-8 py-6"
+                          onClick={resetUpload}
+                        >
+                          Reset
+                        </Button>
+                      </div>
+
+                      <div className="w-full max-w-2xl mt-4">
+                        <div className="text-white/70 text-sm mb-2">
+                          Selected files:
+                        </div>
+                        <div className="max-h-48 overflow-auto bg-white/5 rounded-lg p-4">
+                          <ul className="text-white text-sm space-y-2">
+                            {selectedFiles.map((file, idx) => (
+                              <li key={idx} className="flex justify-between">
+                                <span className="truncate flex-1">
+                                  {file.name}
+                                </span>
+                                <span className="text-white/60 text-xs ml-2">
+                                  {Math.round(file.size / 1024)} KB
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -570,17 +587,16 @@ const RecruiterBulkUpload = () => {
           </CardContent>
         </Card>
 
-        {/* Features reminder */}
         <div className="grid md:grid-cols-2 gap-6 mt-16">
           <Card className="bg-white/10 backdrop-blur-sm border-white/20">
             <CardContent className="p-6 text-center">
               <FileText className="w-10 h-10 text-white mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-white mb-2">
-                Bulk Processing
+                Sequential Processing
               </h3>
               <p className="text-white/70">
-                Upload and parse multiple resumes simultaneously to save time on
-                candidate screening.
+                Resumes are processed one-by-one to avoid rate limits (~3s per
+                resume).
               </p>
             </CardContent>
           </Card>
@@ -592,8 +608,7 @@ const RecruiterBulkUpload = () => {
                 Folder Support
               </h3>
               <p className="text-white/70">
-                Drag and drop entire folders of resumes for batch processing
-                (Chrome/Edge).
+                Upload entire folders of resumes for batch processing.
               </p>
             </CardContent>
           </Card>

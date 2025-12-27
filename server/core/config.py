@@ -13,25 +13,14 @@ MONGO_URI = f"mongodb+srv://{quote_plus(MONGO_USER)}:{quote_plus(MONGO_PASS)}@{M
 # JWT Configuration
 SECRET_KEY = os.getenv("SECRET_KEY") or "defaultsecret"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8
 
 # Groq API Configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-# OPTION A: Use smaller, faster models (recommended to avoid rate limits)
-# GROQ_PARSING_MODEL = "llama-3.1-8b-instant"  # Much faster, separate rate limit
-# GROQ_INSIGHTS_MODEL = "llama-3.1-8b-instant"  # Same for insights
-# GROQ_CHATBOT_MODEL = "llama-3.1-8b-instant"   # Same for chatbot
-
-# OPTION B: Use mixtral (another good alternative)
-# GROQ_PARSING_MODEL = "mixtral-8x7b-32768"
-# GROQ_INSIGHTS_MODEL = "mixtral-8x7b-32768"
-# GROQ_CHATBOT_MODEL = "mixtral-8x7b-32768"
-
-# OPTION C: Keep your original models (but you'll hit rate limits)
-GROQ_PARSING_MODEL = "llama-3.3-70b-versatile"
-GROQ_INSIGHTS_MODEL = "llama-3.1-8b-instant"
+GROQ_PARSING_MODEL = "llama-3.1-8b-instant"
+GROQ_INSIGHTS_MODEL = "llama-3.3-70b-versatile"
 GROQ_CHATBOT_MODEL = "llama-3.3-70b-versatile"
 
 # CORS Configuration
