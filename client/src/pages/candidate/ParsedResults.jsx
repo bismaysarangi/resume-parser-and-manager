@@ -16,6 +16,14 @@ import {
   Building2,
   Target,
   ExternalLink,
+  BookOpen,
+  Trophy,
+  Heart,
+  Languages,
+  Sparkles,
+  Users,
+  Plus,
+  FileCheck,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
@@ -59,7 +67,6 @@ const ParsedResults = () => {
   const hasValidItems = (array) => {
     if (!array || !Array.isArray(array) || array.length === 0) return false;
 
-    // Check if any item in the array has at least one non-empty property
     return array.some((item) => {
       if (!item || typeof item !== "object") return false;
       return Object.values(item).some(
@@ -257,6 +264,11 @@ const ParsedResults = () => {
                               </span>
                             </div>
                           )}
+                          {exp.Description && (
+                            <p className="text-white/70 text-sm mt-2 leading-relaxed">
+                              {exp.Description}
+                            </p>
+                          )}
                         </div>
                         {exp.Years && (
                           <div className="flex items-center gap-2 text-white/60 bg-green-500/10 px-3 py-1 rounded-full">
@@ -431,6 +443,463 @@ const ParsedResults = () => {
               </CardContent>
             </Card>
           )}
+
+          {/* Achievements */}
+          {hasValidItems(parsedData.achievements) && (
+            <Card className="bg-gradient-to-br from-yellow-600/10 to-amber-600/5 backdrop-blur-sm border-yellow-500/20 hover:border-yellow-400/30 transition-all">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white text-lg sm:text-xl">
+                  <div className="p-2 bg-yellow-500/20 rounded-lg mr-3">
+                    <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400" />
+                  </div>
+                  Achievements
+                  <span className="ml-2 text-white/60 text-sm font-normal">
+                    ({parsedData.achievements.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {parsedData.achievements.map((achievement, index) => (
+                    <div
+                      key={index}
+                      className="p-4 bg-white/5 rounded-lg border border-yellow-500/10"
+                    >
+                      {achievement.Title && (
+                        <h4 className="text-white font-semibold text-base mb-1">
+                          {achievement.Title}
+                        </h4>
+                      )}
+                      {achievement.Description && (
+                        <p className="text-white/70 text-sm leading-relaxed mb-2">
+                          {achievement.Description}
+                        </p>
+                      )}
+                      {achievement.Date && (
+                        <p className="text-white/50 text-xs">
+                          {achievement.Date}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Publications */}
+          {hasValidItems(parsedData.publications) && (
+            <Card className="bg-gradient-to-br from-blue-600/10 to-indigo-600/5 backdrop-blur-sm border-blue-500/20 hover:border-blue-400/30 transition-all">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white text-lg sm:text-xl">
+                  <div className="p-2 bg-blue-500/20 rounded-lg mr-3">
+                    <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
+                  </div>
+                  Publications
+                  <span className="ml-2 text-white/60 text-sm font-normal">
+                    ({parsedData.publications.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {parsedData.publications.map((pub, index) => (
+                    <div
+                      key={index}
+                      className="p-4 bg-white/5 rounded-lg border border-blue-500/10"
+                    >
+                      {pub.Title && (
+                        <h4 className="text-white font-semibold text-base mb-2">
+                          {pub.Title}
+                        </h4>
+                      )}
+                      {pub.Authors && (
+                        <p className="text-white/70 text-sm mb-1">
+                          Authors: {pub.Authors}
+                        </p>
+                      )}
+                      {pub["Journal/Conference"] && (
+                        <p className="text-white/70 text-sm mb-2">
+                          {pub["Journal/Conference"]}
+                        </p>
+                      )}
+                      <div className="flex gap-4 text-xs text-white/50 mt-2">
+                        {pub.Date && <span>{pub.Date}</span>}
+                        {pub["DOI/Link"] && (
+                          <a
+                            href={pub["DOI/Link"]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:underline flex items-center gap-1"
+                          >
+                            View <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Research */}
+          {hasValidItems(parsedData.research) && (
+            <Card className="bg-gradient-to-br from-teal-600/10 to-cyan-600/5 backdrop-blur-sm border-teal-500/20 hover:border-teal-400/30 transition-all">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white text-lg sm:text-xl">
+                  <div className="p-2 bg-teal-500/20 rounded-lg mr-3">
+                    <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-teal-400" />
+                  </div>
+                  Research Experience
+                  <span className="ml-2 text-white/60 text-sm font-normal">
+                    ({parsedData.research.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {parsedData.research.map((research, index) => (
+                    <div
+                      key={index}
+                      className="p-4 bg-white/5 rounded-lg border border-teal-500/10"
+                    >
+                      {research.Title && (
+                        <h4 className="text-white font-semibold text-base mb-2">
+                          {research.Title}
+                        </h4>
+                      )}
+                      {research.Description && (
+                        <p className="text-white/70 text-sm leading-relaxed mb-2">
+                          {research.Description}
+                        </p>
+                      )}
+                      <div className="flex gap-4 text-sm text-white/60 mt-2">
+                        {research.Institution && (
+                          <span>{research.Institution}</span>
+                        )}
+                        {research.Duration && <span>{research.Duration}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Certifications */}
+          {hasValidItems(parsedData.certifications) && (
+            <Card className="bg-gradient-to-br from-green-600/10 to-emerald-600/5 backdrop-blur-sm border-green-500/20 hover:border-green-400/30 transition-all">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white text-lg sm:text-xl">
+                  <div className="p-2 bg-green-500/20 rounded-lg mr-3">
+                    <FileCheck className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" />
+                  </div>
+                  Certifications
+                  <span className="ml-2 text-white/60 text-sm font-normal">
+                    ({parsedData.certifications.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {parsedData.certifications.map((cert, index) => (
+                    <div
+                      key={index}
+                      className="p-4 bg-white/5 rounded-lg border border-green-500/10"
+                    >
+                      {cert.Name && (
+                        <h4 className="text-white font-semibold text-base mb-1">
+                          {cert.Name}
+                        </h4>
+                      )}
+                      {cert.Issuer && (
+                        <p className="text-white/70 text-sm mb-2">
+                          {cert.Issuer}
+                        </p>
+                      )}
+                      <div className="flex gap-4 text-xs text-white/50 mt-1">
+                        {cert.Date && <span>Issued: {cert.Date}</span>}
+                        {cert.Validity && (
+                          <span>Valid until: {cert.Validity}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Awards */}
+          {hasValidItems(parsedData.awards) && (
+            <Card className="bg-gradient-to-br from-red-600/10 to-orange-600/5 backdrop-blur-sm border-red-500/20 hover:border-red-400/30 transition-all">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white text-lg sm:text-xl">
+                  <div className="p-2 bg-red-500/20 rounded-lg mr-3">
+                    <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-red-400" />
+                  </div>
+                  Awards & Honors
+                  <span className="ml-2 text-white/60 text-sm font-normal">
+                    ({parsedData.awards.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {parsedData.awards.map((award, index) => (
+                    <div
+                      key={index}
+                      className="p-4 bg-white/5 rounded-lg border border-red-500/10"
+                    >
+                      {award.Title && (
+                        <h4 className="text-white font-semibold text-base mb-1">
+                          {award.Title}
+                        </h4>
+                      )}
+                      {award.Issuer && (
+                        <p className="text-white/70 text-sm mb-1">
+                          {award.Issuer}
+                        </p>
+                      )}
+                      {award.Description && (
+                        <p className="text-white/70 text-sm leading-relaxed mb-2">
+                          {award.Description}
+                        </p>
+                      )}
+                      {award.Date && (
+                        <p className="text-white/50 text-xs">{award.Date}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Volunteer Work */}
+          {hasValidItems(parsedData.volunteer_work) && (
+            <Card className="bg-gradient-to-br from-pink-600/10 to-rose-600/5 backdrop-blur-sm border-pink-500/20 hover:border-pink-400/30 transition-all">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white text-lg sm:text-xl">
+                  <div className="p-2 bg-pink-500/20 rounded-lg mr-3">
+                    <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-pink-400" />
+                  </div>
+                  Volunteer Experience
+                  <span className="ml-2 text-white/60 text-sm font-normal">
+                    ({parsedData.volunteer_work.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {parsedData.volunteer_work.map((vol, index) => (
+                    <div
+                      key={index}
+                      className="p-4 bg-white/5 rounded-lg border border-pink-500/10"
+                    >
+                      {vol.Role && (
+                        <h4 className="text-white font-semibold text-base mb-1">
+                          {vol.Role}
+                        </h4>
+                      )}
+                      {vol.Organization && (
+                        <p className="text-white/70 text-sm mb-1">
+                          {vol.Organization}
+                        </p>
+                      )}
+                      {vol.Duration && (
+                        <p className="text-white/60 text-sm mb-2">
+                          {vol.Duration}
+                        </p>
+                      )}
+                      {vol.Description && (
+                        <p className="text-white/70 text-sm leading-relaxed">
+                          {vol.Description}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Languages */}
+          {hasValidItems(parsedData.languages) && (
+            <Card className="bg-gradient-to-br from-violet-600/10 to-purple-600/5 backdrop-blur-sm border-violet-500/20 hover:border-violet-400/30 transition-all">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white text-lg sm:text-xl">
+                  <div className="p-2 bg-violet-500/20 rounded-lg mr-3">
+                    <Languages className="w-5 h-5 sm:w-6 sm:h-6 text-violet-400" />
+                  </div>
+                  Languages
+                  <span className="ml-2 text-white/60 text-sm font-normal">
+                    ({parsedData.languages.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {parsedData.languages.map((lang, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-violet-500/10"
+                    >
+                      <span className="text-white font-medium">
+                        {lang.Language}
+                      </span>
+                      <span className="px-3 py-1 bg-violet-500/20 rounded-full text-violet-300 text-xs">
+                        {lang.Proficiency}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Interests */}
+          {hasValidSkills(parsedData.interests) && (
+            <Card className="bg-gradient-to-br from-fuchsia-600/10 to-purple-600/5 backdrop-blur-sm border-fuchsia-500/20 hover:border-fuchsia-400/30 transition-all">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white text-lg sm:text-xl">
+                  <div className="p-2 bg-fuchsia-500/20 rounded-lg mr-3">
+                    <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-fuchsia-400" />
+                  </div>
+                  Interests & Hobbies
+                  <span className="ml-2 text-white/60 text-sm font-normal">
+                    ({parsedData.interests.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {parsedData.interests.map((interest, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1.5 bg-fuchsia-500/20 border border-fuchsia-500/30 rounded-full text-white text-sm"
+                    >
+                      {interest}
+                    </span>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* References */}
+          {hasValidItems(parsedData.references) && (
+            <Card className="bg-gradient-to-br from-slate-600/10 to-gray-600/5 backdrop-blur-sm border-slate-500/20 hover:border-slate-400/30 transition-all">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-white text-lg sm:text-xl">
+                  <div className="p-2 bg-slate-500/20 rounded-lg mr-3">
+                    <Users className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400" />
+                  </div>
+                  References
+                  <span className="ml-2 text-white/60 text-sm font-normal">
+                    ({parsedData.references.length})
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {parsedData.references.map((ref, index) => (
+                    <div
+                      key={index}
+                      className="p-4 bg-white/5 rounded-lg border border-slate-500/10"
+                    >
+                      {ref.Name && (
+                        <h4 className="text-white font-semibold text-base mb-1">
+                          {ref.Name}
+                        </h4>
+                      )}
+                      {ref.Title && (
+                        <p className="text-white/70 text-sm mb-1">
+                          {ref.Title}
+                        </p>
+                      )}
+                      {ref.Relationship && (
+                        <p className="text-white/60 text-sm mb-1">
+                          {ref.Relationship}
+                        </p>
+                      )}
+                      {ref.Contact && (
+                        <p className="text-white/70 text-sm">{ref.Contact}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Extra Sections */}
+          {parsedData.extra_sections &&
+            Object.keys(parsedData.extra_sections).length > 0 && (
+              <Card className="bg-gradient-to-br from-amber-600/10 to-yellow-600/5 backdrop-blur-sm border-amber-500/20 hover:border-amber-400/30 transition-all">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center text-white text-lg sm:text-xl">
+                    <div className="p-2 bg-amber-500/20 rounded-lg mr-3">
+                      <Plus className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
+                    </div>
+                    Additional Information
+                    <span className="ml-2 text-white/60 text-sm font-normal">
+                      ({Object.keys(parsedData.extra_sections).length} section
+                      {Object.keys(parsedData.extra_sections).length !== 1
+                        ? "s"
+                        : ""}
+                      )
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {Object.entries(parsedData.extra_sections).map(
+                    ([sectionName, sectionData], idx) => (
+                      <div
+                        key={idx}
+                        className="p-4 bg-white/5 rounded-lg border border-amber-500/10"
+                      >
+                        <h4 className="text-white font-semibold text-base mb-3">
+                          {sectionName}
+                        </h4>
+                        <div className="space-y-2">
+                          {Array.isArray(sectionData) ? (
+                            sectionData.map((item, itemIdx) => (
+                              <div
+                                key={itemIdx}
+                                className="text-sm text-white/70 pl-3 border-l-2 border-amber-500/20"
+                              >
+                                {typeof item === "object" ? (
+                                  <div className="space-y-1">
+                                    {Object.entries(item).map(
+                                      ([key, value]) => (
+                                        <div key={key}>
+                                          <span className="font-medium text-white/80">
+                                            {key}:
+                                          </span>{" "}
+                                          {value}
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span>{item}</span>
+                                )}
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-white/70">
+                              {JSON.stringify(sectionData)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
           {/* Academic Marks */}
           {(parsedData.tenth_marks || parsedData.twelfth_marks) && (

@@ -30,33 +30,66 @@ async def extract_text_from_file(file):
 
 
 def create_resume_parse_prompt(text):
-    """Create prompt for resume parsing"""
+    """Create enhanced prompt for comprehensive resume parsing"""
     prompt = f"""
-    Extract structured resume data from the following text and return ONLY valid JSON with NO additional text, explanations, or markdown formatting.
+    Extract ALL structured data from the following resume and return ONLY valid JSON with NO additional text, explanations, or markdown formatting.
 
-    CRITICAL: Return ONLY the JSON object below, nothing else. No "```json", no explanations, just the raw JSON:
+    CRITICAL JSON RULES:
+    1. Return ONLY the JSON object - no markdown, no explanations, no preamble
+    2. All string values MUST have escaped quotes if they contain quotes
+    3. Use double quotes for all keys and string values
+    4. No trailing commas before closing braces or brackets
+    5. Ensure all arrays and objects are properly closed
+    6. If a field has no data, use empty string "" or empty array []
+
+    RETURN THIS EXACT JSON STRUCTURE:
 
     {{
       "name": "",
       "email": "",
       "phone": "",
+      "summary": "",
+      "objective": "",
       "education": [{{"Degree": "", "University": "", "Grade": "", "Years": ""}}],
       "skills": [],
       "derived_skills": [],
-      "experience": [{{"Company": "", "Role": "", "Years": ""}}],
+      "experience": [{{"Company": "", "Role": "", "Years": "", "Description": ""}}],
       "projects": [{{"Name": "", "Description": "", "Tech Stack": "", "Date": ""}}],
+      "achievements": [{{"Title": "", "Description": "", "Date": ""}}],
+      "publications": [{{"Title": "", "Authors": "", "Journal/Conference": "", "Date": "", "DOI/Link": ""}}],
+      "research": [{{"Title": "", "Description": "", "Duration": "", "Institution": ""}}],
+      "certifications": [{{"Name": "", "Issuer": "", "Date": "", "Validity": ""}}],
+      "awards": [{{"Title": "", "Issuer": "", "Date": "", "Description": ""}}],
+      "volunteer_work": [{{"Organization": "", "Role": "", "Duration": "", "Description": ""}}],
+      "languages": [{{"Language": "", "Proficiency": ""}}],
+      "interests": [],
+      "references": [{{"Name": "", "Title": "", "Contact": "", "Relationship": ""}}],
       "10th Marks": "",
-      "12th Marks": ""
+      "12th Marks": "",
+      "extra_sections": {{}}
     }}
 
-    INSTRUCTIONS:
+    EXTRACTION INSTRUCTIONS:
     1. "skills": Extract skills explicitly mentioned in the skills section
-    2. "derived_skills": Extract technical skills from Experience and Projects sections that are NOT in skills list
-    3. If any field is missing, use empty string "" or empty array []
-    4. Return ONLY the JSON object - no markdown, no explanations, no extra text
+    2. "derived_skills": Extract technical skills from Experience, Projects, Research sections that are NOT in skills list
+    3. "achievements": Look for: Achievements, Accomplishments, Key Accomplishments, Honors
+    4. "publications": Look for: Publications, Research Papers, Papers, Academic Publications
+    5. "research": Look for: Research Experience, Research Work, Research Projects
+    6. "certifications": Look for: Certifications, Licenses, Professional Certifications
+    7. "awards": Look for: Awards, Honors, Recognition, Scholarships
+    8. "volunteer_work": Look for: Volunteer, Community Service, Social Work
+    9. "languages": Look for: Languages, Language Skills
+    10. "interests": Look for: Interests, Hobbies, Activities
+    11. "summary": Look for: Summary, Professional Summary, Profile, About Me
+    12. "objective": Look for: Objective, Career Objective, Goal
+    13. "extra_sections": Capture ANY other sections not covered above
+        Format as: {{"Section Name": [{{"key": "value"}}]}}
+    14. IMPORTANT: In Description fields, replace any quote characters with single quotes to avoid JSON errors
 
     Resume text:
-    {text[:6000]}
+    {text[:8000]}
+    
+    Remember: Return ONLY valid JSON, nothing else. Double-check that all quotes are properly escaped and all brackets/braces are closed.
     """
     return prompt
 
@@ -74,7 +107,7 @@ async def call_groq_api(prompt, temperature=0.7, max_retries=3):
         "model": GROQ_PARSING_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature,
-        "max_tokens": 2000
+        "max_tokens": 3000  # Increased for more comprehensive parsing
     }
 
     last_error = None
@@ -85,7 +118,7 @@ async def call_groq_api(prompt, temperature=0.7, max_retries=3):
                 response = await client.post(GROQ_URL, headers=headers, json=payload)
                 response.raise_for_status()
                 
-                # ✅ Parse and display token usage
+                # Parse and display token usage
                 response_data = response.json()
                 if "usage" in response_data:
                     usage = response_data["usage"]
@@ -103,7 +136,7 @@ async def call_groq_api(prompt, temperature=0.7, max_retries=3):
         except httpx.HTTPStatusError as e:
             last_error = f"HTTP {e.response.status_code}: {e.response.text}"
             
-            # ✅ Parse rate limit info from error
+            # Parse rate limit info from error
             if e.response.status_code == 429:
                 try:
                     error_data = e.response.json()
@@ -158,7 +191,7 @@ async def call_groq_api(prompt, temperature=0.7, max_retries=3):
 
 
 def parse_ai_response(response_text):
-    """Parse and clean AI response JSON with enhanced error handling"""
+    """Parse and clean AI response JSON with enhanced error handling and auto-repair"""
     # Remove any markdown code fences
     cleaned = re.sub(r'^```json\s*', '', response_text.strip(), flags=re.IGNORECASE | re.MULTILINE)
     cleaned = re.sub(r'\s*```$', '', cleaned.strip(), flags=re.MULTILINE)
@@ -169,40 +202,98 @@ def parse_ai_response(response_text):
     if json_match:
         cleaned = json_match.group(0)
     
-    # Try parsing
+    # Try parsing directly first
     try:
         parsed = json.loads(cleaned)
         return parsed
     except json.JSONDecodeError as e:
-        print(f"⚠️  JSON parse error: {e}")
-        print(f"📄 Raw response (first 500 chars): {cleaned[:500]}")
+        print(f"⚠️  Initial JSON parse error: {e}")
+        print(f"📄 Error at position {e.pos}: {cleaned[max(0, e.pos-50):e.pos+50]}")
         
-        # Try to extract just the first complete JSON object
+        # Strategy 1: Try to fix common JSON errors
+        try:
+            # Fix trailing commas before closing braces/brackets
+            fixed = re.sub(r',(\s*[}\]])', r'\1', cleaned)
+            
+            # Fix missing commas between array elements or object properties
+            fixed = re.sub(r'"\s*\n\s*"', '",\n"', fixed)
+            fixed = re.sub(r'}\s*\n\s*{', '},\n{', fixed)
+            fixed = re.sub(r']\s*\n\s*{', '],\n{', fixed)
+            
+            parsed = json.loads(fixed)
+            print("✓ Recovered JSON by fixing common errors")
+            return parsed
+        except json.JSONDecodeError:
+            pass
+        
+        # Strategy 2: Try to extract just the first complete JSON object
+        print("⚠️  Attempting to extract complete JSON object...")
         brace_count = 0
         json_end = -1
+        in_string = False
+        escape_next = False
+        
         for i, char in enumerate(cleaned):
-            if char == '{':
-                brace_count += 1
-            elif char == '}':
-                brace_count -= 1
-                if brace_count == 0:
-                    json_end = i + 1
-                    break
+            if escape_next:
+                escape_next = False
+                continue
+                
+            if char == '\\':
+                escape_next = True
+                continue
+                
+            if char == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            
+            if not in_string:
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        json_end = i + 1
+                        break
         
         if json_end > 0:
             try:
                 truncated = cleaned[:json_end]
+                # Try to fix any trailing issues
+                truncated = re.sub(r',(\s*})', r'\1', truncated)
                 parsed = json.loads(truncated)
-                print("✓ Recovered JSON by truncating extra data")
+                print("✓ Recovered JSON by truncating to first complete object")
                 return parsed
-            except:
-                pass
+            except json.JSONDecodeError as e2:
+                print(f"⚠️  Still failed after truncation: {e2}")
         
-        raise ValueError(f"Failed to parse AI response as JSON: {e}")
+        # Strategy 3: Try to parse what we can and fill in defaults
+        print("⚠️  Attempting partial parse with defaults...")
+        try:
+            # Find the error position and try to close the JSON properly
+            error_pos = e.pos
+            partial = cleaned[:error_pos]
+            
+            # Count unclosed braces and brackets
+            open_braces = partial.count('{') - partial.count('}')
+            open_brackets = partial.count('[') - partial.count(']')
+            
+            # Close them
+            partial += ']' * open_brackets
+            partial += '}' * open_braces
+            
+            parsed = json.loads(partial)
+            print("✓ Recovered partial JSON with defaults")
+            return parsed
+        except:
+            pass
+        
+        # If all strategies fail, raise the original error with helpful context
+        print(f"📄 Raw response (first 1000 chars): {cleaned[:1000]}")
+        raise ValueError(f"Failed to parse AI response as JSON: {e}. Check if the model is outputting valid JSON without extra text.")
 
 
 async def parse_resume(file):
-    """Main function to parse resume with enhanced error handling and token tracking"""
+    """Main function to parse resume with enhanced comprehensive data extraction"""
     try:
         print(f"\n{'─'*60}")
         print(f"📄 Parsing: {file.filename}")
@@ -219,7 +310,7 @@ async def parse_resume(file):
         # Create prompt
         prompt = create_resume_parse_prompt(text)
         prompt_length = len(prompt)
-        estimated_tokens = prompt_length // 4  # Rough estimate: 1 token ≈ 4 characters
+        estimated_tokens = prompt_length // 4
         print(f"📤 Sending to API: ~{estimated_tokens:,} tokens (estimated)")
 
         # Call Groq API
@@ -243,13 +334,25 @@ async def parse_resume(file):
             "name": "Unknown Candidate",
             "email": "No email",
             "phone": "No phone",
+            "summary": "",
+            "objective": "",
             "education": [],
             "skills": [],
             "derived_skills": [],
             "experience": [],
             "projects": [],
+            "achievements": [],
+            "publications": [],
+            "research": [],
+            "certifications": [],
+            "awards": [],
+            "volunteer_work": [],
+            "languages": [],
+            "interests": [],
+            "references": [],
             "10th Marks": "",
-            "12th Marks": ""
+            "12th Marks": "",
+            "extra_sections": {}
         }
         
         # Merge parsed data with defaults
@@ -258,18 +361,57 @@ async def parse_resume(file):
                 parsed[key] = default_value
         
         # Validate and clean data types
-        if not isinstance(parsed.get("skills"), list):
-            parsed["skills"] = []
-        if not isinstance(parsed.get("derived_skills"), list):
-            parsed["derived_skills"] = []
-        if not isinstance(parsed.get("education"), list):
-            parsed["education"] = []
-        if not isinstance(parsed.get("experience"), list):
-            parsed["experience"] = []
-        if not isinstance(parsed.get("projects"), list):
-            parsed["projects"] = []
+        list_fields = ["skills", "derived_skills", "education", "experience", "projects",
+                      "achievements", "publications", "research", "certifications",
+                      "awards", "volunteer_work", "languages", "interests", "references"]
+        
+        for field in list_fields:
+            if not isinstance(parsed.get(field), list):
+                parsed[field] = []
+            # Clean each item in the list
+            if parsed[field]:
+                cleaned_items = []
+                for item in parsed[field]:
+                    if isinstance(item, dict):
+                        # Remove any null values and clean strings
+                        cleaned_item = {}
+                        for k, v in item.items():
+                            if v is not None:
+                                if isinstance(v, str):
+                                    # Remove excessive whitespace and fix encoding issues
+                                    v = ' '.join(v.split())
+                                cleaned_item[k] = v
+                        if cleaned_item:  # Only add if not empty
+                            cleaned_items.append(cleaned_item)
+                    elif isinstance(item, str) and item.strip():
+                        cleaned_items.append(item.strip())
+                parsed[field] = cleaned_items
+        
+        # Clean string fields
+        string_fields = ["name", "email", "phone", "summary", "objective", "10th Marks", "12th Marks"]
+        for field in string_fields:
+            if isinstance(parsed.get(field), str):
+                parsed[field] = ' '.join(parsed[field].split())
+        
+        if not isinstance(parsed.get("extra_sections"), dict):
+            parsed["extra_sections"] = {}
 
         print(f"✅ Successfully parsed: {parsed.get('name', 'Unknown')}")
+        
+        # Log what sections were found
+        sections_found = []
+        if parsed.get("achievements"): sections_found.append("Achievements")
+        if parsed.get("publications"): sections_found.append("Publications")
+        if parsed.get("research"): sections_found.append("Research")
+        if parsed.get("certifications"): sections_found.append("Certifications")
+        if parsed.get("awards"): sections_found.append("Awards")
+        if parsed.get("volunteer_work"): sections_found.append("Volunteer Work")
+        if parsed.get("languages"): sections_found.append("Languages")
+        if parsed.get("extra_sections"): sections_found.append(f"Extra ({len(parsed['extra_sections'])} sections)")
+        
+        if sections_found:
+            print(f"📋 Additional sections found: {', '.join(sections_found)}")
+        
         print(f"{'─'*60}\n")
         
         return {"filename": file.filename, **parsed}

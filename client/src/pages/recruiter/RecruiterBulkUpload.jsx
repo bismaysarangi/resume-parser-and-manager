@@ -341,10 +341,6 @@ const RecruiterBulkUpload = () => {
           <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
             Upload Multiple Resumes
           </h2>
-          <p className="text-xl text-white/70 max-w-2xl mx-auto">
-            Upload up to {MAX_FILES} resumes in PDF or Word format. Processing
-            takes ~3 seconds per resume.
-          </p>
         </div>
 
         {showLoginPrompt && (
@@ -474,10 +470,6 @@ const RecruiterBulkUpload = () => {
                       <p className="text-white text-lg">
                         Processing {selectedFiles.length} resumes...
                       </p>
-                      <p className="text-white/60 text-sm mt-2">
-                        This will take ~
-                        {Math.ceil((selectedFiles.length * 3) / 60)} minutes
-                      </p>
                     </div>
                   ) : uploadStatus?.type === "success" ? (
                     <div className="flex flex-col items-center">
@@ -533,10 +525,6 @@ const RecruiterBulkUpload = () => {
                           <h3 className="text-2xl font-semibold text-white mb-2">
                             {selectedFiles.length} Resume(s) Ready
                           </h3>
-                          <p className="text-white/70 mb-2">
-                            Estimated time: ~
-                            {Math.ceil((selectedFiles.length * 3) / 60)} minutes
-                          </p>
                         </>
                       )}
 
@@ -594,10 +582,6 @@ const RecruiterBulkUpload = () => {
               <h3 className="text-xl font-semibold text-white mb-2">
                 Sequential Processing
               </h3>
-              <p className="text-white/70">
-                Resumes are processed one-by-one to avoid rate limits (~3s per
-                resume).
-              </p>
             </CardContent>
           </Card>
 

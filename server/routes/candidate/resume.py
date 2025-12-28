@@ -22,24 +22,36 @@ async def parse_resume_endpoint(
     current_user: dict = Depends(get_current_active_user)
 ):
     """
-    Parse uploaded resume (CANDIDATE ONLY)
+    Parse uploaded resume with comprehensive data extraction (CANDIDATE ONLY)
     """
     try:
         # Parse the resume
         parsed_data = await parse_resume(file)
         
-        # Create resume data object
+        # Create resume data object with all new fields
         resume_data = ResumeData(
             name=parsed_data.get("name"),
             email=parsed_data.get("email"),
             phone=parsed_data.get("phone"),
+            summary=parsed_data.get("summary"),
+            objective=parsed_data.get("objective"),
             education=parsed_data.get("education", []),
             skills=parsed_data.get("skills", []),
             derived_skills=parsed_data.get("derived_skills", []),
             experience=parsed_data.get("experience", []),
             projects=parsed_data.get("projects", []),
             tenth_marks=parsed_data.get("10th Marks"),
-            twelfth_marks=parsed_data.get("12th Marks")
+            twelfth_marks=parsed_data.get("12th Marks"),
+            achievements=parsed_data.get("achievements", []),
+            publications=parsed_data.get("publications", []),
+            research=parsed_data.get("research", []),
+            certifications=parsed_data.get("certifications", []),
+            awards=parsed_data.get("awards", []),
+            volunteer_work=parsed_data.get("volunteer_work", []),
+            languages=parsed_data.get("languages", []),
+            interests=parsed_data.get("interests", []),
+            references=parsed_data.get("references", []),
+            extra_sections=parsed_data.get("extra_sections", {})
         )
         
         # Save to history

@@ -15,6 +15,11 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
+  Trophy,
+  Heart,
+  Languages,
+  BookOpen,
+  FileCheck,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -124,8 +129,6 @@ const RecruiterBulkResults = () => {
           {successful.map((item, idx) => {
             const parsedData = item.data || item.parsed_data || {};
             const name = parsedData.name || "Unknown Candidate";
-            const email = parsedData.email || "";
-            const phone = parsedData.phone || "";
 
             // Get both regular skills and derived skills
             const regularSkills = parsedData.skills || [];
@@ -560,6 +563,310 @@ const RecruiterBulkResults = () => {
                           <p className="text-white/30 text-center py-4">
                             No projects data found
                           </p>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Achievements */}
+                    {hasValidItems(parsedData.achievements) && (
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center text-white text-lg font-semibold">
+                            <div className="p-2 bg-yellow-500/20 rounded-lg mr-3">
+                              <Trophy className="w-5 h-5 text-yellow-400" />
+                            </div>
+                            Achievements ({parsedData.achievements.length})
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {parsedData.achievements.map((achievement, idx) => (
+                              <div
+                                key={idx}
+                                className="p-3 bg-gray-900/50 rounded-lg border border-yellow-500/10"
+                              >
+                                {achievement.Title && (
+                                  <h4 className="text-white font-semibold text-sm mb-1">
+                                    {achievement.Title}
+                                  </h4>
+                                )}
+                                {achievement.Description && (
+                                  <p className="text-gray-300 text-sm">
+                                    {achievement.Description}
+                                  </p>
+                                )}
+                                {achievement.Date && (
+                                  <p className="text-white/50 text-xs mt-1">
+                                    {achievement.Date}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Publications */}
+                    {hasValidItems(parsedData.publications) && (
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center text-white text-lg font-semibold">
+                            <div className="p-2 bg-blue-500/20 rounded-lg mr-3">
+                              <FileText className="w-5 h-5 text-blue-400" />
+                            </div>
+                            Publications ({parsedData.publications.length})
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {parsedData.publications.map((pub, idx) => (
+                              <div
+                                key={idx}
+                                className="p-3 bg-gray-900/50 rounded-lg border border-blue-500/10"
+                              >
+                                {pub.Title && (
+                                  <h4 className="text-white font-semibold text-sm mb-1">
+                                    {pub.Title}
+                                  </h4>
+                                )}
+                                {pub.Authors && (
+                                  <p className="text-gray-300 text-sm">
+                                    Authors: {pub.Authors}
+                                  </p>
+                                )}
+                                {pub["Journal/Conference"] && (
+                                  <p className="text-gray-300 text-sm">
+                                    {pub["Journal/Conference"]}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Research */}
+                    {hasValidItems(parsedData.research) && (
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center text-white text-lg font-semibold">
+                            <div className="p-2 bg-teal-500/20 rounded-lg mr-3">
+                              <BookOpen className="w-5 h-5 text-teal-400" />
+                            </div>
+                            Research Experience ({parsedData.research.length})
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {parsedData.research.map((research, idx) => (
+                              <div
+                                key={idx}
+                                className="p-3 bg-gray-900/50 rounded-lg border border-teal-500/10"
+                              >
+                                {research.Title && (
+                                  <h4 className="text-white font-semibold text-sm mb-1">
+                                    {research.Title}
+                                  </h4>
+                                )}
+                                {research.Description && (
+                                  <p className="text-gray-300 text-sm mb-2">
+                                    {research.Description}
+                                  </p>
+                                )}
+                                <div className="flex gap-3 text-xs text-white/60">
+                                  {research.Institution && (
+                                    <span>{research.Institution}</span>
+                                  )}
+                                  {research.Duration && (
+                                    <span>{research.Duration}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Certifications */}
+                    {hasValidItems(parsedData.certifications) && (
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center text-white text-lg font-semibold">
+                            <div className="p-2 bg-green-500/20 rounded-lg mr-3">
+                              <FileCheck className="w-5 h-5 text-green-400" />
+                            </div>
+                            Certifications ({parsedData.certifications.length})
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {parsedData.certifications.map((cert, idx) => (
+                              <div
+                                key={idx}
+                                className="p-3 bg-gray-900/50 rounded-lg border border-green-500/10"
+                              >
+                                {cert.Name && (
+                                  <h4 className="text-white font-semibold text-sm mb-1">
+                                    {cert.Name}
+                                  </h4>
+                                )}
+                                {cert.Issuer && (
+                                  <p className="text-gray-300 text-sm">
+                                    {cert.Issuer}
+                                  </p>
+                                )}
+                                <div className="flex gap-3 text-xs text-white/50 mt-1">
+                                  {cert.Date && (
+                                    <span>Issued: {cert.Date}</span>
+                                  )}
+                                  {cert.Validity && (
+                                    <span>Valid: {cert.Validity}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Awards */}
+                    {hasValidItems(parsedData.awards) && (
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center text-white text-lg font-semibold">
+                            <div className="p-2 bg-red-500/20 rounded-lg mr-3">
+                              <Trophy className="w-5 h-5 text-red-400" />
+                            </div>
+                            Awards & Honors ({parsedData.awards.length})
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {parsedData.awards.map((award, idx) => (
+                              <div
+                                key={idx}
+                                className="p-3 bg-gray-900/50 rounded-lg border border-red-500/10"
+                              >
+                                {award.Title && (
+                                  <h4 className="text-white font-semibold text-sm mb-1">
+                                    {award.Title}
+                                  </h4>
+                                )}
+                                {award.Issuer && (
+                                  <p className="text-gray-300 text-sm">
+                                    {award.Issuer}
+                                  </p>
+                                )}
+                                {award.Description && (
+                                  <p className="text-gray-300 text-sm mt-1">
+                                    {award.Description}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Volunteer Work */}
+                    {hasValidItems(parsedData.volunteer_work) && (
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center text-white text-lg font-semibold">
+                            <div className="p-2 bg-pink-500/20 rounded-lg mr-3">
+                              <Heart className="w-5 h-5 text-pink-400" />
+                            </div>
+                            Volunteer Experience (
+                            {parsedData.volunteer_work.length})
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {parsedData.volunteer_work.map((vol, idx) => (
+                              <div
+                                key={idx}
+                                className="p-3 bg-gray-900/50 rounded-lg border border-pink-500/10"
+                              >
+                                {vol.Role && (
+                                  <h4 className="text-white font-semibold text-sm mb-1">
+                                    {vol.Role}
+                                  </h4>
+                                )}
+                                {vol.Organization && (
+                                  <p className="text-gray-300 text-sm">
+                                    {vol.Organization}
+                                  </p>
+                                )}
+                                {vol.Duration && (
+                                  <p className="text-white/60 text-sm">
+                                    {vol.Duration}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Languages */}
+                    {hasValidItems(parsedData.languages) && (
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center text-white text-lg font-semibold">
+                            <div className="p-2 bg-violet-500/20 rounded-lg mr-3">
+                              <Languages className="w-5 h-5 text-violet-400" />
+                            </div>
+                            Languages ({parsedData.languages.length})
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 gap-2">
+                            {parsedData.languages.map((lang, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center justify-between p-2 bg-gray-900/50 rounded border border-violet-500/10"
+                              >
+                                <span className="text-white text-sm">
+                                  {lang.Language}
+                                </span>
+                                <span className="px-2 py-0.5 bg-violet-500/20 rounded text-violet-300 text-xs">
+                                  {lang.Proficiency}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Interests */}
+                    {hasValidSkills(parsedData.interests) && (
+                      <Card className="bg-black/20 backdrop-blur-sm border-white/10">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center text-white text-lg font-semibold">
+                            <div className="p-2 bg-fuchsia-500/20 rounded-lg mr-3">
+                              <Sparkles className="w-5 h-5 text-fuchsia-400" />
+                            </div>
+                            Interests ({parsedData.interests.length})
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex flex-wrap gap-2">
+                            {parsedData.interests.map((interest, idx) => (
+                              <span
+                                key={idx}
+                                className="px-3 py-1 bg-fuchsia-500/20 border border-fuchsia-500/20 rounded-full text-white text-xs"
+                              >
+                                {interest}
+                              </span>
+                            ))}
+                          </div>
                         </CardContent>
                       </Card>
                     )}

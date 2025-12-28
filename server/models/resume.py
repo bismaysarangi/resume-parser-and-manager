@@ -13,6 +13,18 @@ class ResumeData(BaseModel):
     projects: List[Dict[str, Any]] = []
     tenth_marks: Optional[str] = None
     twelfth_marks: Optional[str] = None
+    achievements: List[Dict[str, Any]] = []
+    publications: List[Dict[str, Any]] = []
+    research: List[Dict[str, Any]] = []
+    certifications: List[Dict[str, Any]] = []
+    awards: List[Dict[str, Any]] = []
+    volunteer_work: List[Dict[str, Any]] = []
+    languages: List[Dict[str, Any]] = []
+    interests: List[str] = []
+    summary: Optional[str] = None
+    objective: Optional[str] = None
+    references: List[Dict[str, Any]] = []
+    extra_sections: Dict[str, Any] = {}  
 
 class ResumeHistory(BaseModel):
     user_email: str
