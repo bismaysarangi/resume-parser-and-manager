@@ -15,6 +15,7 @@ import {
   BarChart3,
   Users,
   Building2,
+  MessageSquareMore,
 } from "lucide-react";
 
 const Navbar = () => {
@@ -131,7 +132,7 @@ const Navbar = () => {
     { to: "/recruiter/bulk-upload", label: "Bulk Upload", icon: Upload },
     { to: "/recruiter/candidates", label: "Candidates", icon: Users },
     { to: "/recruiter/bulk-results", label: "Results", icon: FileText },
-    { to: "/recruiter/chatbot", label: "Chatbot", icon: FileText }
+    { to: "/recruiter/chatbot", label: "Chatbot", icon: MessageSquareMore },
   ];
 
   // Determine which nav items to show

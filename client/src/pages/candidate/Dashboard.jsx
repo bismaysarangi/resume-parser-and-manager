@@ -272,7 +272,7 @@ const Dashboard = () => {
                             )}
                           </div>
                         </div>
-                        <Button
+                        {/* <Button
                           size="sm"
                           className="ml-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white transition-all duration-200 font-medium"
                           onClick={() =>
@@ -285,7 +285,7 @@ const Dashboard = () => {
                           }
                         >
                           View
-                        </Button>
+                        </Button> */}
                       </div>
                     ))}
                   </div>

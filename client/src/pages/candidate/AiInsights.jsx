@@ -168,7 +168,7 @@ const AiInsights = () => {
                       state: { parsedData, fileName },
                     })
                   }
-                  className="border-white/20 text-white hover:bg-white/10"
+                  className="border-white/20 text-black hover:bg-white/10"
                 >
                   Back to Resume Details
                 </Button>

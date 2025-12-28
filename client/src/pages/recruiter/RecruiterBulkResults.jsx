@@ -20,6 +20,7 @@ import {
   Languages,
   BookOpen,
   FileCheck,
+  FileText,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
