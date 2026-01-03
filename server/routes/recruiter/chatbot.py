@@ -5,16 +5,15 @@ import httpx
 import json
 import re
 import traceback
+from datetime import datetime
 from dependencies.auth import get_current_active_user
 from dependencies.role_based_auth import require_recruiter
 from core.database import db
-from core.config import GROQ_API_KEY, GROQ_URL
-from core.config import GROQ_PARSING_MODEL
+from core.config import GROQ_API_KEY, GROQ_URL, GROQ_PARSING_MODEL
 
 
 router = APIRouter()
 resume_history_collection = db["resume_history"]
-
 
 
 class ChatMessage(BaseModel):
@@ -22,11 +21,9 @@ class ChatMessage(BaseModel):
     content: str
 
 
-
 class ChatRequest(BaseModel):
     query: str
     conversation_history: List[ChatMessage] = []
-
 
 
 class CandidateScore:
@@ -37,7 +34,6 @@ class CandidateScore:
         self.score_breakdown = score_breakdown
 
 
-
 def deduplicate_candidates(candidates: List[Dict]) -> List[Dict]:
     """Deduplicate candidates using the same logic as candidates page"""
     unique_candidates = []
@@ -46,11 +42,9 @@ def deduplicate_candidates(candidates: List[Dict]) -> List[Dict]:
     seen_names = set()
     seen_ids = set()
 
-
     for candidate in candidates:
         parsed = candidate.get("parsed_data", {})
         candidate_id = candidate.get("_id")
-
 
         email = parsed.get("email")
         if email:
@@ -59,7 +53,6 @@ def deduplicate_candidates(candidates: List[Dict]) -> List[Dict]:
                 email = None
         else:
             email = None
-
 
         phone = parsed.get("phone")
         if phone:
@@ -70,7 +63,6 @@ def deduplicate_candidates(candidates: List[Dict]) -> List[Dict]:
         else:
             phone = None
 
-
         name = parsed.get("name")
         if name:
             name = str(name).strip().lower()
@@ -79,13 +71,10 @@ def deduplicate_candidates(candidates: List[Dict]) -> List[Dict]:
         else:
             name = None
 
-
         is_duplicate = False
-
 
         if candidate_id in seen_ids:
             is_duplicate = True
-
 
         if not is_duplicate and email:
             if email in seen_emails:
@@ -93,13 +82,11 @@ def deduplicate_candidates(candidates: List[Dict]) -> List[Dict]:
             else:
                 seen_emails.add(email)
 
-
         if not is_duplicate and phone:
             if phone in seen_phones:
                 is_duplicate = True
             else:
                 seen_phones.add(phone)
-
 
         if not is_duplicate and name:
             if name in seen_names:
@@ -107,141 +94,416 @@ def deduplicate_candidates(candidates: List[Dict]) -> List[Dict]:
             else:
                 seen_names.add(name)
 
-
         if not is_duplicate:
             seen_ids.add(candidate_id)
             unique_candidates.append(candidate)
 
-
     return unique_candidates
 
+
+def calculate_total_experience(experiences: List[Dict]) -> Dict[str, Any]:
+    """Enhanced experience calculation with better date parsing and validation"""
+    if not experiences:
+        return {
+            'total_years': 0.0,
+            'total_months': 0,
+            'total_years_display': 'No experience',
+            'calculation_method': 'no_data',
+            'details': []
+        }
+    
+    total_months = 0
+    calculation_details = []
+    current_year = datetime.now().year
+    
+    for exp in experiences:
+        years_str = exp.get("Years", "")
+        company = exp.get("Company", "Unknown")
+        role = exp.get("Role", "Unknown")
+        
+        if not years_str:
+            continue
+        
+        years_str = str(years_str).strip()
+        months_for_this_role = 0
+        method = "unknown"
+        
+        # Method 1: Explicit year ranges (e.g., "2020 - 2023" or "2020-2023")
+        date_range_match = re.search(r'(\d{4})\s*[-–to]\s*(\d{4}|present|current)', years_str, re.IGNORECASE)
+        if date_range_match:
+            start_year = int(date_range_match.group(1))
+            end_str = date_range_match.group(2).lower()
+            
+            if end_str in ['present', 'current']:
+                end_year = current_year
+            else:
+                end_year = int(end_str)
+            
+            if 1970 <= start_year <= current_year and start_year <= end_year <= current_year + 1:
+                years_diff = end_year - start_year
+                months_for_this_role = years_diff * 12
+                method = f"date_range ({start_year}-{end_year})"
+        
+        # Method 2: Explicit months
+        if months_for_this_role == 0:
+            months_match = re.search(r'(\d+)\s*month', years_str, re.IGNORECASE)
+            if months_match:
+                months_for_this_role = int(months_match.group(1))
+                method = "explicit_months"
+        
+        # Method 3: Explicit years
+        if months_for_this_role == 0:
+            years_match = re.search(r'(\d+\.?\d*)\s*year', years_str, re.IGNORECASE)
+            if years_match:
+                years_val = float(years_match.group(1))
+                months_for_this_role = int(years_val * 12)
+                method = "explicit_years"
+        
+        # Method 4: Month ranges
+        if months_for_this_role == 0:
+            month_names = r'(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*'
+            month_range_match = re.search(
+                rf'{month_names}\s*(\d{{4}})\s*[-–to]\s*{month_names}\s*(\d{{4}}|present)',
+                years_str,
+                re.IGNORECASE
+            )
+            if month_range_match:
+                start_year = int(month_range_match.group(2))
+                end_str = month_range_match.group(4)
+                
+                if end_str.lower() in ['present', 'current']:
+                    end_year = current_year
+                else:
+                    end_year = int(end_str)
+                
+                if 1970 <= start_year <= current_year and start_year <= end_year <= current_year + 1:
+                    years_diff = end_year - start_year
+                    months_for_this_role = max(1, years_diff * 12)
+                    method = f"month_range ({start_year}-{end_year})"
+        
+        # Method 5: Fallback
+        if months_for_this_role == 0:
+            numbers = re.findall(r'(\d+\.?\d*)', years_str)
+            if numbers:
+                for num_str in numbers:
+                    num = float(num_str)
+                    if 1970 <= num <= 2025:
+                        continue
+                    if num < 50:
+                        if num > 10:
+                            months_for_this_role = int(num * 12)
+                            method = "fallback_years"
+                        else:
+                            months_for_this_role = int(num * 12)
+                            method = "fallback_conservative"
+                        break
+        
+        months_for_this_role = min(months_for_this_role, 180)
+        
+        if months_for_this_role > 0:
+            total_months += months_for_this_role
+            calculation_details.append({
+                'company': company,
+                'role': role,
+                'raw_duration': years_str,
+                'calculated_months': months_for_this_role,
+                'method': method
+            })
+    
+    total_years = total_months / 12.0
+    
+    if total_months == 0:
+        display = "New Graduate / Intern"
+    elif total_months < 12:
+        display = f"{total_months} months"
+    elif total_months < 24:
+        years_part = total_months // 12
+        months_part = total_months % 12
+        if months_part > 0:
+            display = f"{years_part} year {months_part} months"
+        else:
+            display = f"{years_part} year"
+    else:
+        years_part = total_months // 12
+        months_part = total_months % 12
+        if months_part >= 6:
+            display = f"{years_part}.{months_part // 6 * 5} years"
+        else:
+            display = f"{years_part} years"
+    
+    return {
+        'total_years': total_years,
+        'total_months': total_months,
+        'total_years_display': display,
+        'calculation_method': 'multi_method',
+        'details': calculation_details
+    }
 
 
 def extract_query_intent(query: str) -> Dict[str, Any]:
     """
-    Extract structured intent from user query
-    Returns: {
-        'skills': [...],
-        'min_experience': int,
-        'companies': [...],
-        'education_level': str,
-        'top_n': int,
-        'query_type': 'ranking'|'filter'|'general',
-        'company_filter': bool
-    }
+    ENHANCED: Extract structured intent with better generalization and fuzzy matching
     """
     query_lower = query.lower()
     intent = {
         'skills': [],
         'min_experience': None,
+        'max_experience': None,
         'companies': [],
         'education_level': None,
         'top_n': None,
         'query_type': 'general',
-        'company_filter': False
+        'company_filter': False,
+        'requires_calculation': False,
+        'is_compound': False,
+        'requires_unavailable_data': False,
+        'unavailable_reason': None,
+        'search_terms': [],  # NEW: Generic search terms
+        'is_conversational': False,  # NEW: Detect casual queries
+        'needs_listing': False,  # NEW: User wants a list
+        'needs_comparison': False,  # NEW: Comparing candidates
+        'needs_summary': False  # NEW: Summary/overview requested
     }
 
-
-    # Extract "top N" requests
-    top_n_match = re.search(r'top\s+(\d+)', query_lower)
-    if top_n_match:
-        intent['top_n'] = int(top_n_match.group(1))
-        intent['query_type'] = 'ranking'
-    elif 'best' in query_lower or 'top' in query_lower:
-        intent['top_n'] = 5  # Default to top 5 for "best" queries
-        intent['query_type'] = 'ranking'
-
-
-    # Extract skills
-    common_skills = [
-        'python', 'java', 'javascript', 'react', 'angular', 'vue', 'node',
-        'nodejs', 'django', 'flask', 'spring', 'dotnet', 'c++', 'c#',
-        'ruby', 'php', 'go', 'rust', 'swift', 'kotlin', 'typescript',
-        'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'mongodb', 'sql',
-        'postgresql', 'mysql', 'redis', 'machine learning', 'ml', 'ai',
-        'data science', 'tensorflow', 'pytorch', 'react native', 'flutter',
-        'html', 'css', 'express', 'fastapi', 'graphql', 'rest', 'api',
-        'git', 'jenkins', 'ci/cd', 'linux', 'unix', 'bash', 'shell'
+    # Detect unavailable data queries
+    unavailable_queries = [
+        ('gender', ['female', 'male', 'woman', 'women', 'man', 'men', 'gender']),
+        ('location', ['location', 'city', 'state', 'country', 'local', 'nearby', 'remote']),
+        ('salary', ['salary', 'compensation', 'pay', 'wage', 'ctc', 'package']),
+        ('availability', ['available', 'availability', 'start date', 'notice period']),
+        ('visa', ['visa', 'work permit', 'authorization', 'citizenship']),
+        ('age', ['age', 'years old', 'born in'])
     ]
     
-    for skill in common_skills:
-        if skill in query_lower:
-            intent['skills'].append(skill)
+    for data_type, keywords in unavailable_queries:
+        if any(keyword in query_lower for keyword in keywords):
+            intent['requires_unavailable_data'] = True
+            intent['unavailable_reason'] = data_type
+            return intent
+
+    # Detect conversational/casual queries
+    conversational_patterns = [
+        r'^(hi|hello|hey|greetings)',
+        r'(how are you|what\'s up|wassup)',
+        r'(thanks|thank you|appreciate)',
+        r'^(help|assist|support)',
+        r'(can you|could you|would you)',
+        r'(tell me about|explain|what is|what are)'
+    ]
     
-    # Handle generic role-based queries (web developer, full stack, etc.)
-    role_skill_mapping = {
-        'web developer': ['javascript', 'html', 'css', 'react', 'node', 'nodejs'],
-        'web development': ['javascript', 'html', 'css', 'react', 'node', 'nodejs'],
-        'full stack': ['javascript', 'react', 'node', 'nodejs', 'python', 'sql'],
-        'frontend': ['javascript', 'react', 'html', 'css', 'typescript'],
-        'backend': ['python', 'java', 'nodejs', 'sql', 'api'],
-        'mobile developer': ['react native', 'flutter', 'swift', 'kotlin'],
-        'data scientist': ['python', 'machine learning', 'tensorflow', 'sql'],
-        'devops': ['docker', 'kubernetes', 'aws', 'jenkins', 'linux'],
-        'ml engineer': ['python', 'machine learning', 'tensorflow', 'pytorch']
+    for pattern in conversational_patterns:
+        if re.search(pattern, query_lower):
+            intent['is_conversational'] = True
+            break
+
+    # Detect query intent types
+    if any(word in query_lower for word in ['list', 'show', 'display', 'give me all']):
+        intent['needs_listing'] = True
+    
+    if any(word in query_lower for word in ['compare', 'difference', 'versus', 'vs', 'between']):
+        intent['needs_comparison'] = True
+    
+    if any(word in query_lower for word in ['summary', 'overview', 'breakdown', 'statistics', 'stats']):
+        intent['needs_summary'] = True
+
+    # Detect compound questions
+    compound_indicators = [' and ', ' with ', ' who ', ' that have ', ' having ', ' as well as ']
+    if any(indicator in query_lower for indicator in compound_indicators):
+        intent['is_compound'] = True
+
+    # Extract "top N" requests with better patterns
+    top_n_patterns = [
+        r'top\s+(\d+)',
+        r'best\s+(\d+)',
+        r'(\d+)\s+best',
+        r'(\d+)\s+top',
+        r'give\s+me\s+(\d+)',
+        r'show\s+me\s+(\d+)',
+        r'find\s+(\d+)'
+    ]
+    
+    for pattern in top_n_patterns:
+        match = re.search(pattern, query_lower)
+        if match:
+            intent['top_n'] = int(match.group(1))
+            intent['query_type'] = 'ranking'
+            break
+    
+    if not intent['top_n'] and any(word in query_lower for word in ['best', 'top', 'strongest', 'most qualified']):
+        intent['top_n'] = 5
+        intent['query_type'] = 'ranking'
+
+    # ENHANCED: Expanded skill detection with synonyms and variations
+    skill_database = {
+        'python': ['python', 'py', 'django', 'flask', 'fastapi', 'pandas', 'numpy'],
+        'javascript': ['javascript', 'js', 'ecmascript', 'es6', 'es2015'],
+        'typescript': ['typescript', 'ts'],
+        'java': ['java', 'jvm', 'spring boot', 'spring'],
+        'react': ['react', 'reactjs', 'react.js', 'react native'],
+        'angular': ['angular', 'angularjs', 'angular.js'],
+        'vue': ['vue', 'vuejs', 'vue.js', 'nuxt'],
+        'node': ['node', 'nodejs', 'node.js', 'express', 'expressjs'],
+        'dotnet': ['dotnet', '.net', 'c#', 'csharp', 'asp.net'],
+        'c++': ['c++', 'cpp', 'cplusplus'],
+        'ruby': ['ruby', 'rails', 'ruby on rails'],
+        'php': ['php', 'laravel', 'symfony', 'wordpress'],
+        'go': ['go', 'golang'],
+        'rust': ['rust'],
+        'swift': ['swift', 'ios'],
+        'kotlin': ['kotlin', 'android'],
+        'aws': ['aws', 'amazon web services', 'ec2', 's3', 'lambda', 'cloudformation'],
+        'azure': ['azure', 'microsoft azure'],
+        'gcp': ['gcp', 'google cloud', 'google cloud platform'],
+        'docker': ['docker', 'containerization', 'containers'],
+        'kubernetes': ['kubernetes', 'k8s', 'container orchestration'],
+        'sql': ['sql', 'database', 'rdbms'],
+        'postgresql': ['postgresql', 'postgres'],
+        'mysql': ['mysql'],
+        'mongodb': ['mongodb', 'mongo', 'nosql'],
+        'redis': ['redis', 'cache', 'caching'],
+        'machine learning': ['machine learning', 'ml', 'deep learning', 'neural network'],
+        'ai': ['ai', 'artificial intelligence', 'nlp', 'computer vision'],
+        'data science': ['data science', 'data analysis', 'analytics'],
+        'tensorflow': ['tensorflow', 'tf'],
+        'pytorch': ['pytorch', 'torch'],
+        'flutter': ['flutter', 'dart'],
+        'html': ['html', 'html5'],
+        'css': ['css', 'css3', 'sass', 'scss', 'tailwind'],
+        'graphql': ['graphql', 'gql'],
+        'rest': ['rest', 'restful', 'rest api'],
+        'api': ['api', 'apis'],
+        'git': ['git', 'github', 'gitlab', 'version control'],
+        'jenkins': ['jenkins', 'ci/cd', 'continuous integration'],
+        'linux': ['linux', 'unix', 'ubuntu', 'centos'],
+        'devops': ['devops', 'sre', 'site reliability'],
+        'testing': ['testing', 'test', 'unit test', 'integration test', 'qa', 'quality assurance'],
+        'agile': ['agile', 'scrum', 'kanban', 'sprint'],
+        'ui/ux': ['ui', 'ux', 'user interface', 'user experience', 'design'],
+        'frontend': ['frontend', 'front-end', 'front end'],
+        'backend': ['backend', 'back-end', 'back end'],
+        'fullstack': ['fullstack', 'full-stack', 'full stack'],
+        'microservices': ['microservices', 'microservice architecture'],
+        'blockchain': ['blockchain', 'crypto', 'web3', 'ethereum', 'solidity']
     }
     
-    # Check if query matches any generic role
+    # Match skills with fuzzy matching
+    for main_skill, variations in skill_database.items():
+        for variation in variations:
+            if variation in query_lower:
+                if main_skill not in intent['skills']:
+                    intent['skills'].append(main_skill)
+                break
+
+    # Enhanced role-based skill mapping
+    role_skill_mapping = {
+        'web developer': ['javascript', 'html', 'css', 'react', 'node'],
+        'web development': ['javascript', 'html', 'css', 'react', 'node'],
+        'full stack': ['javascript', 'react', 'node', 'python', 'sql'],
+        'fullstack': ['javascript', 'react', 'node', 'python', 'sql'],
+        'frontend developer': ['javascript', 'react', 'html', 'css', 'typescript'],
+        'front end': ['javascript', 'react', 'html', 'css', 'typescript'],
+        'backend developer': ['python', 'java', 'node', 'sql', 'api'],
+        'back end': ['python', 'java', 'node', 'sql', 'api'],
+        'mobile developer': ['react', 'flutter', 'swift', 'kotlin'],
+        'ios developer': ['swift', 'ios'],
+        'android developer': ['kotlin', 'java', 'android'],
+        'data scientist': ['python', 'machine learning', 'tensorflow', 'sql'],
+        'data engineer': ['python', 'sql', 'spark', 'data science'],
+        'devops engineer': ['docker', 'kubernetes', 'aws', 'jenkins', 'linux'],
+        'ml engineer': ['python', 'machine learning', 'tensorflow', 'pytorch'],
+        'ai engineer': ['python', 'ai', 'machine learning', 'tensorflow'],
+        'software engineer': ['python', 'java', 'javascript'],
+        'qa engineer': ['testing', 'automation', 'selenium'],
+        'ui/ux designer': ['ui/ux', 'design', 'figma']
+    }
+    
     for role, skills in role_skill_mapping.items():
         if role in query_lower:
-            # Add these skills if not already present
             for skill in skills:
                 if skill not in intent['skills']:
                     intent['skills'].append(skill)
-            # Mark as ranking query if not already
             if intent['query_type'] == 'general':
                 intent['query_type'] = 'ranking'
             break
 
+    # Extract general search terms (words that aren't stop words)
+    stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+                  'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
+                  'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+                  'could', 'should', 'may', 'might', 'must', 'can', 'who', 'what',
+                  'where', 'when', 'why', 'how', 'which', 'this', 'that', 'these',
+                  'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him',
+                  'her', 'us', 'them', 'my', 'your', 'his', 'its', 'our', 'their',
+                  'find', 'show', 'give', 'tell', 'list', 'get'}
+    
+    words = re.findall(r'\b\w+\b', query_lower)
+    intent['search_terms'] = [word for word in words if word not in stop_words and len(word) > 2]
 
-    # Extract experience requirements
-    exp_match = re.search(r'(\d+)\+?\s*years?', query_lower)
-    if exp_match:
-        intent['min_experience'] = int(exp_match.group(1))
-
+    # Enhanced experience extraction with better patterns
+    exp_patterns = [
+        (r'(\d+)\s*[-to]+\s*(\d+)\s*years?', 'range'),
+        (r'(\d+)\+?\s*years?', 'minimum'),
+        (r'at least\s+(\d+)\s*years?', 'minimum'),
+        (r'more than\s+(\d+)\s*years?', 'minimum'),
+        (r'over\s+(\d+)\s*years?', 'minimum'),
+        (r'(less than|under|below)\s+(\d+)\s*years?', 'maximum'),
+        (r'(\d+)\s*to\s*(\d+)\s*yrs?', 'range'),
+        (r'between\s+(\d+)\s*and\s*(\d+)\s*years?', 'range')
+    ]
+    
+    for pattern, exp_type in exp_patterns:
+        match = re.search(pattern, query_lower)
+        if match:
+            if exp_type == 'range':
+                intent['min_experience'] = int(match.group(1))
+                intent['max_experience'] = int(match.group(2))
+            elif exp_type == 'minimum':
+                intent['min_experience'] = int(match.group(1))
+            elif exp_type == 'maximum':
+                intent['max_experience'] = int(match.group(2))
+            intent['requires_calculation'] = True
+            break
 
     # Detect company filter queries
-    company_keywords = ['company', 'companies', 'intern', 'internship', 'full-time', 'full time', 
-                       'position', 'worked at', 'experience at', 'employed']
+    company_keywords = ['company', 'companies', 'intern', 'internship', 'full-time', 'full time',
+                       'position', 'worked at', 'experience at', 'employed', 'employer']
     if any(keyword in query_lower for keyword in company_keywords):
         intent['company_filter'] = True
         intent['query_type'] = 'ranking'
         if not intent['top_n']:
-            intent['top_n'] = 10  # Show more for company queries
+            intent['top_n'] = 10
 
-
-    # Extract specific company mentions
-    companies = ['google', 'microsoft', 'amazon', 'facebook', 'meta', 'apple', 
-                 'netflix', 'uber', 'airbnb', 'linkedin', 'twitter', 'tesla',
-                 'ibm', 'oracle', 'salesforce', 'adobe', 'intel', 'nvidia',
+    # Expanded company list
+    companies = ['google', 'microsoft', 'amazon', 'facebook', 'meta', 'apple',
+                 'netflix', 'uber', 'airbnb', 'linkedin', 'twitter', 'x corp', 'tesla',
+                 'ibm', 'oracle', 'salesforce', 'adobe', 'intel', 'nvidia', 'amd',
                  'samsung', 'dell', 'cisco', 'vmware', 'sap', 'accenture',
-                 'deloitte', 'wipro', 'tcs', 'infosys', 'cognizant', 'hcl']
+                 'deloitte', 'wipro', 'tcs', 'infosys', 'cognizant', 'hcl', 'capgemini',
+                 'goldman sachs', 'morgan stanley', 'jp morgan', 'jpmorgan', 'mckinsey',
+                 'bain', 'bcg', 'stripe', 'spotify', 'slack', 'atlassian', 'zoom',
+                 'shopify', 'square', 'paypal', 'ebay', 'booking', 'expedia']
+    
     for company in companies:
         if company in query_lower:
             intent['companies'].append(company)
 
-
     # Extract education level
-    if any(term in query_lower for term in ['phd', 'doctorate', 'doctoral']):
-        intent['education_level'] = 'phd'
-    elif any(term in query_lower for term in ['masters', 'msc', 'm.sc', 'mtech', 'm.tech']):
-        intent['education_level'] = 'masters'
-    elif any(term in query_lower for term in ['bachelor', 'btech', 'b.tech', 'be', 'b.e']):
-        intent['education_level'] = 'bachelors'
-
+    education_keywords = {
+        'phd': ['phd', 'ph.d', 'doctorate', 'doctoral'],
+        'masters': ['masters', 'master', 'msc', 'm.sc', 'mtech', 'm.tech', 'mba', 'm.b.a'],
+        'bachelors': ['bachelor', 'bachelors', 'btech', 'b.tech', 'be', 'b.e', 'bsc', 'b.sc']
+    }
+    
+    for level, keywords in education_keywords.items():
+        if any(keyword in query_lower for keyword in keywords):
+            intent['education_level'] = level
+            break
 
     return intent
 
 
-
 def calculate_skill_proficiency_score(candidate: Dict, required_skills: List[str]) -> Dict[str, Any]:
-    """
-    Calculate skill proficiency based on:
-    - Explicit skill mentions
-    - Project usage
-    - Experience usage
-    - Recency and depth
-    """
+    """Calculate skill proficiency based on evidence and usage"""
     parsed = candidate.get("parsed_data", {})
     if not parsed:
         return {
@@ -251,7 +513,6 @@ def calculate_skill_proficiency_score(candidate: Dict, required_skills: List[str
             'total_skills_required': len(required_skills)
         }
     
-    # Get all skills (explicit + derived)
     all_skills = []
     if parsed.get("skills"):
         all_skills.extend([s.lower() for s in parsed.get("skills", [])])
@@ -266,12 +527,12 @@ def calculate_skill_proficiency_score(candidate: Dict, required_skills: List[str
         skill_score = 0
         evidence = []
         
-        # 1. Check if skill is explicitly listed (30 points)
+        # Check explicit listing
         if any(req_skill in skill for skill in all_skills):
             skill_score += 30
             evidence.append("listed_in_skills")
         
-        # 2. Check projects for skill usage (up to 40 points)
+        # Check project usage
         projects = parsed.get("projects", [])
         project_matches = 0
         for project in projects:
@@ -280,11 +541,10 @@ def calculate_skill_proficiency_score(candidate: Dict, required_skills: List[str
                 project_matches += 1
                 evidence.append(f"used_in_project: {project.get('Name', 'unnamed')[:30]}")
         
-        # More projects = higher proficiency (max 40 points)
         if project_matches > 0:
             skill_score += min(40, project_matches * 10)
         
-        # 3. Check experience for skill usage (up to 30 points)
+        # Check experience usage
         experiences = parsed.get("experience", [])
         exp_matches = 0
         for exp in experiences:
@@ -302,18 +562,12 @@ def calculate_skill_proficiency_score(candidate: Dict, required_skills: List[str
         }
         total_score += skill_score
     
-    # Normalize to 0-100 scale
     normalized_score = (total_score / max_possible_score * 100) if max_possible_score > 0 else 0
     
-    # If candidate has SOME relevant skills (even if not all), give them credit
-    # This helps with generic queries like "web developer"
     skills_matched = sum(1 for s in skill_scores.values() if s['score'] > 0)
     if skills_matched > 0 and len(required_skills) > 3:
-        # For queries with many skills (like "web developer" = 6 skills)
-        # Having 50%+ of skills should give decent score
         match_ratio = skills_matched / len(required_skills)
-        if match_ratio >= 0.5:  # Has at least half the skills
-            # Boost the score proportionally
+        if match_ratio >= 0.5:
             normalized_score = max(normalized_score, 50 * match_ratio)
     
     return {
@@ -324,229 +578,105 @@ def calculate_skill_proficiency_score(candidate: Dict, required_skills: List[str
     }
 
 
-def parse_experience_years(years_str: str) -> float:
-    """
-    Safely parse years from experience string
-    Handles cases like: "3 months", "2 years", "2019-2021", "1.5 years"
-    """
-    if not years_str:
-        return 0.0
-    
-    years_str = str(years_str).lower().strip()
-    
-    # Check for months
-    if 'month' in years_str:
-        numbers = re.findall(r'(\d+\.?\d*)', years_str)
-        if numbers:
-            try:
-                months = float(numbers[0])
-                return months / 12.0  # Convert months to years
-            except (ValueError, IndexError):
-                pass
-    
-    # Check for years
-    elif 'year' in years_str:
-        numbers = re.findall(r'(\d+\.?\d*)', years_str)
-        if numbers:
-            try:
-                return float(numbers[0])
-            except (ValueError, IndexError):
-                pass
-    
-    # Check for date ranges like "2019-2021"
-    elif re.search(r'\d{4}\s*[-–]\s*\d{4}', years_str):
-        numbers = re.findall(r'\d{4}', years_str)
-        if len(numbers) >= 2:
-            try:
-                start_year = int(numbers[0])
-                end_year = int(numbers[1])
-                years = end_year - start_year
-                return max(0, min(years, 20))  # Cap at 20 years for date ranges
-            except (ValueError, IndexError):
-                pass
-    
-    # Default: look for any number (but be conservative)
-    numbers = re.findall(r'(\d+\.?\d*)', years_str)
-    if numbers:
-        try:
-            # Take the smallest number found (most conservative)
-            valid_numbers = [float(n) for n in numbers if float(n) < 50]
-            if valid_numbers:
-                num = min(valid_numbers)
-                # If it's a large number (>10), it's probably a year, not years of experience
-                if num > 10 and num < 3000:  # Looks like a year (e.g., 2020)
-                    return 0.0
-                return min(num, 20)  # Cap at 20 years
-        except (ValueError, IndexError):
-            pass
-    
-    return 0.0
-
-
-
-def format_experience_years(years: float) -> str:
-    """
-    Format experience years for display
-    Shows decimal places for less than 1 year, otherwise whole numbers
-    """
-    if years < 0.1:
-        return "New Graduate / Intern"
-    
-    # If less than 1 year, convert to months
-    if years < 1.0:
-        months = round(years * 12)
-        return f"{months} months"
-    
-    # For 1+ years, check if there's a significant fractional part (more than 1 month)
-    fractional_year = years - int(years)
-    if fractional_year > 0.08: # More than roughly 1 month
-        return f"{years:.1f} years"
-    
-    return f"{int(years)} years"
-
-
-
-def calculate_experience_score(candidate: Dict, min_experience: Optional[int] = None) -> Dict[str, Any]:
-    """
-    Calculate experience quality score based on:
-    - Total years of experience
-    - Number of companies
-    - Role seniority
-    - Company reputation
-    """
+def calculate_experience_score(candidate: Dict, intent: Dict) -> Dict[str, Any]:
+    """Enhanced experience scoring with accurate calculation"""
     parsed = candidate.get("parsed_data", {})
     experiences = parsed.get("experience", []) if parsed else []
     
     if not experiences:
         return {
-            'score': 0, 
-            'total_years': 0, 
-            'total_years_display': '0 years',
+            'score': 0,
+            'total_years': 0.0,
+            'total_months': 0,
+            'total_years_display': 'No experience',
             'details': 'no_experience',
             'company_count': 0,
             'senior_roles': 0,
-            'meets_requirement': True if min_experience is None else False,
-            'max_years_single_role': 0,
-            'max_years_single_role_display': '0 years'
+            'meets_min_requirement': True if intent.get('min_experience') is None else False,
+            'meets_max_requirement': True if intent.get('max_experience') is None else True,
+            'calculation_details': []
         }
     
-    total_years = 0.0
-    max_years_single_role = 0.0
+    exp_calc = calculate_total_experience(experiences)
+    total_years = exp_calc['total_years']
+    total_months = exp_calc['total_months']
+    
     company_count = len(experiences)
     senior_roles = 0
     
-    # Keywords for senior roles
     senior_keywords = ['senior', 'lead', 'principal', 'architect', 'manager', 'director', 'head', 'chief']
     
     for exp in experiences:
-        # Extract years using safe parser
-        years_str = exp.get("Years", "")
-        years = parse_experience_years(years_str)
-        
-        # Cap at reasonable maximum per role (10 years)
-        if years > 10:
-            years = 10
-        
-        total_years += years
-        if years > max_years_single_role:
-            max_years_single_role = years
-        
-        # Check role seniority
         role = exp.get("Role", "")
         if role:
             role_lower = role.lower()
             if any(keyword in role_lower for keyword in senior_keywords):
                 senior_roles += 1
     
-    # Debug output
-    print(f"Experience parsing - Total years: {total_years:.2f}, Max per role: {max_years_single_role:.2f}")
-    
-    # Format for display
-    total_years_display = format_experience_years(total_years)
-    max_years_display = format_experience_years(max_years_single_role)
-    
-    # Cap total years at 30 for scoring purposes
-    capped_years = min(total_years, 30)
-    
-    # Calculate score - MORE CONSERVATIVE SCORING
     score = 0
     
-    # Years of experience (max 40 points)
-    if capped_years >= 1:
-        score += min(40, capped_years * 5) # 5 points per year
+    if total_years >= 1:
+        score += min(40, total_years * 5)
     else:
-        # Give points for months (0.1 to 0.9 years)
-        score += min(5, capped_years * 6)
+        score += min(5, total_years * 6)
     
-    # Number of companies (max 15 points)
     if company_count >= 4 and company_count <= 6:
-        score += 15  # Good diversity
+        score += 15
     elif company_count == 3:
         score += 12
     elif company_count == 2:
         score += 8
     elif company_count == 1:
         score += 4
-    else:  # More than 6 companies might indicate job hopping
+    else:
         score += 5
     
-    # Senior roles (max 20 points)
     score += min(20, senior_roles * 8)
     
-    # Check if meets minimum experience requirement
-    meets_requirement = True
-    if min_experience is not None:
-        if total_years < min_experience:
-            meets_requirement = False
+    meets_min_requirement = True
+    meets_max_requirement = True
+    
+    if intent.get('min_experience') is not None:
+        if total_years < intent['min_experience']:
+            meets_min_requirement = False
+            score *= 0.5
+    
+    if intent.get('max_experience') is not None:
+        if total_years > intent['max_experience']:
+            meets_max_requirement = False
             score *= 0.7
     
-    # Cap final score at 75 for experience alone
     final_score = min(75, score)
     
     return {
         'score': final_score,
         'total_years': total_years,
-        'total_years_display': total_years_display,
+        'total_months': total_months,
+        'total_years_display': exp_calc['total_years_display'],
         'company_count': company_count,
         'senior_roles': senior_roles,
-        'meets_requirement': meets_requirement,
-        'max_years_single_role': max_years_single_role,
-        'max_years_single_role_display': max_years_display
+        'meets_min_requirement': meets_min_requirement,
+        'meets_max_requirement': meets_max_requirement,
+        'calculation_details': exp_calc['details']
     }
 
 
-
 def calculate_education_score(candidate: Dict, required_level: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Calculate education score
-    """
+    """Calculate education score"""
     parsed = candidate.get("parsed_data", {})
     education = parsed.get("education", []) if parsed else []
     
     if not education:
         return {
-            'score': 0, 
-            'highest_degree': None, 
+            'score': 0,
+            'highest_degree': None,
             'meets_requirement': True if required_level is None else False
         }
     
-    # Determine highest degree
     degree_hierarchy = {
-        'phd': 100,
-        'doctorate': 100,
-        'doctoral': 100,
-        'masters': 70,
-        'msc': 70,
-        'm.sc': 70,
-        'mtech': 75,
-        'm.tech': 75,
-        'mba': 75,
-        'bachelor': 50,
-        'btech': 70,
-        'b.tech': 70,
-        'be': 50,
-        'b.e': 50,
-        'bsc': 50,
+        'phd': 100, 'doctorate': 100, 'doctoral': 100,
+        'masters': 70, 'msc': 70, 'm.sc': 70, 'mtech': 75, 'm.tech': 75, 'mba': 75,
+        'bachelor': 50, 'btech': 70, 'b.tech': 70, 'be': 50, 'b.e': 50, 'bsc': 50,
         'diploma': 25
     }
     
@@ -564,7 +694,6 @@ def calculate_education_score(candidate: Dict, required_level: Optional[str] = N
                         highest_degree = key
                     break
     
-    # Check if meets requirement
     meets_requirement = True
     if required_level is not None:
         required_score = degree_hierarchy.get(required_level, 0)
@@ -579,20 +708,13 @@ def calculate_education_score(candidate: Dict, required_level: Optional[str] = N
     }
 
 
-
 def calculate_project_quality_score(candidate: Dict, required_skills: List[str]) -> Dict[str, Any]:
-    """
-    Calculate project quality based on relevance and complexity
-    """
+    """Calculate project quality"""
     parsed = candidate.get("parsed_data", {})
     projects = parsed.get("projects", []) if parsed else []
     
     if not projects:
-        return {
-            'score': 0, 
-            'project_count': 0, 
-            'relevant_projects': 0
-        }
+        return {'score': 0, 'project_count': 0, 'relevant_projects': 0}
     
     relevant_projects = 0
     total_score = 0
@@ -601,7 +723,6 @@ def calculate_project_quality_score(candidate: Dict, required_skills: List[str])
         project_text = json.dumps(project).lower()
         project_score = 0
         
-        # Check if project uses required skills
         skills_used = 0
         if required_skills:
             skills_used = sum(1 for skill in required_skills if skill in project_text)
@@ -609,7 +730,6 @@ def calculate_project_quality_score(candidate: Dict, required_skills: List[str])
             relevant_projects += 1
             project_score = min(80, skills_used * 20)
         
-        # Check project description length (complexity indicator)
         description = project.get("Description", "")
         if len(description) > 200:
             project_score += 15
@@ -620,7 +740,6 @@ def calculate_project_quality_score(candidate: Dict, required_skills: List[str])
         
         total_score += project_score
     
-    # Average project score
     avg_score = total_score / len(projects) if projects else 0
     
     return {
@@ -630,29 +749,19 @@ def calculate_project_quality_score(candidate: Dict, required_skills: List[str])
     }
 
 
-
 def calculate_company_score(candidate: Dict, intent: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Calculate company quality score based on:
-    - Working at top companies
-    - Full-time positions vs internships
-    - Company reputation
-    """
+    """Calculate company quality score"""
     parsed = candidate.get("parsed_data", {})
     experiences = parsed.get("experience", []) if parsed else []
     
     if not experiences:
         return {
-            'score': 0,
-            'top_companies': [],
-            'has_fulltime': False,
-            'has_internship': False,
-            'company_count': 0
+            'score': 0, 'top_companies': [], 'has_fulltime': False,
+            'has_internship': False, 'company_count': 0
         }
     
-    # Expanded list of top companies
     top_companies = [
-        'google', 'microsoft', 'amazon', 'facebook', 'meta', 'apple', 
+        'google', 'microsoft', 'amazon', 'facebook', 'meta', 'apple',
         'netflix', 'uber', 'airbnb', 'linkedin', 'twitter', 'tesla',
         'ibm', 'oracle', 'salesforce', 'adobe', 'intel', 'nvidia',
         'samsung', 'dell', 'cisco', 'vmware', 'sap', 'accenture',
@@ -672,25 +781,22 @@ def calculate_company_score(candidate: Dict, intent: Dict[str, Any]) -> Dict[str
         
         if company:
             company_lower = company.lower()
-            # Check if any top company name is in the company field
             for top_co in top_companies:
                 if top_co in company_lower:
                     found_top_companies.append(company)
-                    score += 25  # 25 points per top company
+                    score += 25
                     break
         
         if role:
             role_lower = role.lower()
-            # Check for full-time indicators
-            if any(term in role_lower for term in ['full-time', 'full time', 'engineer', 'developer', 
-                                                     'manager', 'lead', 'senior', 'architect']):
+            if any(term in role_lower for term in ['full-time', 'full time', 'engineer',
+                                                     'developer', 'manager', 'lead',
+                                                     'senior', 'architect']):
                 has_fulltime = True
             
-            # Check for internship
             if 'intern' in role_lower:
                 has_internship = True
     
-    # Bonus for having both internship and full-time
     if has_fulltime and has_internship:
         score += 20
     elif has_fulltime:
@@ -698,7 +804,6 @@ def calculate_company_score(candidate: Dict, intent: Dict[str, Any]) -> Dict[str
     elif has_internship:
         score += 10
     
-    # Cap score at 100
     score = min(100, score)
     
     return {
@@ -710,52 +815,34 @@ def calculate_company_score(candidate: Dict, intent: Dict[str, Any]) -> Dict[str
     }
 
 
-
 def rank_candidates(candidates: List[Dict], intent: Dict[str, Any]) -> List[CandidateScore]:
-    """
-    Rank candidates based on query intent using weighted scoring
-    """
+    """Rank candidates based on query intent"""
     scored_candidates = []
     
     for candidate in candidates:
         try:
-            # Calculate individual scores
-            skill_analysis = calculate_skill_proficiency_score(candidate, intent.get('skills', [])) 
-            experience_analysis = calculate_experience_score(candidate, intent.get('min_experience'))
+            skill_analysis = calculate_skill_proficiency_score(candidate, intent.get('skills', []))
+            experience_analysis = calculate_experience_score(candidate, intent)
             education_analysis = calculate_education_score(candidate, intent.get('education_level'))
             project_analysis = calculate_project_quality_score(candidate, intent.get('skills', []))
             company_analysis = calculate_company_score(candidate, intent)
             
-            # Weight the scores based on query type
             if intent.get('company_filter'):
-                # Company-focused queries: prioritize company experience
                 weights = {
-                    'company': 0.50,
-                    'experience': 0.25,
-                    'skills': 0.15,
-                    'projects': 0.05,
-                    'education': 0.05
+                    'company': 0.50, 'experience': 0.25, 'skills': 0.15,
+                    'projects': 0.05, 'education': 0.05
                 }
             elif intent.get('query_type') == 'ranking' and intent.get('skills'):
-                # Skill-based queries: prioritize skills and projects
                 weights = {
-                    'skills': 0.45,
-                    'projects': 0.30,
-                    'experience': 0.15,
-                    'education': 0.05,
-                    'company': 0.05
+                    'skills': 0.45, 'projects': 0.30, 'experience': 0.15,
+                    'education': 0.05, 'company': 0.05
                 }
             else:
-                # General queries: balanced approach
                 weights = {
-                    'skills': 0.30,
-                    'experience': 0.25,
-                    'projects': 0.20,
-                    'company': 0.15,
-                    'education': 0.10
+                    'skills': 0.30, 'experience': 0.25, 'projects': 0.20,
+                    'company': 0.15, 'education': 0.10
                 }
             
-            # Calculate weighted total score
             total_score = (
                 skill_analysis['total_score'] * weights['skills'] +
                 experience_analysis['score'] * weights['experience'] +
@@ -764,18 +851,18 @@ def rank_candidates(candidates: List[Dict], intent: Dict[str, Any]) -> List[Cand
                 company_analysis['score'] * weights.get('company', 0)
             )
             
-            # Penalize if doesn't meet hard requirements
-            if intent.get('min_experience') is not None and not experience_analysis['meets_requirement']:
+            if not experience_analysis['meets_min_requirement']:
+                total_score *= 0.5
+            
+            if not experience_analysis['meets_max_requirement']:
                 total_score *= 0.7
             
             if intent.get('education_level') is not None and not education_analysis['meets_requirement']:
                 total_score *= 0.8
             
-            # For company filter queries, heavily penalize candidates without top company experience
             if intent.get('company_filter') and company_analysis['company_count'] == 0:
                 total_score *= 0.3
             
-            # Create score breakdown for transparency
             score_breakdown = {
                 'skill_score': round(skill_analysis['total_score'], 1),
                 'skill_details': skill_analysis,
@@ -791,31 +878,20 @@ def rank_candidates(candidates: List[Dict], intent: Dict[str, Any]) -> List[Cand
             scored_candidates.append(CandidateScore(candidate, total_score, score_breakdown))
         except Exception as e:
             print(f"Error scoring candidate: {e}")
-            # Give minimum score to problematic candidates
             scored_candidates.append(CandidateScore(candidate, 0, {
-                'skill_score': 0,
-                'skill_details': {'total_score': 0},
-                'experience_score': 0,
-                'experience_details': {'score': 0},
-                'education_score': 0,
-                'project_score': 0,
-                'company_score': 0,
-                'company_details': {'score': 0},
+                'skill_score': 0, 'skill_details': {'total_score': 0},
+                'experience_score': 0, 'experience_details': {'score': 0},
+                'education_score': 0, 'project_score': 0,
+                'company_score': 0, 'company_details': {'score': 0},
                 'weights_used': {}
             }))
     
-    # Sort by score (highest first)
     scored_candidates.sort(key=lambda x: x.score, reverse=True)
-    
     return scored_candidates
 
 
-
 def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Optional[int] = None) -> str:
-    """
-    Format ranked candidates for LLM WITHOUT exposing scores
-    Only include meaningful information for natural conversation
-    """
+    """Format candidates for LLM without exposing scores"""
     if top_n:
         ranked_candidates = ranked_candidates[:top_n]
     
@@ -826,13 +902,12 @@ def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Opt
         parsed = candidate.get("parsed_data", {})
         
         candidate_info = {
-            "rank": idx,  # Keep rank but hide score
+            "rank": idx,
             "name": parsed.get("name", "Unknown") if parsed else "Unknown",
             "email": parsed.get("email", "N/A") if parsed else "N/A",
             "skills": (parsed.get("skills", []) + parsed.get("derived_skills", []))[:10] if parsed else [],
         }
         
-        # Add experience details
         experiences = parsed.get("experience", []) if parsed else []
         if experiences:
             exp_details = scored_candidate.score_breakdown.get('experience_details', {})
@@ -847,14 +922,13 @@ def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Opt
                         "company": exp.get("Company", "N/A"),
                         "duration": exp.get("Years", "N/A")
                     }
-                    for exp in experiences[:3]  # Show top 3 roles
+                    for exp in experiences[:3]
                 ],
                 "notable_companies": company_details.get('top_companies', []),
                 "has_fulltime": company_details.get('has_fulltime', False),
                 "has_internship": company_details.get('has_internship', False)
             }
         
-        # Add education
         education = parsed.get("education", []) if parsed else []
         if education:
             candidate_info["education"] = [
@@ -863,10 +937,9 @@ def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Opt
                     "institution": edu.get("Institution", "N/A"),
                     "year": edu.get("Year", "N/A")
                 }
-                for edu in education[:2]  # Show top 2
+                for edu in education[:2]
             ]
         
-        # Add relevant projects (without scores)
         projects = parsed.get("projects", []) if parsed else []
         if projects:
             candidate_info["projects"] = [
@@ -874,10 +947,9 @@ def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Opt
                     "name": proj.get("Name", "Unnamed Project"),
                     "description": proj.get("Description", "")[:150] + "..." if len(proj.get("Description", "")) > 150 else proj.get("Description", "")
                 }
-                for proj in projects[:3]  # Show top 3 projects
+                for proj in projects[:3]
             ]
         
-        # Add skill evidence WITHOUT scores - just which skills were demonstrated
         skill_details = scored_candidate.score_breakdown.get('skill_details', {})
         if skill_details.get('skill_breakdown'):
             demonstrated_skills = []
@@ -887,7 +959,7 @@ def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Opt
                     if evidence:
                         demonstrated_skills.append({
                             "skill": skill,
-                            "evidence": evidence[:2]  # Show where skill was used
+                            "evidence": evidence[:2]
                         })
             if demonstrated_skills:
                 candidate_info["skill_evidence"] = demonstrated_skills
@@ -897,72 +969,130 @@ def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Opt
     return json.dumps(formatted, indent=2)
 
 
-def create_enhanced_prompt(query: str, ranked_data: str, intent: Dict, total_shown: int, total_unique: int) -> str:
+def create_enhanced_prompt(query: str, ranked_data: str, intent: Dict, total_shown: int, total_unique: int, conversation_history: List[ChatMessage] = []) -> str:
     """
-    Create enhanced prompt that lets AI determine its own format
-    WITHOUT exposing internal scoring
+    ENHANCED: Create smarter prompt that handles conversational context
     """
     ranking_context = ""
     if intent.get('query_type') == 'ranking':
         if intent.get('company_filter'):
             ranking_context = """
-These candidates are ranked based on their company experience, role progression, and overall career quality.
-Pay special attention to candidates who have worked at notable companies or held significant positions.
+These candidates are ranked based on their company experience, role progression, and career quality.
+Pay attention to candidates at notable companies or with significant positions.
 """
         else:
             ranking_context = """
-These candidates are ranked based on their overall fit for the query, considering:
-- Relevant skills and how they've been applied
-- Professional experience and career progression
-- Project work and practical demonstrations
+These candidates are ranked based on overall fit, considering:
+- Relevant skills and practical application
+- Professional experience and growth
+- Project work and demonstrations
 - Educational background
-- Company experience and reputation
+- Company experience
 """
     
-    prompt = f"""You are an experienced technical recruiter helping to find the best candidates.
+    # Build conversation context
+    conversation_context = ""
+    if conversation_history:
+        recent_history = conversation_history[-4:]  # Last 4 messages
+        conversation_context = "\n\nCONVERSATION HISTORY:\n"
+        for msg in recent_history:
+            conversation_context += f"{msg.role.upper()}: {msg.content}\n"
+        conversation_context += "\nUse this context to provide more relevant and personalized responses.\n"
+    
+    # Detect query type and provide specific guidance
+    response_guidance = ""
+    if intent.get('is_conversational'):
+        response_guidance = """
+CONVERSATIONAL QUERY DETECTED:
+- Respond naturally and helpfully
+- If it's a greeting, greet back and offer assistance
+- If asking for help, explain capabilities
+- Keep response friendly and concise
+"""
+    elif intent.get('needs_comparison'):
+        response_guidance = """
+COMPARISON REQUESTED:
+- Compare candidates side-by-side
+- Highlight key differences in skills, experience, background
+- Use natural language, avoid rigid formatting
+- Be specific about what makes each candidate unique
+"""
+    elif intent.get('needs_summary'):
+        response_guidance = """
+SUMMARY/OVERVIEW REQUESTED:
+- Provide high-level insights about the candidate pool
+- Include key statistics (skill distribution, experience levels)
+- Identify notable patterns or standouts
+- Keep it concise but informative
+"""
+    elif intent.get('needs_listing'):
+        response_guidance = """
+LIST REQUESTED:
+- Present candidates clearly
+- Include relevant details for each
+- Keep descriptions brief unless detail requested
+- Use natural formatting
+"""
+    
+    prompt = f"""You are an experienced technical recruiter with deep knowledge of the tech industry.
 
 {ranking_context}
 
-CANDIDATE DATA (Top {total_shown} of {total_unique} candidates):
+CANDIDATE DATA (Top {total_shown} of {total_unique} unique candidates):
 {ranked_data}
+{conversation_context}
 
 USER QUERY: "{query}"
 
-INSTRUCTIONS:
-1. Answer the user's query naturally and conversationally
-2. DO NOT reveal any numerical scores, rankings, or internal metrics
-3. DO NOT use rigid formatting templates - adapt your response style to the question
-4. Determine the best way to present information based on what the user is asking
-5. Focus on qualitative insights about candidates rather than quantitative scores
-6. Use natural language to describe why certain candidates stand out
-7. If showing multiple candidates, present them in the order provided but don't mention "rank 1", "rank 2" etc.
-8. Be concise unless the user asks for detailed information
+{response_guidance}
 
-IMPORTANT - Response Style Guidelines:
-- For "who" questions: Present candidates with brief highlights
-- For "tell me about" questions: Provide detailed insights
-- For "how many" questions: Give counts and summaries
-- For "best/top" questions: Explain what makes candidates strong without numbers
-- For comparison questions: Compare qualitatively, not with scores
-- For specific skill questions: Focus on evidence and experience
+CORE INSTRUCTIONS:
 
-WHAT NOT TO DO:
-- Don't use phrases like "Overall Score: 87.5/100"
-- Don't say "Skill Proficiency: 90.2/100"
-- Don't mention "ranked by score" or "ranking system"
-- Don't use bullet-point templates unless it truly fits the query
-- Don't reveal that candidates are numerically scored
+1. EXPERIENCE CALCULATION:
+   - The "total_years" field contains accurate calculated experience
+   - NEVER apologize or say you cannot calculate - it's already done
+   - Present experience information naturally and confidently
+   - Use the "total_years_display" field for human-readable format
 
-Examples of good responses:
+2. RESPONSE STYLE:
+   - Adapt your format to the question type
+   - Be conversational and natural
+   - Avoid robotic templates unless clearly appropriate
+   - NO numerical scores or rankings in your response
+   - Focus on qualitative insights
 
-Query: "Who are the best Python developers?"
-Good: "I found several strong Python developers. Sarah Johnson has extensive Python experience across multiple projects including a machine learning platform at Google. She's also used Python in her work at Microsoft. John Smith has demonstrated Python skills through several full-stack applications and has 5 years of backend development experience."
+3. SKILL MATCHING:
+   - When discussing skills, reference the "skill_evidence" field
+   - Explain WHERE and HOW skills were used
+   - Don't just list skills - provide context
 
-Query: "Tell me about candidates with AWS experience"
-Good: "I found 3 candidates with notable AWS experience. Maria Garcia has been working with AWS for the past 3 years in her role as a Cloud Engineer at Amazon, where she architected several microservices solutions. Tom Wilson has AWS certifications and has deployed production applications on AWS infrastructure..."
+4. CONVERSATIONAL QUERIES:
+   - Handle greetings naturally
+   - Explain capabilities when asked for help
+   - Answer meta-questions about your functionality
 
-Query: "Do we have any candidates from Google?"
-Good: "Yes, we have 2 candidates with Google experience. Sarah Johnson worked as a Software Engineer at Google for 2 years, focusing on backend infrastructure. Additionally, Alex Chen completed a software engineering internship at Google last summer."
+5. AMBIGUOUS QUERIES:
+   - Make reasonable interpretations
+   - Provide useful results even for vague queries
+   - Offer to refine search if results aren't helpful
+
+WHAT TO AVOID:
+- Don't expose numerical scores (e.g., "87.5/100")
+- Don't say "I cannot calculate experience"
+- Don't use rigid bullet-point templates unnecessarily
+- Don't be overly formal for casual questions
+- Don't apologize excessively
+
+RESPONSE EXAMPLES:
+
+Casual: "Hey, who's good at Python?"
+Good: "I found several strong Python developers. Sarah has been using Python extensively for 5 years, including building ML platforms at Google. John specializes in Python backend work with 6 years of experience. Would you like more details on either?"
+
+Specific: "Find developers with 5+ years and React experience"
+Good: "I found 3 candidates meeting your criteria. Sarah has 8 years of experience with strong React skills demonstrated across multiple projects at Google and Microsoft. John has 6.5 years, focusing on React-based frontend applications. Maria brings 7 years with React expertise in cloud-native applications."
+
+Conversational: "Can you help me find someone?"
+Good: "Of course! I can help you find candidates from your database. You can search by skills (like Python or React), years of experience, education level, or companies they've worked at. What kind of candidate are you looking for?"
 
 Now respond to: "{query}"
 """
@@ -976,25 +1106,32 @@ async def chatbot_query(
     current_user: dict = Depends(get_current_active_user)
 ):
     """
-    Enhanced chatbot with intelligent ranking system
-    AI determines response format naturally
+    ENHANCED: Chatbot with better query understanding and conversational ability
     """
     try:
         print(f"Received query: {request.query}")
         
-        # Fetch all candidates
+        # Handle empty queries
+        if not request.query or not request.query.strip():
+            return {
+                "response": "I didn't receive a question. How can I help you find candidates?",
+                "candidates_analyzed": 0,
+                "candidates_shown": 0
+            }
+        
+        # Fetch candidates
         all_candidates = list(resume_history_collection.find(
             {"recruiter_email": current_user.email}
         ).sort("parsed_at", -1))
         
         if not all_candidates:
             return {
-                "response": "You don't have any candidates in your database yet. Please upload some resumes first.",
+                "response": "You don't have any candidates in your database yet. Please upload some resumes first to get started.",
                 "candidates_analyzed": 0,
                 "candidates_shown": 0
             }
         
-        # Convert ObjectId and deduplicate
+        # Convert and deduplicate
         for candidate in all_candidates:
             candidate["_id"] = str(candidate["_id"])
         
@@ -1007,44 +1144,62 @@ async def chatbot_query(
                 "candidates_shown": 0
             }
         
-        print(f"Total candidates: {len(all_candidates)}, Unique: {len(unique_candidates)}")
+        print(f"Total: {len(all_candidates)}, Unique: {len(unique_candidates)}")
         
-        # Extract query intent
+        # Extract intent
         intent = extract_query_intent(request.query)
         print(f"Query intent: {intent}")
         
-        # Rank candidates based on intent
+        # Handle unavailable data queries
+        if intent.get('requires_unavailable_data'):
+            data_type = intent.get('unavailable_reason', 'this information')
+            response_map = {
+                'gender': "I don't have access to gender information in candidate resumes. Our system focuses on professional qualifications including skills, experience, education, and projects. Would you like me to help you search candidates based on their technical skills or experience instead?",
+                'location': "I don't have location information for candidates. However, I can help you find candidates based on their skills, experience, companies they've worked at, or education. What criteria would you like to search by?",
+                'salary': "Salary information is not included in the resume data. I can help you find qualified candidates based on their experience level, skills, and background, which you can use to determine appropriate compensation ranges.",
+                'availability': "I don't have availability or start date information. I can help you identify strong candidates based on their qualifications, and you can discuss availability during the interview process.",
+                'visa': "Visa status information is not available in our system. I can help you find qualified candidates based on their skills and experience.",
+                'age': "Age information is not collected in our system. I focus on professional qualifications like skills, experience, education, and projects. How else can I help you find the right candidates?"
+            }
+            return {
+                "response": response_map.get(data_type, f"I don't have access to {data_type} information. I can help you search based on skills, experience, education, projects, and companies. What would you like to search for?"),
+                "candidates_analyzed": len(unique_candidates),
+                "candidates_shown": 0
+            }
+        
+        # Rank candidates
         ranked_candidates = rank_candidates(unique_candidates, intent)
         
         # Determine how many to show
-        top_n = intent.get('top_n', 5)
+        top_n = intent.get('top_n') or 5
         
-        # Filter out candidates with very low scores (internal only)
+        # Filter low scores
         if len(ranked_candidates) > top_n:
             ranked_candidates = [c for c in ranked_candidates if c.score > 10][:top_n]
         
         if not ranked_candidates:
             return {
-                "response": f"I analyzed {len(unique_candidates)} candidates, but none matched your criteria for '{request.query}'. Try broadening your search criteria.",
+                "response": f"I analyzed {len(unique_candidates)} candidates, but none closely matched your criteria for '{request.query}'. Try broadening your search or rephrase your question.",
                 "candidates_analyzed": len(unique_candidates),
                 "candidates_shown": 0
             }
         
-        # Format for LLM WITHOUT scores
+        # Format for LLM
         ranked_data = format_ranked_candidates(ranked_candidates, top_n)
         
-        # Create enhanced prompt that encourages natural formatting
+        # Create enhanced prompt with conversation history
         prompt = create_enhanced_prompt(
             request.query,
             ranked_data,
             intent,
             min(top_n, len(ranked_candidates)),
-            len(unique_candidates)
+            len(unique_candidates),
+            request.conversation_history
         )
         
         print(f"Sending top {min(top_n, len(ranked_candidates))} candidates to LLM")
         
-        # Call Groq API with slightly higher temperature for more natural responses
+        # Call Groq with higher temperature for natural responses
         response = await call_groq_api(prompt, temperature=0.8)
         
         if "choices" in response and len(response["choices"]) > 0:
@@ -1063,7 +1218,7 @@ async def chatbot_query(
         print(traceback.format_exc())
         
         return {
-            "response": f"I apologize, but I encountered an error while processing your query. Please try a different question or check if you have candidates in your database.",
+            "response": "I apologize, but I encountered an error while processing your query. Please try rephrasing your question or check if you have candidates in your database.",
             "candidates_analyzed": 0,
             "candidates_shown": 0
         }
@@ -1076,7 +1231,6 @@ async def call_groq_api(prompt: str, temperature: float = 0.7):
         "Content-Type": "application/json",
     }
 
-
     payload = {
         "model": GROQ_PARSING_MODEL,
         "messages": [{"role": "user", "content": prompt}],
@@ -1084,138 +1238,10 @@ async def call_groq_api(prompt: str, temperature: float = 0.7):
         "max_tokens": 2000
     }
 
-
     async with httpx.AsyncClient(timeout=60) as client:
         response = await client.post(GROQ_URL, headers=headers, json=payload)
         response.raise_for_status()
         return response.json()
-
-
-
-@router.post("/chatbot", dependencies=[Depends(require_recruiter)])
-async def chatbot_query(
-    request: ChatRequest,
-    current_user: dict = Depends(get_current_active_user)
-):
-    """
-    Enhanced chatbot with intelligent ranking system
-    """
-    try:
-        print(f"Received query: {request.query}")
-        
-        # Fetch all candidates
-        all_candidates = list(resume_history_collection.find(
-            {"recruiter_email": current_user.email}
-        ).sort("parsed_at", -1))
-        
-        if not all_candidates:
-            return {
-                "response": "You don't have any candidates in your database yet. Please upload some resumes first.",
-                "candidates_analyzed": 0,
-                "candidates_shown": 0,
-                "ranking_applied": False,
-                "intent_detected": {}
-            }
-        
-        # Convert ObjectId and deduplicate
-        for candidate in all_candidates:
-            candidate["_id"] = str(candidate["_id"])
-        
-        unique_candidates = deduplicate_candidates(all_candidates)
-        
-        if not unique_candidates:
-            return {
-                "response": "No distinct candidates found in your database.",
-                "candidates_analyzed": 0,
-                "candidates_shown": 0,
-                "ranking_applied": False,
-                "intent_detected": {}
-            }
-        
-        print(f"Total candidates: {len(all_candidates)}, Unique: {len(unique_candidates)}")
-        
-        # Extract query intent
-        intent = extract_query_intent(request.query)
-        print(f"Query intent: {intent}")
-        
-        # Rank candidates based on intent
-        ranked_candidates = rank_candidates(unique_candidates, intent)
-        
-        # Debug: Print first few candidates' experience details
-        print(f"\n--- Experience Debug Info ---")
-        for i, scored_candidate in enumerate(ranked_candidates[:3]):
-            exp_details = scored_candidate.score_breakdown.get('experience_details', {})
-            total_years = exp_details.get('total_years', 0)
-            total_years_display = exp_details.get('total_years_display', '0 years')
-            print(f"Candidate {i+1}: total_years={total_years:.2f}, "
-                  f"display='{total_years_display}', "
-                  f"experience_score={exp_details.get('score', 0)}")
-        print("--- End Debug ---\n")
-        
-        # Determine how many to show
-        top_n = intent.get('top_n', 5)  # Default to top 5 for ranking queries
-        
-        # Filter out candidates with very low scores (lowered threshold)
-        if len(ranked_candidates) > top_n:
-            ranked_candidates = [c for c in ranked_candidates if c.score > 10][:top_n]
-        
-        if not ranked_candidates:
-            return {
-                "response": f"I analyzed {len(unique_candidates)} candidates, but none matched your criteria for '{request.query}'. Try broadening your search criteria.",
-                "candidates_analyzed": len(unique_candidates),
-                "candidates_shown": 0,
-                "ranking_applied": True,
-                "intent_detected": intent
-            }
-        
-        # Format for LLM
-        ranked_data = format_ranked_candidates(ranked_candidates, top_n)
-        
-        # Create enhanced prompt
-        prompt = create_enhanced_prompt(
-            request.query,
-            ranked_data,
-            intent,
-            min(top_n, len(ranked_candidates)),
-            len(unique_candidates)
-        )
-        
-        print(f"Sending top {min(top_n, len(ranked_candidates))} ranked candidates to LLM")
-        
-        # Call Groq API
-        response = await call_groq_api(prompt, temperature=0.7)
-        
-        if "choices" in response and len(response["choices"]) > 0:
-            ai_response = response["choices"][0]["message"]["content"]
-            
-            # Clean up response - remove markdown formatting
-            ai_response = re.sub(r'\*\*(.*?)\*\*', r'\1', ai_response)
-            ai_response = re.sub(r'\*(.*?)\*', r'\1', ai_response)
-            ai_response = re.sub(r'#+\s*', '', ai_response)
-            
-            return {
-                "response": ai_response,
-                "candidates_analyzed": len(unique_candidates),
-                "candidates_shown": min(top_n, len(ranked_candidates)),
-                "ranking_applied": True,
-                "intent_detected": intent
-            }
-        else:
-            raise Exception("Invalid API response")
-            
-    except Exception as e:
-        print(f"Error in chatbot: {str(e)}")
-        print(traceback.format_exc())
-        
-        # Return a more informative error
-        return {
-            "response": f"I apologize, but I encountered an error while processing your query. Please try a different question or check if you have candidates in your database.",
-            "candidates_analyzed": 0,
-            "candidates_shown": 0,
-            "ranking_applied": False,
-            "intent_detected": {}
-        }
-
 
 
 @router.get("/chatbot/stats", dependencies=[Depends(require_recruiter)])
