@@ -1,51 +1,53 @@
 # 📄 Resume Parser and Manager
 
-A full-stack web application for intelligent resume parsing, AI-powered career insights, and candidate management. Built with **React** (Frontend), **FastAPI** (Backend), and **MongoDB** (Database), powered by **Groq AI** for advanced resume analysis.
+A full-stack web application for intelligent resume parsing, AI-powered career insights, and smart candidate recruitment. Built with **React** (Frontend), **FastAPI** (Backend), and **MongoDB** (Database), powered by **Groq AI** for advanced resume analysis and intelligent candidate ranking.
 
 ---
 
 ## ✨ Features
 
 ### 👤 For Candidates
-- **Resume Upload & Parsing**: Upload PDF, DOCX, or TXT resumes for automatic data extraction
-- **AI-Powered Insights**: Get personalized career recommendations, strengths analysis, skill gap identification, and interview tips
+- **Resume Upload & Parsing**: Upload PDF, DOCX, or TXT resumes for automatic comprehensive data extraction
+- **AI-Powered Career Insights**: Get personalized career recommendations, strengths analysis, skill gap identification, and interview tips
 - **Resume History**: View and manage all previously uploaded resumes
 - **Profile Management**: Update personal information and credentials
+- **Comprehensive Data Extraction**: Extracts achievements, publications, research work, certifications, awards, volunteer experience, languages, and interests
 
 ### 🏢 For Recruiters
-- **Bulk Resume Upload**: Upload multiple resumes at once (up to 50 files)
-- **Candidate Database**: Access and manage parsed candidate resumes
+- **Bulk Resume Upload**: Upload multiple resumes at once (up to 50 files) with intelligent processing
+- **AI-Powered Chatbot**: Smart candidate search with intelligent ranking and natural language queries
+- **Advanced Candidate Ranking**: Multi-criteria scoring system that analyzes skill proficiency, experience quality, project relevance, education level, and company background
 - **Smart Duplicate Detection**: Automatically identifies duplicate resumes based on email/name/phone
-- **Candidate Search**: Find and review candidates efficiently
+- **Candidate Database**: Access and manage parsed candidate resumes with deduplication
+- **Natural Language Search**: Ask questions like "Find top 5 Python developers" or "Who has 5+ years experience?"
 
 ### 🤖 AI Capabilities
-- Structured resume data extraction (name, email, phone, education, skills, experience, projects)
-- Derived skill extraction from experience and projects
-- Career path suggestions based on resume analysis
-- Personalized strength and improvement recommendations
-- Role-specific skill gap analysis
-- Interview preparation tips
+- **Comprehensive Resume Parsing**: Extracts 20+ data fields
+- **Intelligent Skill Detection**: Both explicit skills and derived skills from project descriptions
+- **Multi-Criteria Candidate Ranking**: Weighted scoring based on query intent
+- **Conversational AI Assistant**: Natural language understanding
+- **Experience Calculation**: Accurate total years calculation from multiple date formats
+- **Career Path Analysis**: AI-powered career suggestions
+- **Skill Gap Identification**: Role-specific skill recommendations
 
 ---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **React 18** with Vite
-- **React Router** for navigation
-- **shadcn/ui** components with Tailwind CSS
-- **Lucide React** for icons
+- React 18 with Vite
+- React Router v6
+- shadcn/ui + Tailwind CSS
+- Lucide React icons
 
 ### Backend
-- **FastAPI** (Python web framework)
-- **MongoDB** with PyMongo
-- **Groq AI API** for LLM-powered parsing and insights
-- **JWT Authentication** with role-based access control
-- **PDFPlumber** for PDF parsing
-- **python-docx** for DOCX parsing
-
-### Database
-- **MongoDB Atlas** (cloud database)
+- FastAPI (Python 3.10+)
+- MongoDB with PyMongo
+- Groq AI API
+- JWT Authentication
+- PDFPlumber & python-docx
+- httpx for async requests
+- Bcrypt password hashing
 
 ---
 
@@ -54,493 +56,181 @@ A full-stack web application for intelligent resume parsing, AI-powered career i
 ```
 bismaysarangi-resume-parser-and-manager/
 ├── README.md
-├── client/                          # Frontend React Application
-│   ├── src/
-│   │   ├── App.jsx                 # Main app component with routing
-│   │   ├── main.jsx                # React entry point
-│   │   ├── index.css               # Global styles
-│   │   ├── components/
-│   │   │   ├── Navbar.jsx          # Navigation bar
-│   │   │   ├── Footer.jsx          # Footer component
-│   │   │   └── ui/                 # shadcn/ui components
-│   │   ├── hooks/
-│   │   │   └── useAuth.jsx         # Authentication hook
-│   │   ├── pages/
-│   │   │   ├── Home.jsx            # Landing page
-│   │   │   ├── Login.jsx           # Login page
-│   │   │   ├── Signup.jsx          # Registration page
-│   │   │   ├── candidate/          # Candidate-specific pages
-│   │   │   │   ├── Dashboard.jsx
-│   │   │   │   ├── Upload.jsx
-│   │   │   │   ├── ParsedResults.jsx
-│   │   │   │   ├── AiInsights.jsx
-│   │   │   │   ├── History.jsx
-│   │   │   │   └── Profile.jsx
-│   │   │   └── recruiter/          # Recruiter-specific pages
-│   │   │       ├── RecruiterBulkUpload.jsx
-│   │   │       ├── RecruiterBulkResults.jsx
-│   │   │       ├── RecruiterCandidates.jsx
-│   │   │       └── RecruiterProfile.jsx
-│   │   └── lib/
-│   │       └── utils.js            # Utility functions
-│   ├── package.json
-│   └── vite.config.js
-│
-└── server/                          # Backend FastAPI Application
-    ├── main.py                     # FastAPI app entry point
-    ├── requirements.txt            # Python dependencies
-    ├── .env.example                # Environment variables template
+├── client/                     # React Frontend
+│   └── src/
+│       ├── App.jsx
+│       ├── main.jsx
+│       ├── index.css
+│       ├── components/
+│       │   ├── Navbar.jsx
+│       │   ├── Footer.jsx
+│       │   └── ui/
+│       ├── hooks/
+│       │   └── useAuth.jsx
+│       ├── lib/
+│       │   └── utils.js
+│       └── pages/
+│           ├── Home.jsx
+│           ├── Login.jsx
+│           ├── Signup.jsx
+│           ├── candidate/
+│           │   ├── Dashboard.jsx
+│           │   ├── Upload.jsx
+│           │   ├── ParsedResults.jsx
+│           │   ├── AiInsights.jsx
+│           │   ├── History.jsx
+│           │   └── Profile.jsx
+│           └── recruiter/
+│               ├── RecruiterBulkUpload.jsx
+│               ├── RecruiterBulkResults.jsx
+│               ├── RecruiterChatbot.jsx
+│               └── RecruiterProfile.jsx
+└── server/                     # FastAPI Backend
+    ├── main.py
+    ├── requirements.txt
+    ├── .env.example
     ├── core/
-    │   ├── config.py               # App configuration
-    │   ├── database.py             # MongoDB connection
-    │   └── security.py             # Password hashing & JWT
+    │   ├── config.py
+    │   ├── database.py
+    │   └── security.py
     ├── dependencies/
-    │   ├── auth.py                 # Authentication dependencies
-    │   └── role_based_auth.py      # Role-based access control
+    │   ├── auth.py
+    │   └── role_based_auth.py
     ├── models/
-    │   ├── user.py                 # User data models
-    │   └── resume.py               # Resume data models
+    │   ├── user.py
+    │   └── resume.py
     ├── routes/
-    │   ├── auth.py                 # Authentication endpoints
-    │   ├── user.py                 # User profile endpoints
+    │   ├── auth.py
+    │   ├── user.py
     │   ├── candidate/
-    │   │   ├── resume.py           # Resume parsing endpoints
-    │   │   └── history.py          # Resume history endpoints
+    │   │   ├── resume.py
+    │   │   └── history.py
     │   └── recruiter/
-    │       ├── bulk_upload.py      # Bulk resume upload
-    │       └── candidates.py       # Candidate management
+    │       ├── bulk_upload.py
+    │       ├── candidates.py
+    │       └── chatbot.py
     ├── schemas/
-    │   ├── token.py                # JWT token schemas
-    │   └── user.py                 # User schemas
+    │   ├── token.py
+    │   └── user.py
     └── services/
-        ├── resume_parser.py        # Resume parsing logic
-        ├── ai_insights.py          # AI insights generation
-        └── folder_parser.py        # Batch processing logic
+        ├── resume_parser.py
+        ├── ai_insights.py
+        └── folder_parser.py
 ```
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
-### Prerequisites
-
-- **Node.js** (v18+)
-- **Python** (v3.10+)
-- **MongoDB Atlas** account (or local MongoDB)
-- **Groq API Key** ([Get it here](https://console.groq.com))
-
----
-
-## 📦 Installation
-
-### 1️⃣ Clone the Repository
-
+### 1. Clone Repository
 ```bash
 git clone https://github.com/bismaysarangi/resume-parser-and-manager.git
-cd resume-parser-and-manager
+cd bismaysarangi-resume-parser-and-manager
 ```
 
----
-
-### 2️⃣ Backend Setup
-
-#### Navigate to server directory
+### 2. Backend Setup
 ```bash
 cd server
-```
-
-#### Create virtual environment (recommended)
-```bash
-# On Windows
 python -m venv venv
-venv\Scripts\activate
-
-# On macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
-```
-
-#### Install dependencies
-```bash
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-```
 
-#### Configure environment variables
-Create a `.env` file in the `server/` directory:
-
-```bash
+# Create .env
 cp .env.example .env
+# Edit .env: Add MONGO credentials, SECRET_KEY, GROQ_API_KEY
+
+# Run server
+uvicorn main:app --reload --port 8000
 ```
 
-Edit `.env` with your credentials:
-
-```env
-# MongoDB Configuration
-MONGO_USER=your_mongodb_username
-MONGO_PASS=your_mongodb_password
-MONGO_CLUSTER=cluster0.xxxxx.mongodb.net
-
-# JWT Secret (generate a random string)
-SECRET_KEY=your_very_secure_random_secret_key_here
-
-# Groq API Key
-GROQ_API_KEY=your_groq_api_key_here
-```
-
-**How to get MongoDB credentials:**
-1. Go to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-2. Create a free cluster
-3. Go to Database Access → Add Database User
-4. Go to Network Access → Add IP Address (allow 0.0.0.0/0 for testing)
-5. Go to Database → Connect → Connect your application
-6. Copy the connection string details
-
-**Generate SECRET_KEY:**
+### 3. Frontend Setup
 ```bash
-python -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
-#### Run the backend server
-```bash
-# Development mode
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-# Production mode
-uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
-Backend will be available at: **http://localhost:8000**
-
-API Documentation: **http://localhost:8000/docs**
-
----
-
-### 3️⃣ Frontend Setup
-
-#### Open a new terminal and navigate to client directory
-```bash
-cd client
-```
-
-#### Install dependencies
-```bash
+cd ../client
 npm install
-```
-
-#### Run the development server
-```bash
 npm run dev
 ```
 
-Frontend will be available at: **http://localhost:5173**
+Visit **http://localhost:5173**
 
 ---
 
-## 📖 API Documentation
+## 🎯 Intelligent Ranking System
 
-### Authentication Endpoints
+The AI chatbot ranks candidates using 5 scoring factors:
 
-#### POST `/api/v1/auth/signup`
-Register a new user (candidate or recruiter)
+### 1. Skill Proficiency (0-100)
+- Explicit skill listing: 30 pts
+- Project usage: up to 40 pts
+- Experience usage: up to 30 pts
 
-**Request Body:**
-```json
-{
-  "username": "john_doe",
-  "email": "john@example.com",
-  "full_name": "John Doe",
-  "password": "securepassword123",
-  "role": "candidate",
-  "company_name": "Acme Corp" // Required only for recruiters
-}
+### 2. Experience Quality (0-75)
+- Total years: up to 40 pts
+- Company diversity: up to 15 pts
+- Senior roles: up to 20 pts
+
+### 3. Project Relevance (0-100)
+- Relevant projects with required skills
+- Project complexity indicators
+
+### 4. Education Score (0-100)
+- PhD: 100, Masters: 70-75, Bachelor's: 50-70
+
+### 5. Company Background (0-100)
+- Top tech companies: 25 pts each
+- Full-time vs internship roles
+
+### Weighted Final Score
+```python
+# Skill-focused queries
+weights = {'skills': 0.45, 'projects': 0.30, 'experience': 0.15, 'education': 0.05, 'company': 0.05}
+
+# Company-focused queries
+weights = {'company': 0.50, 'experience': 0.25, 'skills': 0.15, 'projects': 0.05, 'education': 0.05}
+
+final_score = sum(factor_score * weight for factor, weight in weights.items())
 ```
 
-**Response:**
-```json
-{
-  "username": "john_doe",
-  "email": "john@example.com",
-  "full_name": "John Doe",
-  "role": "candidate",
-  "disabled": false
-}
-```
+Candidates are sorted by final score and presented naturally without exposing numerical scores.
 
 ---
 
-#### POST `/api/v1/auth/login`
-Login and get JWT token
+## 📖 Key API Endpoints
 
-**Request Body (form-data):**
+### Authentication
 ```
-username: john@example.com
-password: securepassword123
-```
-
-**Response:**
-```json
-{
-  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer",
-  "role": "candidate",
-  "username": "john_doe"
-}
+POST /api/v1/auth/signup          # Register user
+POST /api/v1/auth/login           # Get JWT token
+GET  /api/v1/auth/me              # Get current user
 ```
 
----
-
-#### GET `/api/v1/auth/me`
-Get current user details
-
-**Headers:**
+### User Profile
 ```
-Authorization: Bearer <access_token>
+GET  /api/v1/user/profile         # Get profile
+PUT  /api/v1/user/profile/update  # Update profile
 ```
 
-**Response:**
-```json
-{
-  "username": "john_doe",
-  "email": "john@example.com",
-  "full_name": "John Doe",
-  "role": "candidate",
-  "disabled": false
-}
+### Candidate
+```
+POST   /api/candidate/parse-resume       # Upload & parse resume
+POST   /api/candidate/ai-insights        # Generate career insights
+GET    /api/candidate/resume-history     # Get parsing history
+DELETE /api/candidate/resume-history/{id}# Delete resume
 ```
 
----
-
-### Candidate Endpoints
-
-#### POST `/api/candidate/parse-resume`
-Parse an uploaded resume (PDF/DOCX/TXT)
-
-**Headers:**
+### Recruiter
 ```
-Authorization: Bearer <access_token>
-Content-Type: multipart/form-data
-```
-
-**Request Body:**
-```
-file: <resume_file>
-```
-
-**Response:**
-```json
-{
-  "message": "Resume parsed successfully",
-  "filename": "john_doe_resume.pdf",
-  "data": {
-    "name": "John Doe",
-    "email": "john@example.com",
-    "phone": "+1234567890",
-    "education": [...],
-    "skills": ["Python", "JavaScript", "React"],
-    "derived_skills": ["FastAPI", "MongoDB", "Docker"],
-    "experience": [...],
-    "projects": [...]
-  }
-}
+POST /api/recruiter/bulk-parse-resume  # Bulk upload (max 50)
+GET  /api/recruiter/candidates         # Get all candidates
+GET  /api/recruiter/candidates/{id}    # Get candidate details
+POST /api/recruiter/chatbot            # AI candidate search
+GET  /api/recruiter/chatbot/stats      # Get database stats
 ```
 
 ---
 
-#### POST `/api/candidate/ai-insights`
-Generate AI-powered career insights
-
-**Headers:**
-```
-Authorization: Bearer <access_token>
-Content-Type: application/json
-```
-
-**Request Body:**
-```json
-{
-  "resume_data": {
-    "name": "John Doe",
-    "skills": ["Python", "React"],
-    "experience": [...],
-    ...
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "insights": {
-    "strengths": ["Strong technical skills", "..."],
-    "improvements": ["Add certifications", "..."],
-    "skillGaps": {
-      "Frontend Developer": ["TypeScript", "..."],
-      "Backend Developer": ["Microservices", "..."]
-    },
-    "careerSuggestions": ["Full Stack Developer", "..."],
-    "interviewTips": ["Prepare system design", "..."],
-    "overallScore": 78,
-    "summary": "Solid technical profile..."
-  }
-}
-```
-
----
-
-#### GET `/api/candidate/resume-history`
-Get all resume parsing history for current user
-
-**Headers:**
-```
-Authorization: Bearer <access_token>
-```
-
-**Response:**
-```json
-[
-  {
-    "_id": "507f1f77bcf86cd799439011",
-    "user_email": "john@example.com",
-    "filename": "resume_v1.pdf",
-    "parsed_data": {...},
-    "parsed_at": "2024-01-15T10:30:00"
-  }
-]
-```
-
----
-
-### Recruiter Endpoints
-
-#### POST `/api/recruiter/bulk-parse-resume`
-Upload and parse multiple resumes (max 50)
-
-**Headers:**
-```
-Authorization: Bearer <access_token>
-Content-Type: multipart/form-data
-```
-
-**Request Body:**
-```
-files: <resume_file_1>
-files: <resume_file_2>
-...
-```
-
-**Response:**
-```json
-{
-  "successful": [
-    {
-      "filename": "candidate1.pdf",
-      "resume_id": "507f1f77bcf86cd799439011",
-      "data": {...}
-    }
-  ],
-  "failed": [
-    {
-      "filename": "invalid.txt",
-      "error": "Failed to parse"
-    }
-  ],
-  "duplicates": [
-    {
-      "filename": "duplicate.pdf",
-      "reason": "Same email as existing resume"
-    }
-  ],
-  "summary": {
-    "total": 10,
-    "successful": 8,
-    "failed": 1,
-    "duplicates": 1
-  }
-}
-```
-
----
-
-#### GET `/api/recruiter/candidates`
-Get all candidates uploaded by this recruiter
-
-**Headers:**
-```
-Authorization: Bearer <access_token>
-```
-
-**Response:**
-```json
-[
-  {
-    "_id": "507f1f77bcf86cd799439011",
-    "recruiter_email": "recruiter@company.com",
-    "filename": "candidate_resume.pdf",
-    "parsed_data": {...},
-    "parsed_at": "2024-01-15T10:30:00",
-    "upload_type": "bulk"
-  }
-]
-```
-
----
-
-## 🔐 Authentication & Authorization
-
-### Role-Based Access Control (RBAC)
-
-The application has two user roles:
-
-1. **Candidate** (default)
-   - Can upload and parse their own resumes
-   - Access AI insights for career guidance
-   - View their resume history
-
-2. **Recruiter**
-   - Can upload multiple resumes in bulk
-   - Access candidate database
-   - View and manage candidate profiles
-   - Requires `company_name` during registration
-
-### JWT Token Flow
-
-1. User logs in with email/password
-2. Backend validates credentials and generates JWT token
-3. Token contains user info (email, role) and expiration (30 minutes)
-4. Frontend stores token in `localStorage`
-5. All API requests include token in `Authorization` header
-6. Backend validates token and checks user role for protected routes
-
----
-
-## 🤖 AI Models Used
-
-### Groq AI API
-
-The application uses Groq's API with two different models:
-
-1. **Resume Parsing**: `llama-3.3-70b-versatile`
-   - Structured data extraction
-   - High accuracy for parsing resumes
-
-2. **AI Insights**: `openai/gpt-oss-20b`
-   - Career recommendations
-   - Skill gap analysis
-   - Interview preparation tips
-
-### Rate Limiting
-
-- Sequential processing with delays between requests
-- Exponential backoff on rate limit errors
-- Maximum 3 retry attempts
-- Dynamic delay calculation based on request patterns
-
----
-
-## 📊 Database Schema
+## 🗄️ Database Schema
 
 ### Users Collection
-
 ```javascript
 {
   _id: ObjectId,
@@ -549,161 +239,171 @@ The application uses Groq's API with two different models:
   full_name: String,
   hashed_password: String,
   role: "candidate" | "recruiter",
-  company_name: String (optional, for recruiters),
+  company_name: String,
   disabled: Boolean,
   created_at: ISODate
 }
 ```
 
 ### Resume History Collection
-
 ```javascript
 {
   _id: ObjectId,
-  user_email: String,              // For candidates
-  recruiter_email: String,          // For recruiters
+  user_email: String,         // For candidates
+  recruiter_email: String,    // For recruiters
   filename: String,
-  parsed_data: {
-    name: String,
-    email: String,
-    phone: String,
-    education: Array,
-    skills: Array,
-    derived_skills: Array,
-    experience: Array,
-    projects: Array,
-    tenth_marks: String,
-    twelfth_marks: String
-  },
-  parsed_at: ISODate,
   upload_type: "single" | "bulk",
   candidate_email: String,
-  resume_hash: String               // For duplicate detection
+  resume_hash: String,
+  parsed_at: ISODate,
+  parsed_data: {
+    name, email, phone, summary, objective,
+    education: [], skills: [], derived_skills: [],
+    experience: [], projects: [],
+    achievements: [], publications: [], research: [],
+    certifications: [], awards: [], volunteer_work: [],
+    languages: [], interests: [], references: [],
+    tenth_marks, twelfth_marks, extra_sections: {}
+  }
 }
 ```
 
 ---
 
+### Model Configuration
+
+Located in `server/core/config.py`:
+
+```python
+GROQ_PARSING_MODEL = "llama-3.1-8b-instant"
+GROQ_INSIGHTS_MODEL = "llama-3.3-70b-versatile"
+GROQ_CHATBOT_MODEL = "llama-3.3-70b-versatile"
+```
+
+### Rate Limiting & Token Management
+
+**Bulk Upload:**
+- Base delay: 3 seconds between requests
+- Dynamic delay adjustment based on API load
+- Maximum 8 requests per minute
+- Exponential backoff on rate limit errors (2s, 4s, 8s, max 30s)
+- Automatic retry (up to 3 attempts)
+- Token usage tracking and logging
+
+**Single Resume Upload:**
+- Standard rate limiting with retry logic
+- Token usage displayed in console logs
+
+**Chatbot:**
+- Optimized for interactive use
+- Smaller context windows for faster responses
+- Temperature: 0.8 for natural conversations
+
+---
+
+## 📝 Environment Variables
+
+Create `server/.env`:
+
+```env
+MONGO_USER=your_username
+MONGO_PASS=your_password
+MONGO_CLUSTER=cluster0.xxxxx.mongodb.net
+SECRET_KEY=your_secret_key
+GROQ_API_KEY=your_groq_api_key
+```
+
+Generate SECRET_KEY:
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+---
+
+## 🔐 Role-Based Access
+
+### Candidate
+- Upload resumes
+- View AI insights
+- Manage history
+- Update profile
+
+### Recruiter
+- Bulk uploads
+- Access database
+- Use AI chatbot
+- View candidates
+- Requires company_name
+
+**Auth**: `Authorization: Bearer <jwt_token>`
+
+---
+
 ## 🐛 Troubleshooting
 
-### Common Issues
+### MongoDB Connection Error
+- Verify `.env` credentials
+- Whitelist IP in Atlas
+- Check cluster URL
 
-#### 1. MongoDB Connection Error
-```
-Error: MongoServerError: Authentication failed
-```
-**Solution:**
-- Verify MongoDB credentials in `.env`
-- Check if IP is whitelisted in MongoDB Atlas
-- Ensure cluster URL is correct
+### Groq Rate Limiting
+- Built-in retry handles this
+- Check quota at console.groq.com
 
----
+### CORS Issues
+- Backend: port 8000
+- Frontend: port 5173
+- Check `CORS_ORIGINS` in config.py
 
-#### 2. Groq API Rate Limiting
-```
-Error: Rate limit exceeded
-```
-**Solution:**
-- Wait a few seconds and retry
-- The app has built-in retry logic
-- Check your Groq API quota
-
----
-
-#### 3. CORS Error in Browser
-```
-Access to fetch blocked by CORS policy
-```
-**Solution:**
-- Ensure backend is running on port 8000
-- Check `CORS_ORIGINS` in `server/core/config.py`
-- Frontend should be on `http://localhost:5173`
-
----
-
-#### 4. JWT Token Expired
-```
-401 Unauthorized: Could not validate credentials
-```
-**Solution:**
-- Log out and log in again
-- Token expires after 30 minutes
-- Clear localStorage: `localStorage.clear()`
-
----
-
-#### 5. File Upload Fails
-```
-413 Request Entity Too Large
-```
-**Solution:**
-- Maximum file size is 50MB
-- Check file format (PDF, DOCX, TXT only)
-- Ensure file is not corrupted
+### Token Expired
+- Expires after 8 hours
+- Clear localStorage and re-login
 
 ---
 
 ## 🧪 Testing
 
-### Test the Backend API
-
-Use the interactive API documentation:
-```
-http://localhost:8000/docs
-```
-
-Or use curl:
+**cURL Examples:**
 ```bash
-# Test signup
+# Signup
 curl -X POST http://localhost:8000/api/v1/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"username":"test","email":"test@test.com","password":"test123","role":"candidate"}'
 
-# Test login
+# Login
 curl -X POST http://localhost:8000/api/v1/auth/login \
-  -F "username=test@test.com" \
-  -F "password=test123"
-```
+  -F "username=test@test.com" -F "password=test123"
 
-### Test Resume Parsing
-
-```bash
+# Parse Resume
 curl -X POST http://localhost:8000/api/candidate/parse-resume \
   -H "Authorization: Bearer YOUR_TOKEN" \
-  -F "file=@/path/to/resume.pdf"
+  -F "file=@resume.pdf"
 ```
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License.
 
 ---
 
 ## 🙏 Acknowledgments
 
-- [FastAPI](https://fastapi.tiangolo.com/) - Modern Python web framework
+- [FastAPI](https://fastapi.tiangolo.com/) - Backend framework
 - [React](https://react.dev/) - Frontend library
-- [shadcn/ui](https://ui.shadcn.com/) - Beautiful UI components
-- [Groq](https://groq.com/) - Lightning-fast AI inference
-- [MongoDB](https://www.mongodb.com/) - NoSQL database
+- [shadcn/ui](https://ui.shadcn.com/) - UI components
+- [Groq](https://groq.com/) - AI inference
+- [MongoDB](https://www.mongodb.com/) - Database
 
 ---
-
 
 ## 🔮 Future Enhancements
 
-- [ ] Real-time collaboration for recruiters
-- [ ] Advanced search and filtering for candidates
-- [ ] Resume scoring and ranking system
-- [ ] Email notifications for candidate matches
-- [ ] Integration with job posting platforms
+- [ ] Real-time collaboration
+- [ ] Advanced filtering
+- [ ] Resume scoring dashboard
+- [ ] Email notifications
+- [ ] Job posting integration
 - [ ] Resume comparison tool
-- [ ] Export parsed data to CSV/Excel
-- [ ] Multi-language resume support
+- [ ] Export to CSV/Excel
+- [ ] Multi-language support
 - [ ] Video resume analysis
+- [ ] Interview scheduling
+- [ ] Custom scoring weights
 
 ---
-
-**Happy Recruiting! 🎉**
