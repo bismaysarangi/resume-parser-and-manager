@@ -18,10 +18,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8
 # Groq API Configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+OPENAI_URL = "https://openrouter.ai/api/v1"
 
-GROQ_PARSING_MODEL = "llama-3.1-8b-instant"
-GROQ_INSIGHTS_MODEL = "llama-3.3-70b-versatile"
-GROQ_CHATBOT_MODEL = "llama-3.3-70b-versatile"
+GROQ_PARSING_MODEL = "llama-3.3-70b-versatile"
+GROQ_INSIGHTS_MODEL = "deepseek/deepseek-r1:free"
+GROQ_CHATBOT_MODEL = "deepseek/deepseek-r1:free"
 
 # CORS Configuration
 CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
