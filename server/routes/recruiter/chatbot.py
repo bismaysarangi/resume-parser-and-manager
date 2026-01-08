@@ -242,7 +242,7 @@ def calculate_total_experience(experiences: List[Dict]) -> Dict[str, Any]:
 
 def extract_query_intent(query: str) -> Dict[str, Any]:
     """
-    ENHANCED: Extract structured intent with better generalization and fuzzy matching
+    ENHANCED: Extract structured intent including personal information filters
     """
     query_lower = query.lower()
     intent = {
@@ -252,34 +252,39 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
         'companies': [],
         'education_level': None,
         'top_n': None,
+        
+        # Personal Information Filters
+        'gender': None,
+        'age_min': None,
+        'age_max': None,
+        'location': None,
+        'locations': [],
+        'nationality': None,
+        'marital_status': None,
+        
+        # Work-related Filters
+        'notice_period': None,
+        'willing_to_relocate': None,
+        'work_authorization': None,
+        'salary_min': None,
+        'salary_max': None,
+        
+        # University-specific Filters
+        'graduation_year': None,
+        'current_students_only': False,
+        'placement_preference': None,  # internship/full-time/both
+        'has_internship_experience': None,
+        
         'query_type': 'general',
         'company_filter': False,
         'requires_calculation': False,
         'is_compound': False,
-        'requires_unavailable_data': False,
-        'unavailable_reason': None,
-        'search_terms': [],  # NEW: Generic search terms
-        'is_conversational': False,  # NEW: Detect casual queries
-        'needs_listing': False,  # NEW: User wants a list
-        'needs_comparison': False,  # NEW: Comparing candidates
-        'needs_summary': False  # NEW: Summary/overview requested
+        'search_terms': [],
+        'is_conversational': False,
+        'needs_listing': False,
+        'needs_comparison': False,
+        'needs_summary': False
     }
-
-    # Detect unavailable data queries
-    unavailable_queries = [
-        ('gender', ['female', 'male', 'woman', 'women', 'man', 'men', 'gender']),
-        ('location', ['location', 'city', 'state', 'country', 'local', 'nearby', 'remote']),
-        ('salary', ['salary', 'compensation', 'pay', 'wage', 'ctc', 'package']),
-        ('availability', ['available', 'availability', 'start date', 'notice period']),
-        ('visa', ['visa', 'work permit', 'authorization', 'citizenship']),
-        ('age', ['age', 'years old', 'born in'])
-    ]
-    
-    for data_type, keywords in unavailable_queries:
-        if any(keyword in query_lower for keyword in keywords):
-            intent['requires_unavailable_data'] = True
-            intent['unavailable_reason'] = data_type
-            return intent
 
     # Detect conversational/casual queries
     conversational_patterns = [
@@ -311,7 +316,181 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
     if any(indicator in query_lower for indicator in compound_indicators):
         intent['is_compound'] = True
 
-    # Extract "top N" requests with better patterns
+    # ==================== PERSONAL INFORMATION EXTRACTION ====================
+    
+    # Extract GENDER
+    gender_patterns = [
+        (r'\b(male|men|man|boy|boys)\b', 'male'),
+        (r'\b(female|women|woman|girl|girls|lady|ladies)\b', 'female'),
+    ]
+    for pattern, gender_value in gender_patterns:
+        if re.search(pattern, query_lower):
+            intent['gender'] = gender_value
+            intent['query_type'] = 'ranking'
+            break
+    
+    # Extract AGE
+    age_patterns = [
+        r'age\s+(\d+)\s*[-to]+\s*(\d+)',  # age 22-25
+        r'between\s+(\d+)\s+and\s+(\d+)\s+years?\s+old',  # between 22 and 25 years old
+        r'(\d+)\s*[-to]+\s*(\d+)\s+years?\s+old',  # 22-25 years old
+        r'under\s+(\d+)\s+years?\s+old',  # under 25 years old (max)
+        r'above\s+(\d+)\s+years?\s+old',  # above 22 years old (min)
+        r'over\s+(\d+)\s+years?\s+old',  # over 22 years old (min)
+    ]
+    
+    for pattern in age_patterns:
+        match = re.search(pattern, query_lower)
+        if match:
+            if 'under' in pattern or 'below' in pattern:
+                intent['age_max'] = int(match.group(1))
+            elif 'above' in pattern or 'over' in pattern:
+                intent['age_min'] = int(match.group(1))
+            else:
+                intent['age_min'] = int(match.group(1))
+                if match.lastindex >= 2:
+                    intent['age_max'] = int(match.group(2))
+            intent['query_type'] = 'ranking'
+            break
+    
+    # Extract LOCATION
+    location_patterns = [
+        r'(?:based in|located in|living in|from|in)\s+([A-Z][a-zA-Z\s]+?)(?:\s+and|\s+with|\s+who|,|$)',
+        r'(?:city|location|place):\s*([A-Z][a-zA-Z\s]+?)(?:\s+and|\s+with|,|$)',
+    ]
+    
+    # Common Indian cities for better matching
+    indian_cities = ['mumbai', 'delhi', 'bangalore', 'bengaluru', 'hyderabad', 'chennai', 
+                     'kolkata', 'pune', 'ahmedabad', 'jaipur', 'lucknow', 'kanpur', 'bhubaneswar',
+                     'nagpur', 'indore', 'bhopal', 'patna', 'vadodara', 'coimbatore',
+                     'kochi', 'vishakhapatnam', 'gurgaon', 'noida', 'ghaziabad']
+    
+    for city in indian_cities:
+        if city in query_lower:
+            intent['location'] = city.title()
+            intent['locations'].append(city.title())
+            intent['query_type'] = 'ranking'
+            break
+    
+    # If no city match, try pattern matching
+    if not intent['location']:
+        for pattern in location_patterns:
+            match = re.search(pattern, query_lower, re.IGNORECASE)
+            if match:
+                location = match.group(1).strip()
+                if len(location) > 2:  # Avoid single letters
+                    intent['location'] = location
+                    intent['locations'].append(location)
+                    intent['query_type'] = 'ranking'
+                    break
+    
+    # Extract NATIONALITY
+    if 'indian' in query_lower or 'india' in query_lower:
+        intent['nationality'] = 'Indian'
+    elif 'american' in query_lower or 'usa' in query_lower or 'us citizen' in query_lower:
+        intent['nationality'] = 'American'
+    
+    # Extract MARITAL STATUS
+    if any(word in query_lower for word in ['single', 'unmarried', 'bachelor']):
+        intent['marital_status'] = 'single'
+    elif 'married' in query_lower:
+        intent['marital_status'] = 'married'
+    
+    # Extract NOTICE PERIOD
+    notice_patterns = [
+        (r'immediate\s+joiner', 'immediate'),
+        (r'join\s+immediately', 'immediate'),
+        (r'available\s+immediately', 'immediate'),
+        (r'(\d+)\s+days?\s+notice', None),  # "30 days notice"
+        (r'notice\s+period\s+of\s+(\d+)', None),  # "notice period of 30"
+    ]
+    
+    for pattern, value in notice_patterns:
+        match = re.search(pattern, query_lower)
+        if match:
+            if value:
+                intent['notice_period'] = value
+            else:
+                intent['notice_period'] = f"{match.group(1)} days"
+            intent['query_type'] = 'ranking'
+            break
+    
+    # Extract RELOCATION WILLINGNESS
+    if any(phrase in query_lower for phrase in ['willing to relocate', 'open to relocation', 'can relocate']):
+        intent['willing_to_relocate'] = True
+    
+    # Extract WORK AUTHORIZATION
+    work_auth_keywords = {
+        'citizen': 'citizen',
+        'h1b': 'H1B',
+        'work permit': 'work permit',
+        'student visa': 'student visa',
+        'work visa': 'work visa',
+    }
+    for keyword, value in work_auth_keywords.items():
+        if keyword in query_lower:
+            intent['work_authorization'] = value
+            break
+    
+    # Extract SALARY EXPECTATIONS
+    salary_patterns = [
+        r'(\d+)\s*[-to]+\s*(\d+)\s*(?:lpa|lakhs?|lacs?|k)',  # 5-10 LPA
+        r'above\s+(\d+)\s*(?:lpa|lakhs?|lacs?|k)',  # above 5 LPA
+        r'under\s+(\d+)\s*(?:lpa|lakhs?|lacs?|k)',  # under 10 LPA
+        r'salary\s+(\d+)',  # salary 500000
+    ]
+    
+    for pattern in salary_patterns:
+        match = re.search(pattern, query_lower)
+        if match:
+            if 'under' in pattern:
+                intent['salary_max'] = int(match.group(1))
+            elif 'above' in pattern:
+                intent['salary_min'] = int(match.group(1))
+            else:
+                intent['salary_min'] = int(match.group(1))
+                if match.lastindex >= 2:
+                    intent['salary_max'] = int(match.group(2))
+            intent['query_type'] = 'ranking'
+            break
+    
+    # ==================== UNIVERSITY-SPECIFIC EXTRACTION ====================
+    
+    # Extract GRADUATION YEAR
+    grad_patterns = [
+        r'(?:graduating|graduated|grad|batch\s+of|class\s+of)\s+(?:in\s+)?(\d{4})',
+        r'(\d{4})\s+(?:graduate|grad|batch|passout)',
+        r'(?:year|yr)\s+(\d{4})',
+    ]
+    
+    for pattern in grad_patterns:
+        match = re.search(pattern, query_lower)
+        if match:
+            intent['graduation_year'] = match.group(1)
+            intent['query_type'] = 'ranking'
+            break
+    
+    # Detect CURRENT STUDENTS
+    if any(phrase in query_lower for phrase in ['current student', 'currently studying', 
+                                                  'final year', '4th year', 'third year']):
+        intent['current_students_only'] = True
+        intent['query_type'] = 'ranking'
+    
+    # Extract PLACEMENT PREFERENCE
+    if 'internship' in query_lower and 'full' not in query_lower:
+        intent['placement_preference'] = 'internship'
+    elif 'full-time' in query_lower or 'full time' in query_lower or 'fte' in query_lower:
+        intent['placement_preference'] = 'full-time'
+    
+    # Detect INTERNSHIP EXPERIENCE
+    if any(phrase in query_lower for phrase in ['with internship', 'has internship', 
+                                                  'internship experience', 'done internship']):
+        intent['has_internship_experience'] = True
+        intent['query_type'] = 'ranking'
+
+    # ==================== REST OF EXISTING EXTRACTION ====================
+    
+    # Extract "top N" requests
     top_n_patterns = [
         r'top\s+(\d+)',
         r'best\s+(\d+)',
@@ -333,7 +512,7 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
         intent['top_n'] = 5
         intent['query_type'] = 'ranking'
 
-    # ENHANCED: Expanded skill detection with synonyms and variations
+    # SKILLS extraction (existing code)
     skill_database = {
         'python': ['python', 'py', 'django', 'flask', 'fastapi', 'pandas', 'numpy'],
         'javascript': ['javascript', 'js', 'ecmascript', 'es6', 'es2015'],
@@ -386,7 +565,7 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
         'blockchain': ['blockchain', 'crypto', 'web3', 'ethereum', 'solidity']
     }
     
-    # Match skills with fuzzy matching
+     # Match skills with fuzzy matching
     for main_skill, variations in skill_database.items():
         for variation in variations:
             if variation in query_lower:
@@ -501,6 +680,305 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
 
     return intent
 
+def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str, Any]) -> List[Dict]:
+    """
+    Filter candidates based on personal information criteria from intent
+    Returns filtered list of candidates
+    """
+    filtered = []
+    
+    for candidate in candidates:
+        parsed = candidate.get("parsed_data", {})
+        if not parsed:
+            continue
+        
+        # Flag to track if candidate passes all filters
+        passes_filters = True
+        
+        # ==================== GENDER FILTER ====================
+        if intent.get('gender'):
+            candidate_gender = parsed.get('gender', '').lower()
+            if not candidate_gender:
+                # If gender not specified in resume, exclude
+                passes_filters = False
+            elif intent['gender'] == 'male' and 'male' not in candidate_gender:
+                passes_filters = False
+            elif intent['gender'] == 'female' and 'female' not in candidate_gender:
+                passes_filters = False
+        
+        # ==================== AGE FILTER ====================
+        if intent.get('age_min') or intent.get('age_max'):
+            candidate_age = parsed.get('age')
+            
+            # Try to calculate age from date_of_birth if age not provided
+            if not candidate_age and parsed.get('date_of_birth'):
+                try:
+                    from datetime import datetime
+                    dob_str = parsed.get('date_of_birth')
+                    
+                    # Try different date formats
+                    for fmt in ['%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d', '%d/%m/%y']:
+                        try:
+                            dob = datetime.strptime(dob_str, fmt)
+                            today = datetime.today()
+                            candidate_age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+                            break
+                        except:
+                            continue
+                except:
+                    pass
+            
+            if candidate_age:
+                if intent.get('age_min') and candidate_age < intent['age_min']:
+                    passes_filters = False
+                if intent.get('age_max') and candidate_age > intent['age_max']:
+                    passes_filters = False
+            else:
+                # If age cannot be determined, exclude from age-based queries
+                if intent.get('age_min') or intent.get('age_max'):
+                    passes_filters = False
+        
+        # ==================== LOCATION FILTER ====================
+        if intent.get('location') or intent.get('locations'):
+            candidate_location = parsed.get('current_location', '').lower()
+            hometown = parsed.get('hometown', '').lower()
+            pref_locations = [loc.lower() for loc in parsed.get('preferred_locations', [])]
+            
+            search_locations = []
+            if intent.get('location'):
+                search_locations.append(intent['location'].lower())
+            search_locations.extend([loc.lower() for loc in intent.get('locations', [])])
+            
+            location_match = False
+            for search_loc in search_locations:
+                if (search_loc in candidate_location or 
+                    search_loc in hometown or 
+                    any(search_loc in pref for pref in pref_locations)):
+                    location_match = True
+                    break
+            
+            if not location_match:
+                passes_filters = False
+        
+        # ==================== NATIONALITY FILTER ====================
+        if intent.get('nationality'):
+            candidate_nationality = parsed.get('nationality', '').lower()
+            if intent['nationality'].lower() not in candidate_nationality:
+                passes_filters = False
+        
+        # ==================== MARITAL STATUS FILTER ====================
+        if intent.get('marital_status'):
+            candidate_status = parsed.get('marital_status', '').lower()
+            if intent['marital_status'].lower() not in candidate_status:
+                passes_filters = False
+        
+        # ==================== NOTICE PERIOD FILTER ====================
+        if intent.get('notice_period'):
+            candidate_notice = parsed.get('notice_period', '').lower()
+            
+            if intent['notice_period'] == 'immediate':
+                if not any(word in candidate_notice for word in ['immediate', 'immediately', '0 day']):
+                    passes_filters = False
+            else:
+                # Extract days from intent and candidate
+                intent_days = int(re.search(r'\d+', intent['notice_period']).group()) if re.search(r'\d+', intent['notice_period']) else 0
+                candidate_days_match = re.search(r'(\d+)\s*days?', candidate_notice)
+                
+                if candidate_days_match:
+                    candidate_days = int(candidate_days_match.group(1))
+                    if candidate_days > intent_days:
+                        passes_filters = False
+                elif not candidate_notice:
+                    # If notice period not specified, might still consider
+                    pass
+        
+        # ==================== RELOCATION FILTER ====================
+        if intent.get('willing_to_relocate') is not None:
+            candidate_relocate = parsed.get('willing_to_relocate')
+            
+            # Check if mentioned in text fields
+            if candidate_relocate is None:
+                summary = parsed.get('summary', '').lower()
+                objective = parsed.get('objective', '').lower()
+                
+                if any(phrase in summary + objective for phrase in ['willing to relocate', 'open to relocation']):
+                    candidate_relocate = True
+                else:
+                    candidate_relocate = False
+            
+            if intent['willing_to_relocate'] and not candidate_relocate:
+                passes_filters = False
+        
+        # ==================== WORK AUTHORIZATION FILTER ====================
+        if intent.get('work_authorization'):
+            candidate_auth = parsed.get('work_authorization', '').lower()
+            visa_status = parsed.get('visa_status', '').lower()
+            
+            search_auth = intent['work_authorization'].lower()
+            if not (search_auth in candidate_auth or search_auth in visa_status):
+                passes_filters = False
+        
+        # ==================== SALARY FILTER ====================
+        if intent.get('salary_min') or intent.get('salary_max'):
+            expected_salary_str = parsed.get('expected_ctc') or parsed.get('expected_salary', '')
+            
+            if expected_salary_str:
+                # Extract numeric value from salary string (e.g., "5 LPA" -> 5)
+                salary_match = re.search(r'(\d+(?:\.\d+)?)', str(expected_salary_str))
+                if salary_match:
+                    candidate_salary = float(salary_match.group(1))
+                    
+                    # Normalize to LPA if needed (assume if >1000 it's in thousands)
+                    if candidate_salary > 1000:
+                        candidate_salary = candidate_salary / 100000  # Convert to LPA
+                    
+                    if intent.get('salary_min') and candidate_salary < intent['salary_min']:
+                        passes_filters = False
+                    if intent.get('salary_max') and candidate_salary > intent['salary_max']:
+                        passes_filters = False
+                else:
+                    # Salary mentioned but can't parse - exclude
+                    if intent.get('salary_min') or intent.get('salary_max'):
+                        passes_filters = False
+            else:
+                # No salary info - exclude from salary-based queries
+                if intent.get('salary_min') or intent.get('salary_max'):
+                    passes_filters = False
+        
+        # ==================== GRADUATION YEAR FILTER ====================
+        if intent.get('graduation_year'):
+            grad_year = parsed.get('graduation_year', '')
+            
+            # Also check education array
+            if not grad_year:
+                for edu in parsed.get('education', []):
+                    year = edu.get('Year', '')
+                    if intent['graduation_year'] in str(year):
+                        grad_year = intent['graduation_year']
+                        break
+            
+            if intent['graduation_year'] not in str(grad_year):
+                passes_filters = False
+        
+        # ==================== CURRENT STUDENTS FILTER ====================
+        if intent.get('current_students_only'):
+            current_year = parsed.get('current_year_of_study', '')
+            
+            # Check if any education is marked as ongoing
+            is_current_student = False
+            for edu in parsed.get('education', []):
+                year = str(edu.get('Year', '')).lower()
+                if any(word in year for word in ['present', 'ongoing', 'current', '2025', '2026']):
+                    is_current_student = True
+                    break
+            
+            if current_year:
+                is_current_student = True
+            
+            if not is_current_student:
+                passes_filters = False
+        
+        # ==================== PLACEMENT PREFERENCE FILTER ====================
+        if intent.get('placement_preference'):
+            pref = parsed.get('placement_preferences', '').lower()
+            
+            if intent['placement_preference'] == 'internship' and 'internship' not in pref:
+                passes_filters = False
+            elif intent['placement_preference'] == 'full-time' and 'full' not in pref:
+                passes_filters = False
+        
+        # ==================== INTERNSHIP EXPERIENCE FILTER ====================
+        if intent.get('has_internship_experience'):
+            internships = parsed.get('internships', [])
+            
+            # Also check experience for internship roles
+            if not internships:
+                for exp in parsed.get('experience', []):
+                    role = exp.get('Role', '').lower()
+                    if 'intern' in role:
+                        internships.append(exp)
+                        break
+            
+            if not internships:
+                passes_filters = False
+        
+        # If candidate passes all filters, add to filtered list
+        if passes_filters:
+            filtered.append(candidate)
+    
+    return filtered
+
+
+def rank_candidates_with_personal_info(candidates: List[Dict], intent: Dict[str, Any]) -> List[CandidateScore]:
+    """
+    Enhanced ranking that considers personal information in scoring
+    """
+    # First, filter candidates based on hard requirements
+    filtered_candidates = filter_candidates_by_personal_info(candidates, intent)
+    
+    if not filtered_candidates:
+        # If no candidates pass filters, return empty or show closest matches
+        print(f"⚠️ No candidates match all personal information filters")
+        return []
+    
+    print(f"✓ {len(filtered_candidates)} candidates match personal info filters (from {len(candidates)} total)")
+    
+    # Now rank the filtered candidates using existing scoring logic
+    scored_candidates = []
+    
+    for candidate in filtered_candidates:
+        try:
+            # Use existing scoring functions
+            skill_analysis = calculate_skill_proficiency_score(candidate, intent.get('skills', []))
+            experience_analysis = calculate_experience_score(candidate, intent)
+            education_analysis = calculate_education_score(candidate, intent.get('education_level'))
+            project_analysis = calculate_project_quality_score(candidate, intent.get('skills', []))
+            company_analysis = calculate_company_score(candidate, intent)
+            
+            # Adjust weights based on query type
+            if intent.get('company_filter'):
+                weights = {
+                    'company': 0.50, 'experience': 0.25, 'skills': 0.15,
+                    'projects': 0.05, 'education': 0.05
+                }
+            elif intent.get('query_type') == 'ranking' and intent.get('skills'):
+                weights = {
+                    'skills': 0.45, 'projects': 0.30, 'experience': 0.15,
+                    'education': 0.05, 'company': 0.05
+                }
+            else:
+                weights = {
+                    'skills': 0.30, 'experience': 0.25, 'projects': 0.20,
+                    'company': 0.15, 'education': 0.10
+                }
+            
+            total_score = (
+                skill_analysis['total_score'] * weights['skills'] +
+                experience_analysis['score'] * weights['experience'] +
+                education_analysis['score'] * weights['education'] +
+                project_analysis['score'] * weights['projects'] +
+                company_analysis['score'] * weights.get('company', 0)
+            )
+            
+            score_breakdown = {
+                'skill_score': round(skill_analysis['total_score'], 1),
+                'skill_details': skill_analysis,
+                'experience_score': round(experience_analysis['score'], 1),
+                'experience_details': experience_analysis,
+                'education_score': round(education_analysis['score'], 1),
+                'project_score': round(project_analysis['score'], 1),
+                'company_score': round(company_analysis['score'], 1),
+                'company_details': company_analysis,
+                'weights_used': weights
+            }
+            
+            scored_candidates.append(CandidateScore(candidate, total_score, score_breakdown))
+        except Exception as e:
+            print(f"Error scoring candidate: {e}")
+            continue
+    
+    scored_candidates.sort(key=lambda x: x.score, reverse=True)
+    return scored_candidates
 
 def calculate_skill_proficiency_score(candidate: Dict, required_skills: List[str]) -> Dict[str, Any]:
     """Calculate skill proficiency based on evidence and usage"""
@@ -968,6 +1446,325 @@ def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Opt
     
     return json.dumps(formatted, indent=2)
 
+def format_ranked_candidates_with_personal_info(ranked_candidates: List[CandidateScore], top_n: Optional[int] = None) -> str:
+    """Format candidates for LLM including personal information"""
+    if top_n:
+        ranked_candidates = ranked_candidates[:top_n]
+    
+    formatted = []
+    
+    for idx, scored_candidate in enumerate(ranked_candidates, 1):
+        candidate = scored_candidate.candidate
+        parsed = candidate.get("parsed_data", {})
+        
+        candidate_info = {
+            "rank": idx,
+            "name": parsed.get("name", "Unknown") if parsed else "Unknown",
+            "email": parsed.get("email", "N/A") if parsed else "N/A",
+            "phone": parsed.get("phone", "N/A") if parsed else "N/A",
+        }
+        
+        # ==================== PERSONAL INFORMATION ====================
+        personal_info = {}
+        
+        if parsed.get("gender"):
+            personal_info["gender"] = parsed["gender"]
+        
+        if parsed.get("age"):
+            personal_info["age"] = parsed["age"]
+        elif parsed.get("date_of_birth"):
+            personal_info["date_of_birth"] = parsed["date_of_birth"]
+        
+        if parsed.get("current_location"):
+            personal_info["current_location"] = parsed["current_location"]
+        
+        if parsed.get("hometown"):
+            personal_info["hometown"] = parsed["hometown"]
+        
+        if parsed.get("nationality"):
+            personal_info["nationality"] = parsed["nationality"]
+        
+        if parsed.get("marital_status"):
+            personal_info["marital_status"] = parsed["marital_status"]
+        
+        if personal_info:
+            candidate_info["personal_information"] = personal_info
+        
+        # ==================== WORK-RELATED INFORMATION ====================
+        work_info = {}
+        
+        if parsed.get("notice_period"):
+            work_info["notice_period"] = parsed["notice_period"]
+        
+        if parsed.get("availability_date"):
+            work_info["availability_date"] = parsed["availability_date"]
+        
+        if parsed.get("willing_to_relocate") is not None:
+            work_info["willing_to_relocate"] = parsed["willing_to_relocate"]
+        
+        if parsed.get("preferred_locations"):
+            work_info["preferred_locations"] = parsed["preferred_locations"]
+        
+        if parsed.get("work_authorization"):
+            work_info["work_authorization"] = parsed["work_authorization"]
+        
+        if parsed.get("visa_status"):
+            work_info["visa_status"] = parsed["visa_status"]
+        
+        if parsed.get("expected_ctc"):
+            work_info["expected_ctc"] = parsed["expected_ctc"]
+        elif parsed.get("expected_salary"):
+            work_info["expected_salary"] = parsed["expected_salary"]
+        
+        if work_info:
+            candidate_info["work_information"] = work_info
+        
+        # ==================== PROFESSIONAL INFORMATION ====================
+        candidate_info["skills"] = (parsed.get("skills", []) + parsed.get("derived_skills", []))[:10] if parsed else []
+        
+        experiences = parsed.get("experience", []) if parsed else []
+        if experiences:
+            exp_details = scored_candidate.score_breakdown.get('experience_details', {})
+            company_details = scored_candidate.score_breakdown.get('company_details', {})
+            
+            total_years_display = exp_details.get('total_years_display', '0 years')
+            candidate_info["experience"] = {
+                "total_years": total_years_display,
+                "roles": [
+                    {
+                        "role": exp.get("Role", "N/A"),
+                        "company": exp.get("Company", "N/A"),
+                        "duration": exp.get("Years", "N/A")
+                    }
+                    for exp in experiences[:3]
+                ],
+                "notable_companies": company_details.get('top_companies', []),
+                "has_fulltime": company_details.get('has_fulltime', False),
+                "has_internship": company_details.get('has_internship', False)
+            }
+        
+        # ==================== INTERNSHIPS ====================
+        internships = parsed.get("internships", []) if parsed else []
+        if internships:
+            candidate_info["internships"] = [
+                {
+                    "company": intern.get("Company", "N/A"),
+                    "role": intern.get("Role", "N/A"),
+                    "duration": intern.get("Duration", "N/A")
+                }
+                for intern in internships[:3]
+            ]
+        
+        # ==================== EDUCATION ====================
+        education = parsed.get("education", []) if parsed else []
+        if education:
+            edu_list = []
+            for edu in education[:2]:
+                edu_item = {
+                    "degree": edu.get("Degree", "N/A"),
+                    "institution": edu.get("Institution", "N/A"),
+                    "year": edu.get("Year", "N/A")
+                }
+                if edu.get("Grade"):
+                    edu_item["grade"] = edu["Grade"]
+                edu_list.append(edu_item)
+            
+            candidate_info["education"] = edu_list
+            
+            # Add academic marks if available
+            if parsed.get("tenth_marks"):
+                candidate_info["tenth_marks"] = parsed["tenth_marks"]
+            if parsed.get("twelfth_marks"):
+                candidate_info["twelfth_marks"] = parsed["twelfth_marks"]
+        
+        # ==================== GRADUATION INFO ====================
+        academic_info = {}
+        if parsed.get("graduation_year"):
+            academic_info["graduation_year"] = parsed["graduation_year"]
+        if parsed.get("current_year_of_study"):
+            academic_info["current_year_of_study"] = parsed["current_year_of_study"]
+        if parsed.get("university_roll_number"):
+            academic_info["university_roll_number"] = parsed["university_roll_number"]
+        
+        if academic_info:
+            candidate_info["academic_info"] = academic_info
+        
+        # ==================== PROJECTS ====================
+        projects = parsed.get("projects", []) if parsed else []
+        if projects:
+            candidate_info["projects"] = [
+                {
+                    "name": proj.get("Name", "Unnamed Project"),
+                    "description": proj.get("Description", "")[:150] + "..." if len(proj.get("Description", "")) > 150 else proj.get("Description", "")
+                }
+                for proj in projects[:3]
+            ]
+        
+        # ==================== ADDITIONAL SECTIONS ====================
+        if parsed.get("certifications"):
+            candidate_info["certifications"] = [cert.get("Name", "N/A") for cert in parsed["certifications"][:3]]
+        
+        if parsed.get("achievements"):
+            candidate_info["achievements"] = [ach.get("Title", "N/A") for ach in parsed["achievements"][:3]]
+        
+        if parsed.get("extracurricular_activities"):
+            candidate_info["extracurricular"] = [
+                {
+                    "activity": act.get("Activity", "N/A"),
+                    "role": act.get("Role", "")
+                }
+                for act in parsed["extracurricular_activities"][:3]
+            ]
+        
+        if parsed.get("languages"):
+            candidate_info["languages"] = [
+                f"{lang.get('Language', 'N/A')} ({lang.get('Proficiency', 'N/A')})"
+                for lang in parsed["languages"][:5]
+            ]
+        
+        # ==================== SOCIAL LINKS ====================
+        social_links = {}
+        if parsed.get("linkedin_url"):
+            social_links["linkedin"] = parsed["linkedin_url"]
+        if parsed.get("github_url"):
+            social_links["github"] = parsed["github_url"]
+        if parsed.get("portfolio_url"):
+            social_links["portfolio"] = parsed["portfolio_url"]
+        
+        if social_links:
+            candidate_info["social_links"] = social_links
+        
+        # ==================== UNIVERSITY RECRUITMENT SPECIFIC ====================
+        if parsed.get("placement_preferences"):
+            candidate_info["placement_preferences"] = parsed["placement_preferences"]
+        
+        if parsed.get("preferred_job_role"):
+            candidate_info["preferred_job_role"] = parsed["preferred_job_role"]
+        
+        if parsed.get("preferred_industry"):
+            candidate_info["preferred_industry"] = parsed["preferred_industry"]
+        
+        formatted.append(candidate_info)
+    
+    return json.dumps(formatted, indent=2)
+
+def create_enhanced_prompt_with_personal_info(query: str, ranked_data: str, intent: Dict, total_shown: int, total_unique: int, total_after_filter: int, conversation_history: List[ChatMessage] = []) -> str:
+    """
+    Create prompt that acknowledges personal information filtering
+    """
+    ranking_context = ""
+    if intent.get('query_type') == 'ranking':
+        if intent.get('company_filter'):
+            ranking_context = """
+These candidates are ranked based on their company experience, role progression, and career quality.
+Pay attention to candidates at notable companies or with significant positions.
+"""
+        else:
+            ranking_context = """
+These candidates are ranked based on overall fit, considering:
+- Relevant skills and practical application
+- Professional experience and growth
+- Project work and demonstrations
+- Educational background
+- Company experience
+- Personal information (when relevant to query)
+"""
+    
+    # Build filter summary
+    filters_applied = []
+    if intent.get('gender'):
+        filters_applied.append(f"Gender: {intent['gender'].title()}")
+    if intent.get('age_min') or intent.get('age_max'):
+        age_filter = "Age: "
+        if intent.get('age_min') and intent.get('age_max'):
+            age_filter += f"{intent['age_min']}-{intent['age_max']} years"
+        elif intent.get('age_min'):
+            age_filter += f"{intent['age_min']}+ years"
+        else:
+            age_filter += f"under {intent['age_max']} years"
+        filters_applied.append(age_filter)
+    if intent.get('location'):
+        filters_applied.append(f"Location: {intent['location']}")
+    if intent.get('notice_period'):
+        filters_applied.append(f"Notice Period: {intent['notice_period']}")
+    if intent.get('graduation_year'):
+        filters_applied.append(f"Graduation Year: {intent['graduation_year']}")
+    
+    filter_context = ""
+    if filters_applied:
+        filter_context = f"\n\nFILTERS APPLIED:\n" + "\n".join(f"- {f}" for f in filters_applied)
+        filter_context += f"\n\nRESULT: {total_after_filter} candidates matched these filters (from {total_unique} total candidates)"
+    
+    # Build conversation context
+    conversation_context = ""
+    if conversation_history:
+        recent_history = conversation_history[-4:]
+        conversation_context = "\n\nCONVERSATION HISTORY:\n"
+        for msg in recent_history:
+            conversation_context += f"{msg.role.upper()}: {msg.content}\n"
+        conversation_context += "\nUse this context to provide more relevant and personalized responses.\n"
+    
+    prompt = f"""You are an experienced university placement coordinator and technical recruiter.
+
+{ranking_context}
+{filter_context}
+
+CANDIDATE DATA (Top {total_shown} of {total_after_filter} matching candidates):
+{ranked_data}
+{conversation_context}
+
+USER QUERY: "{query}"
+
+CORE INSTRUCTIONS:
+
+1. PERSONAL INFORMATION:
+   - Personal details are now available (gender, age, location, etc.)
+   - Present this information naturally when relevant to the query
+   - Be respectful and professional when discussing personal characteristics
+   - Focus on how these attributes align with query requirements, not judgments
+
+2. EXPERIENCE CALCULATION:
+   - The "total_years" field contains accurate calculated experience
+   - Present experience information naturally and confidently
+   - Use the "total_years_display" field for human-readable format
+
+3. RESPONSE STYLE:
+   - Adapt your format to the question type
+   - Be conversational and natural
+   - NO numerical scores or rankings in your response
+   - Focus on qualitative insights and relevant matches
+
+4. FILTER ACKNOWLEDGMENT:
+   - If filters were applied, acknowledge how many candidates matched
+   - If query had personal info criteria, explain matches clearly
+   - Example: "I found 3 female candidates based in Mumbai with Python skills..."
+
+5. AMBIGUOUS QUERIES:
+   - Make reasonable interpretations
+   - Provide useful results even for vague queries
+   - Offer to refine search if results aren't helpful
+
+WHAT TO AVOID:
+- Don't expose numerical scores (e.g., "87.5/100")
+- Don't be overly formal for casual questions
+- Don't apologize excessively
+- Don't make discriminatory or biased statements based on personal characteristics
+
+RESPONSE EXAMPLES:
+
+Query: "Find female candidates from Mumbai with Python skills"
+Good: "I found 3 female candidates based in Mumbai with strong Python expertise. Sarah has 5 years of Python experience and is currently based in Mumbai. Priya has 3 years and specializes in Django/Flask. Ananya is a recent graduate from Mumbai with Python projects in ML. Would you like more details on any of them?"
+
+Query: "Candidates under 25 years old graduating in 2024"
+Good: "I found 5 candidates graduating in 2024 who are under 25. Rahul (23) has strong full-stack skills with React and Node.js. Neha (24) specializes in data science with Python and ML. Amit (22) has multiple internships at startups. All are immediate joiners. Would you like to know more about their projects?"
+
+Query: "Immediate joiners willing to relocate"
+Good: "I found 4 immediate joiners who are open to relocation. Arjun is based in Delhi and willing to relocate anywhere, with 2 years of experience in React. Kavya from Bangalore has indicated immediate availability and preference for Mumbai/Pune. Both have strong technical backgrounds."
+
+Now respond to: "{query}"
+"""
+    
+    return prompt
 
 def create_enhanced_prompt(query: str, ranked_data: str, intent: Dict, total_shown: int, total_unique: int, conversation_history: List[ChatMessage] = []) -> str:
     """

@@ -20,8 +20,8 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 OPENAI_URL = "https://openrouter.ai/api/v1"
 
-GROQ_PARSING_MODEL = "llama-3.3-70b-versatile"
-GROQ_INSIGHTS_MODEL = "deepseek/deepseek-r1:free"
+GROQ_PARSING_MODEL = "llama-3.1-8b-instant"
+GROQ_INSIGHTS_MODEL = "llama-3.3-70b-versatile"
 GROQ_CHATBOT_MODEL = "deepseek/deepseek-r1:free"
 
 # CORS Configuration

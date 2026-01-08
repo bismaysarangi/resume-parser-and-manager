@@ -30,7 +30,7 @@ async def extract_text_from_file(file):
 
 
 def create_resume_parse_prompt(text):
-    """Create enhanced prompt for comprehensive resume parsing"""
+    """Create enhanced prompt for comprehensive resume parsing including personal information"""
     prompt = f"""
     Extract ALL structured data from the following resume and return ONLY valid JSON with NO additional text, explanations, or markdown formatting.
 
@@ -40,7 +40,7 @@ def create_resume_parse_prompt(text):
     3. Use double quotes for all keys and string values
     4. No trailing commas before closing braces or brackets
     5. Ensure all arrays and objects are properly closed
-    6. If a field has no data, use empty string "" or empty array []
+    6. If a field has no data, use empty string "" or empty array [] or null
 
     RETURN THIS EXACT JSON STRUCTURE:
 
@@ -48,43 +48,131 @@ def create_resume_parse_prompt(text):
       "name": "",
       "email": "",
       "phone": "",
+      
+      "gender": "",
+      "date_of_birth": "",
+      "age": null,
+      "nationality": "",
+      "marital_status": "",
+      
+      "current_location": "",
+      "permanent_address": "",
+      "hometown": "",
+      "preferred_locations": [],
+      "willing_to_relocate": null,
+      
+      "work_authorization": "",
+      "visa_status": "",
+      "notice_period": "",
+      "availability_date": "",
+      
+      "current_ctc": "",
+      "expected_ctc": "",
+      "current_salary": "",
+      "expected_salary": "",
+      
       "summary": "",
       "objective": "",
+      "career_objective": "",
+      
       "education": [{{"Degree": "", "University": "", "Grade": "", "Years": ""}}],
+      "tenth_marks": "",
+      "twelfth_marks": "",
+      "graduation_year": "",
+      "current_year_of_study": "",
+      "university_roll_number": "",
+      "student_id": "",
+      
       "skills": [],
       "derived_skills": [],
       "experience": [{{"Company": "", "Role": "", "Years": "", "Description": ""}}],
+      "internships": [{{"Company": "", "Role": "", "Duration": "", "Description": ""}}],
       "projects": [{{"Name": "", "Description": "", "Tech Stack": "", "Date": ""}}],
+      
       "achievements": [{{"Title": "", "Description": "", "Date": ""}}],
       "publications": [{{"Title": "", "Authors": "", "Journal/Conference": "", "Date": "", "DOI/Link": ""}}],
       "research": [{{"Title": "", "Description": "", "Duration": "", "Institution": ""}}],
       "certifications": [{{"Name": "", "Issuer": "", "Date": "", "Validity": ""}}],
       "awards": [{{"Title": "", "Issuer": "", "Date": "", "Description": ""}}],
       "volunteer_work": [{{"Organization": "", "Role": "", "Duration": "", "Description": ""}}],
+      "extracurricular_activities": [{{"Activity": "", "Role": "", "Description": "", "Duration": ""}}],
+      
       "languages": [{{"Language": "", "Proficiency": ""}}],
       "interests": [],
+      "hobbies": [],
       "references": [{{"Name": "", "Title": "", "Contact": "", "Relationship": ""}}],
-      "10th Marks": "",
-      "12th Marks": "",
+      
+      "linkedin_url": "",
+      "github_url": "",
+      "portfolio_url": "",
+      "personal_website": "",
+      
+      "placement_preferences": "",
+      "preferred_job_role": "",
+      "preferred_industry": "",
+      
       "extra_sections": {{}}
     }}
 
     EXTRACTION INSTRUCTIONS:
-    1. "skills": Extract skills explicitly mentioned in the skills section
-    2. "derived_skills": Extract technical skills from Experience, Projects, Research sections that are NOT in skills list
-    3. "achievements": Look for: Achievements, Accomplishments, Key Accomplishments, Honors
-    4. "publications": Look for: Publications, Research Papers, Papers, Academic Publications
-    5. "research": Look for: Research Experience, Research Work, Research Projects
-    6. "certifications": Look for: Certifications, Licenses, Professional Certifications
-    7. "awards": Look for: Awards, Honors, Recognition, Scholarships
-    8. "volunteer_work": Look for: Volunteer, Community Service, Social Work
-    9. "languages": Look for: Languages, Language Skills
-    10. "interests": Look for: Interests, Hobbies, Activities
-    11. "summary": Look for: Summary, Professional Summary, Profile, About Me
-    12. "objective": Look for: Objective, Career Objective, Goal
-    13. "extra_sections": Capture ANY other sections not covered above
-        Format as: {{"Section Name": [{{"key": "value"}}]}}
-    14. IMPORTANT: In Description fields, replace any quote characters with single quotes to avoid JSON errors
+
+    PERSONAL INFORMATION:
+    1. "gender": Look for: Gender, Sex - extract as Male/Female/Other/Not specified
+    2. "date_of_birth": Look for: DOB, Date of Birth, Born on - format as DD/MM/YYYY or MM/YYYY
+    3. "age": Calculate from DOB or extract if directly mentioned
+    4. "nationality": Look for: Nationality, Citizen of
+    5. "marital_status": Look for: Marital Status, Married/Single/Unmarried
+
+    LOCATION INFORMATION:
+    6. "current_location": Look for: Current Location, Address, City, Based in
+    7. "permanent_address": Look for: Permanent Address, Home Address
+    8. "hometown": Look for: Hometown, Native Place, Place of Origin
+    9. "preferred_locations": Look for: Preferred Location, Willing to relocate to
+    10. "willing_to_relocate": Look for statements like "Open to relocation", "Willing to relocate"
+
+    WORK AUTHORIZATION:
+    11. "work_authorization": Look for: Work Authorization, Citizenship Status
+    12. "visa_status": Look for: Visa Status, Work Permit, H1B, Student Visa
+    13. "notice_period": Look for: Notice Period, Available from
+    14. "availability_date": Look for: Available from, Joining date, Can join by
+
+    COMPENSATION:
+    15. "current_ctc": Look for: Current CTC, Current Salary, Present Compensation
+    16. "expected_ctc": Look for: Expected CTC, Expected Salary, Salary Expectations
+    17. "current_salary": Alternative to current_ctc
+    18. "expected_salary": Alternative to expected_ctc
+
+    ACADEMIC DETAILS:
+    19. "graduation_year": Year of graduation or expected graduation
+    20. "current_year_of_study": For current students (1st year, 2nd year, etc.)
+    21. "university_roll_number": University roll number or registration number
+    22. "student_id": Student ID number
+
+    PROFESSIONAL SECTIONS:
+    23. "skills": Extract skills explicitly mentioned in skills section
+    24. "derived_skills": Extract technical skills from Experience, Projects, Research sections NOT in skills list
+    25. "internships": Separate internship experiences from full-time experience
+    26. "extracurricular_activities": College clubs, societies, sports, cultural activities
+
+    SOCIAL LINKS:
+    27. "linkedin_url": LinkedIn profile URL
+    28. "github_url": GitHub profile URL
+    29. "portfolio_url": Portfolio website URL
+    30. "personal_website": Personal website or blog URL
+
+    UNIVERSITY RECRUITMENT SPECIFIC:
+    31. "placement_preferences": Look for: Looking for Full-time/Internship/Both
+    32. "preferred_job_role": Desired job role or position
+    33. "preferred_industry": Preferred industry sector
+    34. "career_objective": Career objective or career goal statement
+
+    IMPORTANT NOTES:
+    - If information is not present in resume, use empty string "" or null or []
+    - For boolean fields (willing_to_relocate), use true/false or null if not mentioned
+    - For age, if DOB is present, calculate age; otherwise extract if directly mentioned
+    - In Description fields, replace quote characters with single quotes to avoid JSON errors
+    - Extract internships separately from full-time experience
+    - Be thorough in extracting personal information as it's required for university recruitment
 
     Resume text:
     {text[:8000]}
@@ -92,7 +180,6 @@ def create_resume_parse_prompt(text):
     Remember: Return ONLY valid JSON, nothing else. Double-check that all quotes are properly escaped and all brackets/braces are closed.
     """
     return prompt
-
 
 async def call_groq_api(prompt, temperature=0.7, max_retries=3):
     """Call Groq API with retry logic and token tracking"""
