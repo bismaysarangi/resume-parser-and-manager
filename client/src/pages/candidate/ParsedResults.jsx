@@ -778,7 +778,7 @@ const ParsedResults = () => {
           )}
 
           {/* Research */}
-          {(hasValidItems(parsedData.research) || (parsedData.research && parsedData.research.length > 0)) && (
+          {(hasValidItems(parsedData.research) && (parsedData.research && parsedData.research.length > 0)) && (
             <Card className="bg-gradient-to-br from-teal-600/10 to-cyan-600/5 backdrop-blur-sm border-teal-500/20 hover:border-teal-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg sm:text-xl">
