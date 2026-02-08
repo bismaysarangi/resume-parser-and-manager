@@ -10,6 +10,13 @@ from dependencies.auth import get_current_active_user
 from dependencies.role_based_auth import require_recruiter
 from core.database import db
 from core.config import GROQ_API_KEY, GROQ_URL, GROQ_PARSING_MODEL
+from services.location_utils import (
+    get_state_from_city,
+    extract_location_info,
+    location_matches,
+    normalize_location_for_search,
+    CITY_STATE_MAPPING
+)
 
 
 router = APIRouter()
@@ -353,35 +360,42 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
             intent['query_type'] = 'ranking'
             break
     
-    # Extract LOCATION
+    # ==================== LOCATION EXTRACTION (INTEGRATED WITH location_utils) ====================
+    
+    # Extract LOCATION using comprehensive city database
     location_patterns = [
         r'(?:based in|located in|living in|from|in)\s+([A-Z][a-zA-Z\s]+?)(?:\s+and|\s+with|\s+who|,|$)',
         r'(?:city|location|place):\s*([A-Z][a-zA-Z\s]+?)(?:\s+and|\s+with|,|$)',
     ]
     
-    # Common Indian cities for better matching
-    indian_cities = ['mumbai', 'delhi', 'bangalore', 'bengaluru', 'hyderabad', 'chennai', 
-                     'kolkata', 'pune', 'ahmedabad', 'jaipur', 'lucknow', 'kanpur', 'bhubaneswar',
-                     'nagpur', 'indore', 'bhopal', 'patna', 'vadodara', 'coimbatore',
-                     'kochi', 'vishakhapatnam', 'gurgaon', 'noida', 'ghaziabad']
-    
-    for city in indian_cities:
-        if city in query_lower:
-            intent['location'] = city.title()
-            intent['locations'].append(city.title())
+    # First, check against comprehensive city database from location_utils
+    # This handles all Indian cities with proper state mapping
+    for city_name in CITY_STATE_MAPPING.keys():
+        if city_name in query_lower:
+            location_info = extract_location_info(city_name.title())
+            intent['location'] = location_info['city']
+            intent['locations'].append(location_info['city'])
+            if location_info['state']:
+                # Also add state to search both city and state
+                intent['locations'].append(location_info['state'])
             intent['query_type'] = 'ranking'
+            print(f"✓ Location detected: {location_info['city']}, {location_info['state']}")
             break
     
-    # If no city match, try pattern matching
+    # If no direct city match, try pattern matching and lookup
     if not intent['location']:
         for pattern in location_patterns:
             match = re.search(pattern, query_lower, re.IGNORECASE)
             if match:
                 location = match.group(1).strip()
                 if len(location) > 2:  # Avoid single letters
-                    intent['location'] = location
-                    intent['locations'].append(location)
+                    location_info = extract_location_info(location)
+                    intent['location'] = location_info['city'] or location
+                    intent['locations'].append(location_info['city'] or location)
+                    if location_info['state']:
+                        intent['locations'].append(location_info['state'])
                     intent['query_type'] = 'ranking'
+                    print(f"✓ Location detected from pattern: {location_info}")
                     break
     
     # Extract NATIONALITY
@@ -683,6 +697,7 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
 def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str, Any]) -> List[Dict]:
     """
     Filter candidates based on personal information criteria from intent
+    ENHANCED: Now uses location_utils for smart location matching
     Returns filtered list of candidates
     """
     filtered = []
@@ -697,7 +712,7 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
         
         # ==================== GENDER FILTER ====================
         if intent.get('gender'):
-            candidate_gender = parsed.get('gender', '').lower()
+            candidate_gender = parsed.get('gender')
             if not candidate_gender:
                 # If gender not specified in resume, exclude
                 passes_filters = False
@@ -738,23 +753,42 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
                 if intent.get('age_min') or intent.get('age_max'):
                     passes_filters = False
         
-        # ==================== LOCATION FILTER ====================
+        # ==================== LOCATION FILTER (ENHANCED WITH location_utils) ====================
         if intent.get('location') or intent.get('locations'):
-            candidate_location = parsed.get('current_location', '').lower()
-            hometown = parsed.get('hometown', '').lower()
-            pref_locations = [loc.lower() for loc in parsed.get('preferred_locations', [])]
+            candidate_location = parsed.get('current_location', '')
+            hometown = parsed.get('hometown', '')
+            pref_locations = parsed.get('preferred_locations', [])
             
+            # Get search locations from intent
             search_locations = []
             if intent.get('location'):
-                search_locations.append(intent['location'].lower())
-            search_locations.extend([loc.lower() for loc in intent.get('locations', [])])
+                search_locations.append(intent['location'])
+            search_locations.extend(intent.get('locations', []))
             
             location_match = False
+            
+            # Use location_matches function from location_utils for smart matching
             for search_loc in search_locations:
-                if (search_loc in candidate_location or 
-                    search_loc in hometown or 
-                    any(search_loc in pref for pref in pref_locations)):
+                # Check current location
+                if location_matches(candidate_location, search_loc):
                     location_match = True
+                    print(f"✓ Location match: {candidate_location} matches {search_loc}")
+                    break
+                
+                # Check hometown
+                if location_matches(hometown, search_loc):
+                    location_match = True
+                    print(f"✓ Hometown match: {hometown} matches {search_loc}")
+                    break
+                
+                # Check preferred locations
+                for pref_loc in pref_locations:
+                    if location_matches(pref_loc, search_loc):
+                        location_match = True
+                        print(f"✓ Preferred location match: {pref_loc} matches {search_loc}")
+                        break
+                
+                if location_match:
                     break
             
             if not location_match:
@@ -1904,6 +1938,7 @@ async def chatbot_query(
 ):
     """
     ENHANCED: Chatbot with better query understanding and conversational ability
+    WITH INTEGRATED LOCATION MATCHING
     """
     try:
         print(f"Received query: {request.query}")
@@ -1943,29 +1978,36 @@ async def chatbot_query(
         
         print(f"Total: {len(all_candidates)}, Unique: {len(unique_candidates)}")
         
-        # Extract intent
+        # Extract intent (now with integrated location_utils)
         intent = extract_query_intent(request.query)
         print(f"Query intent: {intent}")
         
-        # Handle unavailable data queries
-        if intent.get('requires_unavailable_data'):
-            data_type = intent.get('unavailable_reason', 'this information')
-            response_map = {
-                'gender': "I don't have access to gender information in candidate resumes. Our system focuses on professional qualifications including skills, experience, education, and projects. Would you like me to help you search candidates based on their technical skills or experience instead?",
-                'location': "I don't have location information for candidates. However, I can help you find candidates based on their skills, experience, companies they've worked at, or education. What criteria would you like to search by?",
-                'salary': "Salary information is not included in the resume data. I can help you find qualified candidates based on their experience level, skills, and background, which you can use to determine appropriate compensation ranges.",
-                'availability': "I don't have availability or start date information. I can help you identify strong candidates based on their qualifications, and you can discuss availability during the interview process.",
-                'visa': "Visa status information is not available in our system. I can help you find qualified candidates based on their skills and experience.",
-                'age': "Age information is not collected in our system. I focus on professional qualifications like skills, experience, education, and projects. How else can I help you find the right candidates?"
-            }
-            return {
-                "response": response_map.get(data_type, f"I don't have access to {data_type} information. I can help you search based on skills, experience, education, projects, and companies. What would you like to search for?"),
-                "candidates_analyzed": len(unique_candidates),
-                "candidates_shown": 0
-            }
+        # Check if personal information filters are present
+        has_personal_filters = any([
+            intent.get('gender'),
+            intent.get('age_min'),
+            intent.get('age_max'),
+            intent.get('location'),
+            intent.get('locations'),
+            intent.get('nationality'),
+            intent.get('marital_status'),
+            intent.get('notice_period'),
+            intent.get('willing_to_relocate'),
+            intent.get('salary_min'),
+            intent.get('salary_max'),
+            intent.get('graduation_year'),
+            intent.get('current_students_only')
+        ])
         
-        # Rank candidates
-        ranked_candidates = rank_candidates(unique_candidates, intent)
+        # Use appropriate ranking function based on whether personal filters exist
+        if has_personal_filters:
+            print("🔍 Using personal info filtering with location_utils")
+            ranked_candidates = rank_candidates_with_personal_info(unique_candidates, intent)
+            total_after_filter = len(ranked_candidates)
+        else:
+            print("🔍 Using standard ranking")
+            ranked_candidates = rank_candidates(unique_candidates, intent)
+            total_after_filter = len(unique_candidates)
         
         # Determine how many to show
         top_n = intent.get('top_n') or 5
@@ -1975,24 +2017,41 @@ async def chatbot_query(
             ranked_candidates = [c for c in ranked_candidates if c.score > 10][:top_n]
         
         if not ranked_candidates:
-            return {
-                "response": f"I analyzed {len(unique_candidates)} candidates, but none closely matched your criteria for '{request.query}'. Try broadening your search or rephrase your question.",
-                "candidates_analyzed": len(unique_candidates),
-                "candidates_shown": 0
-            }
+            if has_personal_filters:
+                return {
+                    "response": f"I analyzed {len(unique_candidates)} candidates, but none matched your specific criteria for '{request.query}'. Try broadening your search criteria or remove some filters.",
+                    "candidates_analyzed": len(unique_candidates),
+                    "candidates_shown": 0
+                }
+            else:
+                return {
+                    "response": f"I analyzed {len(unique_candidates)} candidates, but none closely matched your criteria for '{request.query}'. Try broadening your search or rephrase your question.",
+                    "candidates_analyzed": len(unique_candidates),
+                    "candidates_shown": 0
+                }
         
-        # Format for LLM
-        ranked_data = format_ranked_candidates(ranked_candidates, top_n)
-        
-        # Create enhanced prompt with conversation history
-        prompt = create_enhanced_prompt(
-            request.query,
-            ranked_data,
-            intent,
-            min(top_n, len(ranked_candidates)),
-            len(unique_candidates),
-            request.conversation_history
-        )
+        # Format for LLM - use appropriate formatter
+        if has_personal_filters:
+            ranked_data = format_ranked_candidates_with_personal_info(ranked_candidates, top_n)
+            prompt = create_enhanced_prompt_with_personal_info(
+                request.query,
+                ranked_data,
+                intent,
+                min(top_n, len(ranked_candidates)),
+                len(unique_candidates),
+                total_after_filter,
+                request.conversation_history
+            )
+        else:
+            ranked_data = format_ranked_candidates(ranked_candidates, top_n)
+            prompt = create_enhanced_prompt(
+                request.query,
+                ranked_data,
+                intent,
+                min(top_n, len(ranked_candidates)),
+                len(unique_candidates),
+                request.conversation_history
+            )
         
         print(f"Sending top {min(top_n, len(ranked_candidates))} candidates to LLM")
         
