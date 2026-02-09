@@ -43,10 +43,25 @@ import {
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
+// Helper function to get value regardless of case
+const getValue = (obj, key) => {
+  if (!obj) return null;
+  // Try exact match first
+  if (obj[key] !== undefined) return obj[key];
+  // Try lowercase
+  const lowerKey = key.toLowerCase();
+  if (obj[lowerKey] !== undefined) return obj[lowerKey];
+  // Try capitalized
+  const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
+  if (obj[capitalizedKey] !== undefined) return obj[capitalizedKey];
+  return null;
+};
+
 const hasValidItems = (array) => {
   if (!array || !Array.isArray(array) || array.length === 0) return false;
   return array.some((item) => {
     if (!item || typeof item !== "object") return false;
+    // Check if at least one value in the object is not null/undefined/empty
     return Object.values(item).some(
       (value) =>
         value !== null &&
@@ -68,7 +83,10 @@ const hasValidSkills = (skills) => {
 
 const hasValidLanguages = (languages) => {
   if (!languages || !Array.isArray(languages) || languages.length === 0) return false;
-  return languages.some((lang) => lang && lang.Language && lang.Language.trim() !== "");
+  return languages.some((lang) => {
+    const language = getValue(lang, 'Language');
+    return language && language.trim() !== "";
+  });
 };
 
 const RecruiterBulkResults = () => {
@@ -506,21 +524,28 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-4">
-                            {parsedData.education.map((edu, index) => (
-                              <div
-                                key={index}
-                                className="p-4 sm:p-5 bg-gray-900/50 rounded-lg border border-indigo-500/10 hover:border-indigo-500/30 transition-all"
-                              >
-                                {edu.Degree && <h4 className="text-white font-semibold text-base sm:text-lg mb-1">{edu.Degree}</h4>}
-                                {edu.University && <p className="text-gray-300 text-sm sm:text-base mb-2">{edu.University}</p>}
-                                {(edu.Grade || edu.Years) && (
-                                  <div className="flex flex-wrap gap-4 mt-2">
-                                    {edu.Grade && <span className="text-white/60 text-sm">Grade: {edu.Grade}</span>}
-                                    {edu.Years && <span className="text-white/60 text-sm">Years: {edu.Years}</span>}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                            {parsedData.education.map((edu, index) => {
+                              const degree = getValue(edu, 'Degree');
+                              const university = getValue(edu, 'University');
+                              const grade = getValue(edu, 'Grade');
+                              const years = getValue(edu, 'Years');
+                              
+                              return (
+                                <div
+                                  key={index}
+                                  className="p-4 sm:p-5 bg-gray-900/50 rounded-lg border border-indigo-500/10 hover:border-indigo-500/30 transition-all"
+                                >
+                                  {degree && <h4 className="text-white font-semibold text-base sm:text-lg mb-1">{degree}</h4>}
+                                  {university && <p className="text-gray-300 text-sm sm:text-base mb-2">{university}</p>}
+                                  {(grade || years) && (
+                                    <div className="flex flex-wrap gap-4 mt-2">
+                                      {grade && <span className="text-white/60 text-sm">Grade: {grade}</span>}
+                                      {years && <span className="text-white/60 text-sm">Years: {years}</span>}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -615,31 +640,38 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-4">
-                            {parsedData.experience.map((exp, index) => (
-                              <div
-                                key={index}
-                                className="p-4 sm:p-5 bg-gray-900/50 rounded-lg border border-green-500/10 hover:border-green-500/30 transition-all"
-                              >
-                                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
-                                  <div className="flex-1">
-                                    {exp.Role && <h4 className="text-white font-semibold text-base sm:text-lg mb-1">{exp.Role}</h4>}
-                                    {exp.Company && (
-                                      <div className="flex items-center gap-2 text-gray-300 mb-2">
-                                        <Building2 className="w-4 h-4 text-green-400 flex-shrink-0" />
-                                        <span className="text-sm sm:text-base">{exp.Company}</span>
+                            {parsedData.experience.map((exp, index) => {
+                              const role = getValue(exp, 'Role');
+                              const company = getValue(exp, 'Company');
+                              const description = getValue(exp, 'Description');
+                              const years = getValue(exp, 'Years');
+                              
+                              return (
+                                <div
+                                  key={index}
+                                  className="p-4 sm:p-5 bg-gray-900/50 rounded-lg border border-green-500/10 hover:border-green-500/30 transition-all"
+                                >
+                                  <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
+                                    <div className="flex-1">
+                                      {role && <h4 className="text-white font-semibold text-base sm:text-lg mb-1">{role}</h4>}
+                                      {company && (
+                                        <div className="flex items-center gap-2 text-gray-300 mb-2">
+                                          <Building2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                                          <span className="text-sm sm:text-base">{company}</span>
+                                        </div>
+                                      )}
+                                      {description && <p className="text-white/70 text-sm mt-2 leading-relaxed">{description}</p>}
+                                    </div>
+                                    {years && (
+                                      <div className="flex items-center gap-2 text-white/70 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20">
+                                        <Calendar className="w-4 h-4 text-green-400 flex-shrink-0" />
+                                        <span className="text-xs sm:text-sm whitespace-nowrap">{years}</span>
                                       </div>
                                     )}
-                                    {exp.Description && <p className="text-white/70 text-sm mt-2 leading-relaxed">{exp.Description}</p>}
                                   </div>
-                                  {exp.Years && (
-                                    <div className="flex items-center gap-2 text-white/70 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20">
-                                      <Calendar className="w-4 h-4 text-green-400 flex-shrink-0" />
-                                      <span className="text-xs sm:text-sm whitespace-nowrap">{exp.Years}</span>
-                                    </div>
-                                  )}
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -658,28 +690,35 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-4">
-                            {parsedData.internships.map((intern, idx) => (
-                              <div key={idx} className="p-4 bg-gray-900/50 rounded-lg border border-teal-500/10">
-                                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
-                                  <div className="flex-1">
-                                    {intern.Role && <h4 className="text-white font-semibold text-base mb-1">{intern.Role}</h4>}
-                                    {intern.Company && (
-                                      <div className="flex items-center gap-2 text-gray-300 mb-2">
-                                        <Building2 className="w-4 h-4 text-teal-400 flex-shrink-0" />
-                                        <span className="text-sm">{intern.Company}</span>
+                            {parsedData.internships.map((intern, idx) => {
+                              const role = getValue(intern, 'Role');
+                              const company = getValue(intern, 'Company');
+                              const description = getValue(intern, 'Description');
+                              const duration = getValue(intern, 'Duration');
+                              
+                              return (
+                                <div key={idx} className="p-4 bg-gray-900/50 rounded-lg border border-teal-500/10">
+                                  <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
+                                    <div className="flex-1">
+                                      {role && <h4 className="text-white font-semibold text-base mb-1">{role}</h4>}
+                                      {company && (
+                                        <div className="flex items-center gap-2 text-gray-300 mb-2">
+                                          <Building2 className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                                          <span className="text-sm">{company}</span>
+                                        </div>
+                                      )}
+                                      {description && <p className="text-white/70 text-sm mt-2">{description}</p>}
+                                    </div>
+                                    {duration && (
+                                      <div className="flex items-center gap-2 text-teal-200 bg-teal-500/10 px-3 py-1 rounded-full border border-teal-500/20">
+                                        <Calendar className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                                        <span className="text-xs">{duration}</span>
                                       </div>
                                     )}
-                                    {intern.Description && <p className="text-white/70 text-sm mt-2">{intern.Description}</p>}
                                   </div>
-                                  {intern.Duration && (
-                                    <div className="flex items-center gap-2 text-teal-200 bg-teal-500/10 px-3 py-1 rounded-full border border-teal-500/20">
-                                      <Calendar className="w-4 h-4 text-teal-400 flex-shrink-0" />
-                                      <span className="text-xs">{intern.Duration}</span>
-                                    </div>
-                                  )}
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -759,37 +798,59 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-4">
-                            {parsedData.projects.map((project, index) => (
-                              <div
-                                key={index}
-                                className="p-4 sm:p-5 bg-gray-900/50 rounded-lg border border-cyan-500/10 hover:border-cyan-500/30 transition-all"
-                              >
-                                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
-                                  <div className="flex-1">
-                                    {project.Name && <h4 className="text-white font-semibold text-base sm:text-lg mb-2">{project.Name}</h4>}
+                            {parsedData.projects.map((project, index) => {
+                              const title = getValue(project, 'Title') || getValue(project, 'Name');
+                              const description = getValue(project, 'Description') || getValue(project, 'Supervisor');
+                              const duration = getValue(project, 'Duration') || getValue(project, 'Date');
+                              const techStack = getValue(project, 'Tech Stack') || getValue(project, 'Technologies');
+                              const supervisor = getValue(project, 'Supervisor');
+                              
+                              return (
+                                <div
+                                  key={index}
+                                  className="p-4 sm:p-5 bg-gray-900/50 rounded-lg border border-cyan-500/10 hover:border-cyan-500/30 transition-all"
+                                >
+                                  <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
+                                    <div className="flex-1">
+                                      {title && (
+                                        <h4 className="text-white font-semibold text-base sm:text-lg mb-2">
+                                          {title}
+                                        </h4>
+                                      )}
+                                    </div>
+                                    {duration && (
+                                      <div className="flex items-center gap-2 text-cyan-200 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
+                                        <Calendar className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                                        <span className="text-xs sm:text-sm">{duration}</span>
+                                      </div>
+                                    )}
                                   </div>
-                                  {project.Date && (
-                                    <div className="flex items-center gap-2 text-cyan-200 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
-                                      <Calendar className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                                      <span className="text-xs sm:text-sm">{project.Date}</span>
+                                  {description && (
+                                    <p className="text-gray-300 text-sm sm:text-base leading-relaxed mb-3">
+                                      {description}
+                                    </p>
+                                  )}
+                                  {supervisor && description && supervisor !== description && (
+                                    <div className="mt-2">
+                                      <h4 className="text-white/80 text-sm font-semibold mb-1">Supervisor:</h4>
+                                      <p className="text-gray-300 text-sm">{supervisor}</p>
+                                    </div>
+                                  )}
+                                  {techStack && (
+                                    <div className="mt-3">
+                                      <h4 className="text-white/80 text-sm font-semibold mb-2">Technologies Used:</h4>
+                                      <div className="flex flex-wrap gap-2">
+                                        {(typeof techStack === "string" ? techStack.split(",") : [techStack]).map((tech, i) => (
+                                          <span key={i} className="px-3 py-1 bg-gray-800 border border-cyan-500/20 rounded-full text-cyan-300 text-xs font-medium">
+                                            {tech.trim()}
+                                          </span>
+                                        ))}
+                                      </div>
                                     </div>
                                   )}
                                 </div>
-                                {project.Description && <p className="text-gray-300 text-sm sm:text-base leading-relaxed mb-3">{project.Description}</p>}
-                                {project["Tech Stack"] && (
-                                  <div className="mt-3">
-                                    <h4 className="text-white/80 text-sm font-semibold mb-2">Technologies Used:</h4>
-                                    <div className="flex flex-wrap gap-2">
-                                      {(typeof project["Tech Stack"] === "string" ? project["Tech Stack"].split(",") : [project["Tech Stack"]]).map((tech, i) => (
-                                        <span key={i} className="px-3 py-1 bg-gray-800 border border-cyan-500/20 rounded-full text-cyan-300 text-xs font-medium">
-                                          {tech.trim()}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -808,13 +869,31 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {parsedData.achievements.map((achievement, idx) => (
-                              <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-yellow-500/10">
-                                {achievement.Title && <h4 className="text-white font-semibold text-sm mb-1">{achievement.Title}</h4>}
-                                {achievement.Description && <p className="text-gray-300 text-sm">{achievement.Description}</p>}
-                                {achievement.Date && <p className="text-white/50 text-xs mt-1">{achievement.Date}</p>}
-                              </div>
-                            ))}
+                            {parsedData.achievements.map((achievement, idx) => {
+                              const title = getValue(achievement, 'Title') || getValue(achievement, 'title');
+                              const description = getValue(achievement, 'Description') || getValue(achievement, 'description');
+                              const date = getValue(achievement, 'Date') || getValue(achievement, 'year');
+                              
+                              return (
+                                <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-yellow-500/10">
+                                  {title && (
+                                    <h4 className="text-white font-semibold text-sm mb-1">
+                                      {title}
+                                    </h4>
+                                  )}
+                                  {description && (
+                                    <p className="text-gray-300 text-sm">
+                                      {description}
+                                    </p>
+                                  )}
+                                  {date && (
+                                    <p className="text-white/50 text-xs mt-1">
+                                      {date}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -833,21 +912,29 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {parsedData.publications.map((pub, idx) => (
-                              <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-blue-500/10">
-                                {pub.Title && <h4 className="text-white font-semibold text-sm mb-1">{pub.Title}</h4>}
-                                {pub.Authors && <p className="text-gray-300 text-sm">Authors: {pub.Authors}</p>}
-                                {pub["Journal/Conference"] && <p className="text-gray-300 text-sm">{pub["Journal/Conference"]}</p>}
-                                <div className="flex gap-4 text-xs text-white/50 mt-2">
-                                  {pub.Date && <span>{pub.Date}</span>}
-                                  {pub["DOI/Link"] && (
-                                    <a href={pub["DOI/Link"]} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline flex items-center gap-1">
-                                      View <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  )}
+                            {parsedData.publications.map((pub, idx) => {
+                              const title = getValue(pub, 'Title');
+                              const authors = getValue(pub, 'Authors');
+                              const journal = getValue(pub, 'Journal/Conference');
+                              const date = getValue(pub, 'Date');
+                              const doi = getValue(pub, 'DOI/Link');
+                              
+                              return (
+                                <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-blue-500/10">
+                                  {title && <h4 className="text-white font-semibold text-sm mb-1">{title}</h4>}
+                                  {authors && <p className="text-gray-300 text-sm">Authors: {authors}</p>}
+                                  {journal && <p className="text-gray-300 text-sm">{journal}</p>}
+                                  <div className="flex gap-4 text-xs text-white/50 mt-2">
+                                    {date && <span>{date}</span>}
+                                    {doi && (
+                                      <a href={doi} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline flex items-center gap-1">
+                                        View <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -866,16 +953,23 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {parsedData.research.map((research, idx) => (
-                              <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-teal-500/10">
-                                {research.Title && research.Title.trim() !== "" && <h4 className="text-white font-semibold text-sm mb-1">{research.Title}</h4>}
-                                {research.Description && research.Description.trim() !== "" && <p className="text-gray-300 text-sm mb-2">{research.Description}</p>}
-                                <div className="flex gap-3 text-xs text-white/60">
-                                  {research.Institution && research.Institution.trim() !== "" && <span>{research.Institution}</span>}
-                                  {research.Duration && research.Duration.trim() !== "" && <span>{research.Duration}</span>}
+                            {parsedData.research.map((research, idx) => {
+                              const title = getValue(research, 'Title');
+                              const description = getValue(research, 'Description');
+                              const institution = getValue(research, 'Institution');
+                              const duration = getValue(research, 'Duration');
+                              
+                              return (
+                                <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-teal-500/10">
+                                  {title && title.trim() !== "" && <h4 className="text-white font-semibold text-sm mb-1">{title}</h4>}
+                                  {description && description.trim() !== "" && <p className="text-gray-300 text-sm mb-2">{description}</p>}
+                                  <div className="flex gap-3 text-xs text-white/60">
+                                    {institution && institution.trim() !== "" && <span>{institution}</span>}
+                                    {duration && duration.trim() !== "" && <span>{duration}</span>}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -894,16 +988,23 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {parsedData.certifications.map((cert, idx) => (
-                              <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-green-500/10">
-                                {cert.Name && <h4 className="text-white font-semibold text-sm mb-1">{cert.Name}</h4>}
-                                {cert.Issuer && <p className="text-gray-300 text-sm">{cert.Issuer}</p>}
-                                <div className="flex gap-3 text-xs text-white/50 mt-1">
-                                  {cert.Date && <span>Issued: {cert.Date}</span>}
-                                  {cert.Validity && <span>Valid: {cert.Validity}</span>}
+                            {parsedData.certifications.map((cert, idx) => {
+                              const name = getValue(cert, 'Name');
+                              const issuer = getValue(cert, 'Issuer');
+                              const date = getValue(cert, 'Date');
+                              const validity = getValue(cert, 'Validity');
+                              
+                              return (
+                                <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-green-500/10">
+                                  {name && <h4 className="text-white font-semibold text-sm mb-1">{name}</h4>}
+                                  {issuer && <p className="text-gray-300 text-sm">{issuer}</p>}
+                                  <div className="flex gap-3 text-xs text-white/50 mt-1">
+                                    {date && <span>Issued: {date}</span>}
+                                    {validity && <span>Valid: {validity}</span>}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -922,14 +1023,21 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {parsedData.awards.map((award, idx) => (
-                              <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-red-500/10">
-                                {award.Title && <h4 className="text-white font-semibold text-sm mb-1">{award.Title}</h4>}
-                                {award.Issuer && <p className="text-gray-300 text-sm">{award.Issuer}</p>}
-                                {award.Description && <p className="text-gray-300 text-sm mt-1">{award.Description}</p>}
-                                {award.Date && <p className="text-white/50 text-xs mt-1">{award.Date}</p>}
-                              </div>
-                            ))}
+                            {parsedData.awards.map((award, idx) => {
+                              const title = getValue(award, 'Title') || getValue(award, 'name');
+                              const issuer = getValue(award, 'Issuer') || getValue(award, 'issuer');
+                              const description = getValue(award, 'Description') || getValue(award, 'description');
+                              const date = getValue(award, 'Date') || getValue(award, 'year');
+                              
+                              return (
+                                <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-red-500/10">
+                                  {title && <h4 className="text-white font-semibold text-sm mb-1">{title}</h4>}
+                                  {issuer && <p className="text-gray-300 text-sm">{issuer}</p>}
+                                  {description && <p className="text-gray-300 text-sm mt-1">{description}</p>}
+                                  {date && <p className="text-white/50 text-xs mt-1">{date}</p>}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -948,14 +1056,37 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {parsedData.volunteer_work.map((vol, idx) => (
-                              <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-pink-500/10">
-                                {vol.Role && <h4 className="text-white font-semibold text-sm mb-1">{vol.Role}</h4>}
-                                {vol.Organization && <p className="text-gray-300 text-sm">{vol.Organization}</p>}
-                                {vol.Duration && <p className="text-white/60 text-sm">{vol.Duration}</p>}
-                                {vol.Description && <p className="text-white/70 text-sm leading-relaxed">{vol.Description}</p>}
-                              </div>
-                            ))}
+                            {parsedData.volunteer_work.map((vol, idx) => {
+                              const role = getValue(vol, 'Role') || getValue(vol, 'role');
+                              const organization = getValue(vol, 'Organization') || getValue(vol, 'organization');
+                              const duration = getValue(vol, 'Duration') || getValue(vol, 'duration');
+                              const description = getValue(vol, 'Description') || getValue(vol, 'description');
+                              
+                              return (
+                                <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-pink-500/10">
+                                  {role && (
+                                    <h4 className="text-white font-semibold text-sm mb-1">
+                                      {role}
+                                    </h4>
+                                  )}
+                                  {organization && (
+                                    <p className="text-gray-300 text-sm">
+                                      {organization}
+                                    </p>
+                                  )}
+                                  {duration && (
+                                    <p className="text-white/60 text-sm">
+                                      {duration}
+                                    </p>
+                                  )}
+                                  {description && (
+                                    <p className="text-white/70 text-sm leading-relaxed">
+                                      {description}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -974,14 +1105,37 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {parsedData.extracurricular_activities.map((activity, idx) => (
-                              <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-lime-500/10">
-                                {activity.Activity && <h4 className="text-white font-semibold text-sm mb-1">{activity.Activity}</h4>}
-                                {activity.Role && <p className="text-gray-300 text-sm">{activity.Role}</p>}
-                                {activity.Duration && <p className="text-white/60 text-sm">{activity.Duration}</p>}
-                                {activity.Description && <p className="text-white/70 text-sm">{activity.Description}</p>}
-                              </div>
-                            ))}
+                            {parsedData.extracurricular_activities.map((activity, idx) => {
+                              const activityName = getValue(activity, 'Activity') || getValue(activity, 'activity');
+                              const role = getValue(activity, 'Role') || getValue(activity, 'role');
+                              const duration = getValue(activity, 'Duration') || getValue(activity, 'duration');
+                              const description = getValue(activity, 'Description') || getValue(activity, 'description');
+                              
+                              return (
+                                <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-lime-500/10">
+                                  {activityName && (
+                                    <h4 className="text-white font-semibold text-sm mb-1">
+                                      {activityName}
+                                    </h4>
+                                  )}
+                                  {role && (
+                                    <p className="text-gray-300 text-sm">
+                                      {role}
+                                    </p>
+                                  )}
+                                  {duration && (
+                                    <p className="text-white/60 text-sm">
+                                      {duration}
+                                    </p>
+                                  )}
+                                  {description && (
+                                    <p className="text-white/70 text-sm">
+                                      {description}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -1000,14 +1154,19 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {parsedData.languages.map((lang, idx) => (
-                              <div key={idx} className="flex items-center justify-between p-2 bg-gray-900/50 rounded border border-violet-500/10">
-                                <span className="text-white text-sm">{lang.Language}</span>
-                                {lang.Proficiency && lang.Proficiency.trim() !== "" && (
-                                  <span className="px-2 py-0.5 bg-violet-500/20 rounded text-violet-300 text-xs">{lang.Proficiency}</span>
-                                )}
-                              </div>
-                            ))}
+                            {parsedData.languages.map((lang, idx) => {
+                              const language = getValue(lang, 'Language');
+                              const proficiency = getValue(lang, 'Proficiency');
+                              
+                              return (
+                                <div key={idx} className="flex items-center justify-between p-2 bg-gray-900/50 rounded border border-violet-500/10">
+                                  <span className="text-white text-sm">{language}</span>
+                                  {proficiency && proficiency.trim() !== "" && (
+                                    <span className="px-2 py-0.5 bg-violet-500/20 rounded text-violet-300 text-xs">{proficiency}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -1072,14 +1231,21 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {parsedData.references.map((ref, idx) => (
-                              <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-slate-500/10">
-                                {ref.Name && <h4 className="text-white font-semibold text-sm mb-1">{ref.Name}</h4>}
-                                {ref.Title && <p className="text-gray-300 text-sm">{ref.Title}</p>}
-                                {ref.Relationship && <p className="text-white/60 text-sm">{ref.Relationship}</p>}
-                                {ref.Contact && <p className="text-white/70 text-sm">{ref.Contact}</p>}
-                              </div>
-                            ))}
+                            {parsedData.references.map((ref, idx) => {
+                              const name = getValue(ref, 'Name');
+                              const title = getValue(ref, 'Title');
+                              const relationship = getValue(ref, 'Relationship');
+                              const contact = getValue(ref, 'Contact');
+                              
+                              return (
+                                <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-slate-500/10">
+                                  {name && <h4 className="text-white font-semibold text-sm mb-1">{name}</h4>}
+                                  {title && <p className="text-gray-300 text-sm">{title}</p>}
+                                  {relationship && <p className="text-white/60 text-sm">{relationship}</p>}
+                                  {contact && <p className="text-white/70 text-sm">{contact}</p>}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -1093,23 +1259,34 @@ const RecruiterBulkResults = () => {
                             <div className="p-2 bg-sky-500/20 rounded-lg mr-3">
                               <LinkIcon className="w-5 h-5 text-sky-400" />
                             </div>
-                            Social & Professional Links
+                            Professional & Social Links
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {parsedData.linkedin_url && (
-                              <a href={parsedData.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-all border border-sky-500/10">
-                                <Linkedin className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                              <a 
+                                href={parsedData.linkedin_url.startsWith('http') ? parsedData.linkedin_url : `https://${parsedData.linkedin_url}`}
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-all border border-sky-500/10"
+                              >
+                                {parsedData.linkedin_url.includes('researchgate') ? (
+                                  <BookOpen className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                                ) : (
+                                  <Linkedin className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                                )}
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-white/50 text-xs mb-1">LinkedIn</p>
+                                  <p className="text-white/50 text-xs mb-1">
+                                    {parsedData.linkedin_url.includes('researchgate') ? 'ResearchGate' : 'LinkedIn'}
+                                  </p>
                                   <p className="text-white text-sm truncate">{parsedData.linkedin_url}</p>
                                 </div>
                                 <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
                               </a>
                             )}
                             {parsedData.github_url && (
-                              <a href={parsedData.github_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-all border border-sky-500/10">
+                              <a href={parsedData.github_url.startsWith('http') ? parsedData.github_url : `https://${parsedData.github_url}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-all border border-sky-500/10">
                                 <Github className="w-5 h-5 text-sky-400 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
                                   <p className="text-white/50 text-xs mb-1">GitHub</p>
@@ -1119,7 +1296,7 @@ const RecruiterBulkResults = () => {
                               </a>
                             )}
                             {parsedData.portfolio_url && (
-                              <a href={parsedData.portfolio_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-all border border-sky-500/10">
+                              <a href={parsedData.portfolio_url.startsWith('http') ? parsedData.portfolio_url : `https://${parsedData.portfolio_url}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-all border border-sky-500/10">
                                 <Briefcase className="w-5 h-5 text-sky-400 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
                                   <p className="text-white/50 text-xs mb-1">Portfolio</p>
@@ -1129,7 +1306,7 @@ const RecruiterBulkResults = () => {
                               </a>
                             )}
                             {parsedData.personal_website && (
-                              <a href={parsedData.personal_website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-all border border-sky-500/10">
+                              <a href={parsedData.personal_website.startsWith('http') ? parsedData.personal_website : `https://${parsedData.personal_website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-all border border-sky-500/10">
                                 <Globe className="w-5 h-5 text-sky-400 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
                                   <p className="text-white/50 text-xs mb-1">Personal Website</p>
