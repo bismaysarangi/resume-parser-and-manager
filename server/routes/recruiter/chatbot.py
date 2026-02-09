@@ -109,7 +109,7 @@ def deduplicate_candidates(candidates: List[Dict]) -> List[Dict]:
 
 
 def calculate_total_experience(experiences: List[Dict]) -> Dict[str, Any]:
-    """Enhanced experience calculation with better date parsing and validation"""
+    """Enhanced experience calculation with better date parsing and validation - FIXED VERSION"""
     if not experiences:
         return {
             'total_years': 0.0,
@@ -188,23 +188,35 @@ def calculate_total_experience(experiences: List[Dict]) -> Dict[str, Any]:
                     months_for_this_role = max(1, years_diff * 12)
                     method = f"month_range ({start_year}-{end_year})"
         
-        # Method 5: Fallback
+        # FIX: Method 5 - Improved fallback that doesn't confuse years with duration
         if months_for_this_role == 0:
             numbers = re.findall(r'(\d+\.?\d*)', years_str)
             if numbers:
+                valid_duration_found = False
                 for num_str in numbers:
                     num = float(num_str)
-                    if 1970 <= num <= 2025:
+                    # Skip if it looks like a year (1970-2030)
+                    if 1970 <= num <= 2030:
                         continue
-                    if num < 50:
-                        if num > 10:
-                            months_for_this_role = int(num * 12)
-                            method = "fallback_years"
-                        else:
-                            months_for_this_role = int(num * 12)
-                            method = "fallback_conservative"
+                    # Only accept reasonable duration values (0.5 to 40 years)
+                    if 0.5 <= num <= 40:
+                        months_for_this_role = int(num * 12)
+                        method = "fallback_duration"
+                        valid_duration_found = True
                         break
+                
+                # If no valid duration found, try to infer from year pairs
+                if not valid_duration_found and len(numbers) >= 2:
+                    year_nums = [float(n) for n in numbers if 1970 <= float(n) <= 2030]
+                    if len(year_nums) == 2:
+                        start_year = int(min(year_nums))
+                        end_year = int(max(year_nums))
+                        if start_year < end_year:
+                            years_diff = end_year - start_year
+                            months_for_this_role = years_diff * 12
+                            method = f"inferred_range ({start_year}-{end_year})"
         
+        # Cap at 15 years (180 months) for any single role
         months_for_this_role = min(months_for_this_role, 180)
         
         if months_for_this_role > 0:
@@ -325,16 +337,19 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
 
     # ==================== PERSONAL INFORMATION EXTRACTION ====================
     
-    # Extract GENDER
-    gender_patterns = [
-        (r'\b(male|men|man|boy|boys)\b', 'male'),
-        (r'\b(female|women|woman|girl|girls|lady|ladies)\b', 'female'),
-    ]
-    for pattern, gender_value in gender_patterns:
-        if re.search(pattern, query_lower):
-            intent['gender'] = gender_value
+    # FIX: Improved GENDER extraction
+    # Check for female first (more specific to avoid matching 'male' in 'female')
+    if re.search(r'\b(female|women|woman|girl|girls|lady|ladies)\b', query_lower):
+        intent['gender'] = 'female'
+        intent['query_type'] = 'ranking'
+        print("✓ Gender detected: female")
+    # Then check for male
+    elif re.search(r'\b(male|men|man|boy|boys)\b', query_lower):
+        # Double-check that 'female' wasn't in the query
+        if 'female' not in query_lower:
+            intent['gender'] = 'male'
             intent['query_type'] = 'ranking'
-            break
+            print("✓ Gender detected: male")
     
     # Extract AGE
     age_patterns = [
@@ -712,14 +727,31 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
         
         # ==================== GENDER FILTER ====================
         if intent.get('gender'):
-            candidate_gender = parsed.get('gender')
+            # FIX: Safely get gender value
+            gender_value = parsed.get('gender')
+            if gender_value is None:
+                candidate_gender = ''
+            else:
+                candidate_gender = str(gender_value).lower().strip()
+            
             if not candidate_gender:
-                # If gender not specified in resume, exclude
+                # If gender not specified in resume, exclude from gender-specific queries
+                print(f"⚠️ Candidate {parsed.get('name', 'Unknown')} has no gender field")
                 passes_filters = False
-            elif intent['gender'] == 'male' and 'male' not in candidate_gender:
-                passes_filters = False
-            elif intent['gender'] == 'female' and 'female' not in candidate_gender:
-                passes_filters = False
+            else:
+                # Normalize and check with better logic
+                if intent['gender'] == 'male':
+                    # Must contain 'male' but NOT 'female'
+                    if 'male' not in candidate_gender or 'female' in candidate_gender:
+                        passes_filters = False
+                    else:
+                        print(f"✓ {parsed.get('name')} matches male gender filter")
+                elif intent['gender'] == 'female':
+                    # Must contain 'female'
+                    if 'female' not in candidate_gender:
+                        passes_filters = False
+                    else:
+                        print(f"✓ {parsed.get('name')} matches female gender filter")
         
         # ==================== AGE FILTER ====================
         if intent.get('age_min') or intent.get('age_max'):
@@ -939,6 +971,18 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
         # If candidate passes all filters, add to filtered list
         if passes_filters:
             filtered.append(candidate)
+    
+    # FIX: Added debug logging
+    total_filtered = len(filtered)
+    total_input = len(candidates)
+    print(f"🔍 Personal info filter results: {total_filtered}/{total_input} candidates passed")
+    
+    if intent.get('gender'):
+        print(f"   - Gender filter: {intent['gender']}")
+    if intent.get('location'):
+        print(f"   - Location filter: {intent['location']}")
+    if intent.get('age_min') or intent.get('age_max'):
+        print(f"   - Age filter: {intent.get('age_min', 'any')} - {intent.get('age_max', 'any')}")
     
     return filtered
 
