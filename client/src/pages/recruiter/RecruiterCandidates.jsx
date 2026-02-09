@@ -34,10 +34,41 @@ import {
   FileText,
   Plus,
   ExternalLink,
+  Linkedin,
+  Github,
+  Globe,
+  MapPin,
+  Home,
+  Flag,
+  UserCircle,
+  Cake,
+  Shield,
+  Clock,
+  Plane,
+  DollarSign,
+  Target,
+  Star,
+  LinkIcon,
+  Activity,
+  Brain,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const API_BASE_URL = "http://localhost:8000";
+
+// Helper function to get value regardless of case
+const getValue = (obj, key) => {
+  if (!obj) return null;
+  // Try exact match first
+  if (obj[key] !== undefined) return obj[key];
+  // Try lowercase
+  const lowerKey = key.toLowerCase();
+  if (obj[lowerKey] !== undefined) return obj[lowerKey];
+  // Try capitalized
+  const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
+  if (obj[capitalizedKey] !== undefined) return obj[capitalizedKey];
+  return null;
+};
 
 // Helper functions
 const hasValidItems = (array) => {
@@ -61,6 +92,14 @@ const hasValidSkills = (skills) => {
     skills.length > 0 &&
     skills.some((skill) => skill && skill.trim() !== "")
   );
+};
+
+const hasValidLanguages = (languages) => {
+  if (!languages || !Array.isArray(languages) || languages.length === 0) return false;
+  return languages.some((lang) => {
+    const language = getValue(lang, 'Language');
+    return language && language.trim() !== "";
+  });
 };
 
 const RecruiterCandidates = () => {
@@ -484,7 +523,8 @@ const RecruiterCandidates = () => {
                 return (
                   <>
                     {/* Personal Information */}
-                    {(data.name || data.email || data.phone) && (
+                    {(data.name || data.email || data.phone || data.gender || 
+                      data.date_of_birth || data.age || data.nationality || data.marital_status) && (
                       <Card className="bg-gradient-to-br from-blue-600/10 to-cyan-600/5 border-blue-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg">
@@ -498,12 +538,8 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <User className="w-5 h-5 text-blue-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">
-                                    Full Name
-                                  </p>
-                                  <p className="text-white font-medium">
-                                    {data.name}
-                                  </p>
+                                  <p className="text-white/60 text-sm mb-1">Full Name</p>
+                                  <p className="text-white font-medium">{data.name}</p>
                                 </div>
                               </div>
                             )}
@@ -511,12 +547,8 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <Mail className="w-5 h-5 text-blue-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">
-                                    Email
-                                  </p>
-                                  <p className="text-white font-medium break-all">
-                                    {data.email}
-                                  </p>
+                                  <p className="text-white/60 text-sm mb-1">Email</p>
+                                  <p className="text-white font-medium break-all">{data.email}</p>
                                 </div>
                               </div>
                             )}
@@ -524,16 +556,132 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <Phone className="w-5 h-5 text-blue-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">
-                                    Phone
-                                  </p>
-                                  <p className="text-white font-medium">
-                                    {data.phone}
-                                  </p>
+                                  <p className="text-white/60 text-sm mb-1">Phone</p>
+                                  <p className="text-white font-medium">{data.phone}</p>
+                                </div>
+                              </div>
+                            )}
+                            {data.gender && (
+                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                                <UserCircle className="w-5 h-5 text-blue-400 mt-0.5" />
+                                <div>
+                                  <p className="text-white/60 text-sm mb-1">Gender</p>
+                                  <p className="text-white font-medium">{data.gender}</p>
+                                </div>
+                              </div>
+                            )}
+                            {data.date_of_birth && (
+                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                                <Cake className="w-5 h-5 text-blue-400 mt-0.5" />
+                                <div>
+                                  <p className="text-white/60 text-sm mb-1">Date of Birth</p>
+                                  <p className="text-white font-medium">{data.date_of_birth}</p>
+                                </div>
+                              </div>
+                            )}
+                            {data.age && (
+                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                                <Calendar className="w-5 h-5 text-blue-400 mt-0.5" />
+                                <div>
+                                  <p className="text-white/60 text-sm mb-1">Age</p>
+                                  <p className="text-white font-medium">{data.age} years</p>
+                                </div>
+                              </div>
+                            )}
+                            {data.nationality && (
+                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                                <Flag className="w-5 h-5 text-blue-400 mt-0.5" />
+                                <div>
+                                  <p className="text-white/60 text-sm mb-1">Nationality</p>
+                                  <p className="text-white font-medium">{data.nationality}</p>
+                                </div>
+                              </div>
+                            )}
+                            {data.marital_status && (
+                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                                <Heart className="w-5 h-5 text-blue-400 mt-0.5" />
+                                <div>
+                                  <p className="text-white/60 text-sm mb-1">Marital Status</p>
+                                  <p className="text-white font-medium">{data.marital_status}</p>
                                 </div>
                               </div>
                             )}
                           </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Location Information */}
+                    {(data.current_location || data.permanent_address || data.hometown) && (
+                      <Card className="bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border-emerald-500/20">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center text-white text-lg">
+                            <MapPin className="w-5 h-5 text-emerald-400 mr-2" />
+                            Location Information
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {data.current_location && (
+                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                                <MapPin className="w-5 h-5 text-emerald-400 mt-0.5" />
+                                <div>
+                                  <p className="text-white/60 text-sm mb-1">Current Location</p>
+                                  <p className="text-white font-medium">{data.current_location}</p>
+                                </div>
+                              </div>
+                            )}
+                            {data.permanent_address && (
+                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                                <Home className="w-5 h-5 text-emerald-400 mt-0.5" />
+                                <div>
+                                  <p className="text-white/60 text-sm mb-1">Permanent Address</p>
+                                  <p className="text-white font-medium">{data.permanent_address}</p>
+                                </div>
+                              </div>
+                            )}
+                            {data.hometown && (
+                              <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
+                                <Home className="w-5 h-5 text-emerald-400 mt-0.5" />
+                                <div>
+                                  <p className="text-white/60 text-sm mb-1">Hometown</p>
+                                  <p className="text-white font-medium">{data.hometown}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Summary/Objective */}
+                    {(data.summary || data.objective || data.career_objective) && (
+                      <Card className="bg-gradient-to-br from-sky-600/10 to-blue-600/5 border-sky-500/20">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center text-white text-lg">
+                            <Target className="w-5 h-5 text-sky-400 mr-2" />
+                            Professional Summary
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {data.summary && (
+                            <div className="p-4 bg-white/5 rounded-lg">
+                              <h4 className="text-white/80 text-sm font-semibold mb-2">Summary</h4>
+                              <p className="text-white/70 text-sm leading-relaxed">{data.summary}</p>
+                            </div>
+                          )}
+                          {data.objective && (
+                            <div className="p-4 bg-white/5 rounded-lg">
+                              <h4 className="text-white/80 text-sm font-semibold mb-2">Objective</h4>
+                              <p className="text-white/70 text-sm leading-relaxed">{data.objective}</p>
+                            </div>
+                          )}
+                          {data.career_objective && (
+                            <div className="p-4 bg-white/5 rounded-lg">
+                              <h4 className="text-white/80 text-sm font-semibold mb-2">Career Objective</h4>
+                              <p className="text-white/70 text-sm leading-relaxed">{data.career_objective}</p>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     )}
@@ -549,35 +697,26 @@ const RecruiterCandidates = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-4">
-                            {data.education.map((edu, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 bg-gradient-to-br from-indigo-500/5 to-blue-500/5 rounded-lg border border-indigo-500/10"
-                              >
-                                {edu.Degree && (
-                                  <h4 className="text-white font-semibold text-base mb-1">
-                                    {edu.Degree}
-                                  </h4>
-                                )}
-                                {edu.University && (
-                                  <p className="text-white/80 text-sm mb-2">
-                                    {edu.University}
-                                  </p>
-                                )}
-                                <div className="flex flex-wrap gap-4 mt-2">
-                                  {edu.Grade && (
-                                    <span className="text-white/70 text-sm">
-                                      Grade: {edu.Grade}
-                                    </span>
-                                  )}
-                                  {edu.Years && (
-                                    <span className="text-white/70 text-sm">
-                                      Years: {edu.Years}
-                                    </span>
-                                  )}
+                            {data.education.map((edu, idx) => {
+                              const degree = getValue(edu, 'Degree');
+                              const university = getValue(edu, 'University');
+                              const grade = getValue(edu, 'Grade');
+                              const years = getValue(edu, 'Years');
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  className="p-4 bg-gradient-to-br from-indigo-500/5 to-blue-500/5 rounded-lg border border-indigo-500/10"
+                                >
+                                  {degree && <h4 className="text-white font-semibold text-base mb-1">{degree}</h4>}
+                                  {university && <p className="text-white/80 text-sm mb-2">{university}</p>}
+                                  <div className="flex flex-wrap gap-4 mt-2">
+                                    {grade && <span className="text-white/70 text-sm">Grade: {grade}</span>}
+                                    {years && <span className="text-white/70 text-sm">Years: {years}</span>}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -594,46 +733,46 @@ const RecruiterCandidates = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-4">
-                            {data.experience.map((exp, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-lg border border-green-500/10"
-                              >
-                                {exp.Role && (
-                                  <h4 className="text-white font-semibold text-base mb-1">
-                                    {exp.Role}
-                                  </h4>
-                                )}
-                                {exp.Company && (
-                                  <div className="flex items-center gap-2 text-white/80 mb-2">
-                                    <Building2 className="w-4 h-4 text-green-400" />
-                                    <span className="text-sm">
-                                      {exp.Company}
-                                    </span>
-                                  </div>
-                                )}
-                                {exp.Years && (
-                                  <div className="flex items-center gap-2 text-white/60 bg-green-500/10 px-3 py-1 rounded-full w-fit">
-                                    <Calendar className="w-4 h-4 text-green-400" />
-                                    <span className="text-sm">{exp.Years}</span>
-                                  </div>
-                                )}
-                              </div>
-                            ))}
+                            {data.experience.map((exp, idx) => {
+                              const role = getValue(exp, 'Role');
+                              const company = getValue(exp, 'Company');
+                              const description = getValue(exp, 'Description');
+                              const years = getValue(exp, 'Years');
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  className="p-4 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-lg border border-green-500/10"
+                                >
+                                  {role && <h4 className="text-white font-semibold text-base mb-1">{role}</h4>}
+                                  {company && (
+                                    <div className="flex items-center gap-2 text-white/80 mb-2">
+                                      <Building2 className="w-4 h-4 text-green-400" />
+                                      <span className="text-sm">{company}</span>
+                                    </div>
+                                  )}
+                                  {description && <p className="text-white/70 text-sm mt-2 leading-relaxed">{description}</p>}
+                                  {years && (
+                                    <div className="flex items-center gap-2 text-white/60 bg-green-500/10 px-3 py-1 rounded-full w-fit mt-2">
+                                      <Calendar className="w-4 h-4 text-green-400" />
+                                      <span className="text-sm">{years}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
                     )}
 
                     {/* Skills */}
-                    {(hasValidSkills(regularSkills) ||
-                      hasValidSkills(derivedSkills)) && (
+                    {(hasValidSkills(regularSkills) || hasValidSkills(derivedSkills)) && (
                       <Card className="bg-white/10 border-white/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg">
                             <Code className="w-5 h-5 text-orange-400 mr-2" />
-                            Skills & Technologies (
-                            {regularSkills.length + derivedSkills.length})
+                            Skills & Technologies ({regularSkills.length + derivedSkills.length})
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
@@ -662,8 +801,7 @@ const RecruiterCandidates = () => {
                               <div className="flex items-center gap-2 mb-3">
                                 <Sparkles className="w-4 h-4 text-cyan-400" />
                                 <h4 className="text-white/90 text-sm font-semibold">
-                                  Derived from Projects & Experience (
-                                  {derivedSkills.length})
+                                  Derived from Projects & Experience ({derivedSkills.length})
                                 </h4>
                               </div>
                               <div className="flex flex-wrap gap-2">
@@ -682,6 +820,56 @@ const RecruiterCandidates = () => {
                       </Card>
                     )}
 
+                    {/* Projects */}
+                    {hasValidItems(data.projects) && (
+                      <Card className="bg-white/10 border-white/20">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center text-white text-lg">
+                            <Award className="w-5 h-5 text-cyan-400 mr-2" />
+                            Projects ({data.projects.length})
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            {data.projects.map((project, idx) => {
+                              const title = getValue(project, 'Title') || getValue(project, 'Name');
+                              const description = getValue(project, 'Description') || getValue(project, 'Supervisor');
+                              const duration = getValue(project, 'Duration') || getValue(project, 'Date');
+                              const techStack = getValue(project, 'Tech Stack') || getValue(project, 'Technologies');
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  className="p-4 bg-gradient-to-br from-cyan-500/5 to-teal-500/5 rounded-lg border border-cyan-500/10"
+                                >
+                                  {title && <h4 className="text-white font-semibold text-base mb-2">{title}</h4>}
+                                  {description && <p className="text-white/70 text-sm leading-relaxed mb-3">{description}</p>}
+                                  {duration && (
+                                    <div className="flex items-center gap-2 text-cyan-200 bg-cyan-500/10 px-3 py-1 rounded-full w-fit mb-2">
+                                      <Calendar className="w-4 h-4 text-cyan-400" />
+                                      <span className="text-sm">{duration}</span>
+                                    </div>
+                                  )}
+                                  {techStack && (
+                                    <div className="mt-3">
+                                      <h4 className="text-white/80 text-sm font-semibold mb-2">Technologies:</h4>
+                                      <div className="flex flex-wrap gap-2">
+                                        {(typeof techStack === "string" ? techStack.split(",") : [techStack]).map((tech, i) => (
+                                          <span key={i} className="px-3 py-1 bg-cyan-500/20 rounded-full text-cyan-300 text-xs">
+                                            {tech.trim()}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
                     {/* Achievements */}
                     {hasValidItems(data.achievements) && (
                       <Card className="bg-white/10 border-white/20">
@@ -693,28 +881,22 @@ const RecruiterCandidates = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {data.achievements.map((achievement, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 bg-gradient-to-br from-yellow-500/5 to-amber-500/5 rounded-lg border border-yellow-500/10"
-                              >
-                                {achievement.Title && (
-                                  <h4 className="text-white font-semibold text-base mb-1">
-                                    {achievement.Title}
-                                  </h4>
-                                )}
-                                {achievement.Description && (
-                                  <p className="text-white/70 text-sm leading-relaxed">
-                                    {achievement.Description}
-                                  </p>
-                                )}
-                                {achievement.Date && (
-                                  <p className="text-white/50 text-xs mt-2">
-                                    {achievement.Date}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
+                            {data.achievements.map((achievement, idx) => {
+                              const title = getValue(achievement, 'Title') || getValue(achievement, 'title');
+                              const description = getValue(achievement, 'Description') || getValue(achievement, 'description');
+                              const date = getValue(achievement, 'Date') || getValue(achievement, 'year');
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  className="p-4 bg-gradient-to-br from-yellow-500/5 to-amber-500/5 rounded-lg border border-yellow-500/10"
+                                >
+                                  {title && <h4 className="text-white font-semibold text-base mb-1">{title}</h4>}
+                                  {description && <p className="text-white/70 text-sm leading-relaxed">{description}</p>}
+                                  {date && <p className="text-white/50 text-xs mt-2">{date}</p>}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -731,41 +913,37 @@ const RecruiterCandidates = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {data.publications.map((pub, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 rounded-lg border border-blue-500/10"
-                              >
-                                {pub.Title && (
-                                  <h4 className="text-white font-semibold text-base mb-2">
-                                    {pub.Title}
-                                  </h4>
-                                )}
-                                {pub.Authors && (
-                                  <p className="text-white/70 text-sm mb-1">
-                                    Authors: {pub.Authors}
-                                  </p>
-                                )}
-                                {pub["Journal/Conference"] && (
-                                  <p className="text-white/70 text-sm mb-2">
-                                    {pub["Journal/Conference"]}
-                                  </p>
-                                )}
-                                <div className="flex gap-4 text-xs text-white/50">
-                                  {pub.Date && <span>{pub.Date}</span>}
-                                  {pub["DOI/Link"] && (
-                                    <a
-                                      href={pub["DOI/Link"]}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-400 hover:underline flex items-center gap-1"
-                                    >
-                                      View <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  )}
+                            {data.publications.map((pub, idx) => {
+                              const title = getValue(pub, 'Title');
+                              const authors = getValue(pub, 'Authors');
+                              const journal = getValue(pub, 'Journal/Conference');
+                              const date = getValue(pub, 'Date');
+                              const doi = getValue(pub, 'DOI/Link');
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  className="p-4 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 rounded-lg border border-blue-500/10"
+                                >
+                                  {title && <h4 className="text-white font-semibold text-base mb-2">{title}</h4>}
+                                  {authors && <p className="text-white/70 text-sm mb-1">Authors: {authors}</p>}
+                                  {journal && <p className="text-white/70 text-sm mb-2">{journal}</p>}
+                                  <div className="flex gap-4 text-xs text-white/50">
+                                    {date && <span>{date}</span>}
+                                    {doi && (
+                                      <a
+                                        href={doi}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-400 hover:underline flex items-center gap-1"
+                                      >
+                                        View <ExternalLink className="w-3 h-3" />
+                                      </a>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -782,31 +960,26 @@ const RecruiterCandidates = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {data.research.map((research, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 bg-gradient-to-br from-teal-500/5 to-cyan-500/5 rounded-lg border border-teal-500/10"
-                              >
-                                {research.Title && (
-                                  <h4 className="text-white font-semibold text-base mb-2">
-                                    {research.Title}
-                                  </h4>
-                                )}
-                                {research.Description && (
-                                  <p className="text-white/70 text-sm leading-relaxed mb-2">
-                                    {research.Description}
-                                  </p>
-                                )}
-                                <div className="flex gap-4 text-sm text-white/60">
-                                  {research.Institution && (
-                                    <span>{research.Institution}</span>
-                                  )}
-                                  {research.Duration && (
-                                    <span>{research.Duration}</span>
-                                  )}
+                            {data.research.map((research, idx) => {
+                              const title = getValue(research, 'Title');
+                              const description = getValue(research, 'Description');
+                              const institution = getValue(research, 'Institution');
+                              const duration = getValue(research, 'Duration');
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  className="p-4 bg-gradient-to-br from-teal-500/5 to-cyan-500/5 rounded-lg border border-teal-500/10"
+                                >
+                                  {title && <h4 className="text-white font-semibold text-base mb-2">{title}</h4>}
+                                  {description && <p className="text-white/70 text-sm leading-relaxed mb-2">{description}</p>}
+                                  <div className="flex gap-4 text-sm text-white/60">
+                                    {institution && <span>{institution}</span>}
+                                    {duration && <span>{duration}</span>}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -823,31 +996,26 @@ const RecruiterCandidates = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {data.certifications.map((cert, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-lg border border-green-500/10"
-                              >
-                                {cert.Name && (
-                                  <h4 className="text-white font-semibold text-base mb-1">
-                                    {cert.Name}
-                                  </h4>
-                                )}
-                                {cert.Issuer && (
-                                  <p className="text-white/80 text-sm mb-2">
-                                    {cert.Issuer}
-                                  </p>
-                                )}
-                                <div className="flex gap-4 text-xs text-white/50">
-                                  {cert.Date && (
-                                    <span>Issued: {cert.Date}</span>
-                                  )}
-                                  {cert.Validity && (
-                                    <span>Valid until: {cert.Validity}</span>
-                                  )}
+                            {data.certifications.map((cert, idx) => {
+                              const name = getValue(cert, 'Name');
+                              const issuer = getValue(cert, 'Issuer');
+                              const date = getValue(cert, 'Date');
+                              const validity = getValue(cert, 'Validity');
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  className="p-4 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-lg border border-green-500/10"
+                                >
+                                  {name && <h4 className="text-white font-semibold text-base mb-1">{name}</h4>}
+                                  {issuer && <p className="text-white/80 text-sm mb-2">{issuer}</p>}
+                                  <div className="flex gap-4 text-xs text-white/50">
+                                    {date && <span>Issued: {date}</span>}
+                                    {validity && <span>Valid until: {validity}</span>}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -864,33 +1032,24 @@ const RecruiterCandidates = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {data.awards.map((award, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 bg-gradient-to-br from-red-500/5 to-orange-500/5 rounded-lg border border-red-500/10"
-                              >
-                                {award.Title && (
-                                  <h4 className="text-white font-semibold text-base mb-1">
-                                    {award.Title}
-                                  </h4>
-                                )}
-                                {award.Issuer && (
-                                  <p className="text-white/80 text-sm mb-1">
-                                    {award.Issuer}
-                                  </p>
-                                )}
-                                {award.Description && (
-                                  <p className="text-white/70 text-sm leading-relaxed mb-2">
-                                    {award.Description}
-                                  </p>
-                                )}
-                                {award.Date && (
-                                  <p className="text-white/50 text-xs">
-                                    {award.Date}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
+                            {data.awards.map((award, idx) => {
+                              const title = getValue(award, 'Title') || getValue(award, 'name');
+                              const issuer = getValue(award, 'Issuer') || getValue(award, 'issuer');
+                              const description = getValue(award, 'Description') || getValue(award, 'description');
+                              const date = getValue(award, 'Date') || getValue(award, 'year');
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  className="p-4 bg-gradient-to-br from-red-500/5 to-orange-500/5 rounded-lg border border-red-500/10"
+                                >
+                                  {title && <h4 className="text-white font-semibold text-base mb-1">{title}</h4>}
+                                  {issuer && <p className="text-white/80 text-sm mb-1">{issuer}</p>}
+                                  {description && <p className="text-white/70 text-sm leading-relaxed mb-2">{description}</p>}
+                                  {date && <p className="text-white/50 text-xs">{date}</p>}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -907,40 +1066,31 @@ const RecruiterCandidates = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {data.volunteer_work.map((vol, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 bg-gradient-to-br from-pink-500/5 to-rose-500/5 rounded-lg border border-pink-500/10"
-                              >
-                                {vol.Role && (
-                                  <h4 className="text-white font-semibold text-base mb-1">
-                                    {vol.Role}
-                                  </h4>
-                                )}
-                                {vol.Organization && (
-                                  <p className="text-white/80 text-sm mb-1">
-                                    {vol.Organization}
-                                  </p>
-                                )}
-                                {vol.Duration && (
-                                  <p className="text-white/60 text-sm mb-2">
-                                    {vol.Duration}
-                                  </p>
-                                )}
-                                {vol.Description && (
-                                  <p className="text-white/70 text-sm leading-relaxed">
-                                    {vol.Description}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
+                            {data.volunteer_work.map((vol, idx) => {
+                              const role = getValue(vol, 'Role') || getValue(vol, 'role');
+                              const organization = getValue(vol, 'Organization') || getValue(vol, 'organization');
+                              const duration = getValue(vol, 'Duration') || getValue(vol, 'duration');
+                              const description = getValue(vol, 'Description') || getValue(vol, 'description');
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  className="p-4 bg-gradient-to-br from-pink-500/5 to-rose-500/5 rounded-lg border border-pink-500/10"
+                                >
+                                  {role && <h4 className="text-white font-semibold text-base mb-1">{role}</h4>}
+                                  {organization && <p className="text-white/80 text-sm mb-1">{organization}</p>}
+                                  {duration && <p className="text-white/60 text-sm mb-2">{duration}</p>}
+                                  {description && <p className="text-white/70 text-sm leading-relaxed">{description}</p>}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
                     )}
 
                     {/* Languages */}
-                    {hasValidItems(data.languages) && (
+                    {hasValidLanguages(data.languages) && (
                       <Card className="bg-white/10 border-white/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg">
@@ -950,19 +1100,24 @@ const RecruiterCandidates = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-2 gap-3">
-                            {data.languages.map((lang, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-center justify-between p-3 bg-gradient-to-r from-violet-500/5 to-purple-500/5 rounded-lg border border-violet-500/10"
-                              >
-                                <span className="text-white font-medium text-sm">
-                                  {lang.Language}
-                                </span>
-                                <span className="px-3 py-1 bg-violet-500/20 rounded-full text-violet-300 text-xs">
-                                  {lang.Proficiency}
-                                </span>
-                              </div>
-                            ))}
+                            {data.languages.map((lang, idx) => {
+                              const language = getValue(lang, 'Language');
+                              const proficiency = getValue(lang, 'Proficiency');
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  className="flex items-center justify-between p-3 bg-gradient-to-r from-violet-500/5 to-purple-500/5 rounded-lg border border-violet-500/10"
+                                >
+                                  <span className="text-white font-medium text-sm">{language}</span>
+                                  {proficiency && (
+                                    <span className="px-3 py-1 bg-violet-500/20 rounded-full text-violet-300 text-xs">
+                                      {proficiency}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
@@ -992,6 +1147,88 @@ const RecruiterCandidates = () => {
                       </Card>
                     )}
 
+                    {/* Social & Professional Links */}
+                    {(data.linkedin_url || data.github_url || data.portfolio_url || data.personal_website) && (
+                      <Card className="bg-white/10 border-white/20">
+                        <CardHeader className="pb-4">
+                          <CardTitle className="flex items-center text-white text-lg">
+                            <LinkIcon className="w-5 h-5 text-sky-400 mr-2" />
+                            Professional & Social Links
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {data.linkedin_url && (
+                              <a 
+                                href={data.linkedin_url.startsWith('http') ? data.linkedin_url : `https://${data.linkedin_url}`}
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all"
+                              >
+                                {data.linkedin_url.includes('researchgate') ? (
+                                  <BookOpen className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                                ) : (
+                                  <Linkedin className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-white/50 text-xs mb-1">
+                                    {data.linkedin_url.includes('researchgate') ? 'ResearchGate' : 'LinkedIn'}
+                                  </p>
+                                  <p className="text-white text-sm truncate">{data.linkedin_url}</p>
+                                </div>
+                                <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                              </a>
+                            )}
+                            {data.github_url && (
+                              <a 
+                                href={data.github_url.startsWith('http') ? data.github_url : `https://${data.github_url}`}
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all"
+                              >
+                                <Github className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-white/50 text-xs mb-1">GitHub</p>
+                                  <p className="text-white text-sm truncate">{data.github_url}</p>
+                                </div>
+                                <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                              </a>
+                            )}
+                            {data.portfolio_url && (
+                              <a 
+                                href={data.portfolio_url.startsWith('http') ? data.portfolio_url : `https://${data.portfolio_url}`}
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all"
+                              >
+                                <Briefcase className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-white/50 text-xs mb-1">Portfolio</p>
+                                  <p className="text-white text-sm truncate">{data.portfolio_url}</p>
+                                </div>
+                                <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                              </a>
+                            )}
+                            {data.personal_website && (
+                              <a 
+                                href={data.personal_website.startsWith('http') ? data.personal_website : `https://${data.personal_website}`}
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all"
+                              >
+                                <Globe className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-white/50 text-xs mb-1">Personal Website</p>
+                                  <p className="text-white text-sm truncate">{data.personal_website}</p>
+                                </div>
+                                <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
+                              </a>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
                     {/* References */}
                     {hasValidItems(data.references) && (
                       <Card className="bg-white/10 border-white/20">
@@ -1003,147 +1240,68 @@ const RecruiterCandidates = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="space-y-3">
-                            {data.references.map((ref, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 bg-gradient-to-br from-slate-500/5 to-gray-500/5 rounded-lg border border-slate-500/10"
-                              >
-                                {ref.Name && (
-                                  <h4 className="text-white font-semibold text-base mb-1">
-                                    {ref.Name}
-                                  </h4>
-                                )}
-                                {ref.Title && (
-                                  <p className="text-white/70 text-sm mb-1">
-                                    {ref.Title}
-                                  </p>
-                                )}
-                                {ref.Relationship && (
-                                  <p className="text-white/60 text-sm mb-1">
-                                    {ref.Relationship}
-                                  </p>
-                                )}
-                                {ref.Contact && (
-                                  <p className="text-white/70 text-sm">
-                                    {ref.Contact}
-                                  </p>
-                                )}
-                              </div>
-                            ))}
+                            {data.references.map((ref, idx) => {
+                              const name = getValue(ref, 'Name');
+                              const title = getValue(ref, 'Title');
+                              const relationship = getValue(ref, 'Relationship');
+                              const contact = getValue(ref, 'Contact');
+                              
+                              return (
+                                <div
+                                  key={idx}
+                                  className="p-4 bg-gradient-to-br from-slate-500/5 to-gray-500/5 rounded-lg border border-slate-500/10"
+                                >
+                                  {name && <h4 className="text-white font-semibold text-base mb-1">{name}</h4>}
+                                  {title && <p className="text-white/70 text-sm mb-1">{title}</p>}
+                                  {relationship && <p className="text-white/60 text-sm mb-1">{relationship}</p>}
+                                  {contact && <p className="text-white/70 text-sm">{contact}</p>}
+                                </div>
+                              );
+                            })}
                           </div>
                         </CardContent>
                       </Card>
                     )}
 
                     {/* Extra Sections */}
-                    {data.extra_sections &&
-                      Object.keys(data.extra_sections).length > 0 && (
-                        <Card className="bg-white/10 border-white/20">
-                          <CardHeader className="pb-4">
-                            <CardTitle className="flex items-center text-white text-lg">
-                              <Plus className="w-5 h-5 text-amber-400 mr-2" />
-                              Additional Information (
-                              {Object.keys(data.extra_sections).length})
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            {Object.entries(data.extra_sections).map(
-                              ([sectionName, sectionData], idx) => (
-                                <div
-                                  key={idx}
-                                  className="p-4 bg-gradient-to-br from-amber-500/5 to-yellow-500/5 rounded-lg border border-amber-500/10"
-                                >
-                                  <h4 className="text-white font-semibold text-base mb-3">
-                                    {sectionName}
-                                  </h4>
-                                  <div className="space-y-2 pl-3 border-l-2 border-amber-500/20">
-                                    {Array.isArray(sectionData) ? (
-                                      sectionData.map((item, itemIdx) => (
-                                        <div
-                                          key={itemIdx}
-                                          className="text-sm text-white/70"
-                                        >
-                                          {typeof item === "object" ? (
-                                            <div className="space-y-1">
-                                              {Object.entries(item).map(
-                                                ([key, value]) => (
-                                                  <div key={key}>
-                                                    <span className="font-medium text-white/80">
-                                                      {key}:
-                                                    </span>{" "}
-                                                    {value}
-                                                  </div>
-                                                )
-                                              )}
-                                            </div>
-                                          ) : (
-                                            <span>{item}</span>
-                                          )}
-                                        </div>
-                                      ))
-                                    ) : (
-                                      <p className="text-sm text-white/70">
-                                        {JSON.stringify(sectionData)}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              )
-                            )}
-                          </CardContent>
-                        </Card>
-                      )}
-
-                    {/* Projects */}
-                    {hasValidItems(data.projects) && (
+                    {data.extra_sections && Object.keys(data.extra_sections).length > 0 && (
                       <Card className="bg-white/10 border-white/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg">
-                            <Award className="w-5 h-5 text-cyan-400 mr-2" />
-                            Projects ({data.projects.length})
+                            <Plus className="w-5 h-5 text-amber-400 mr-2" />
+                            Additional Information ({Object.keys(data.extra_sections).length})
                           </CardTitle>
                         </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            {data.projects.map((project, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 bg-gradient-to-br from-cyan-500/5 to-teal-500/5 rounded-lg border border-cyan-500/10"
-                              >
-                                {project.Name && (
-                                  <h4 className="text-white font-semibold text-base mb-2">
-                                    {project.Name}
-                                  </h4>
-                                )}
-                                {project.Description && (
-                                  <p className="text-white/70 text-sm leading-relaxed mb-3">
-                                    {project.Description}
-                                  </p>
-                                )}
-                                {project["Tech Stack"] && (
-                                  <div className="mt-3">
-                                    <h4 className="text-white/80 text-sm font-semibold mb-2">
-                                      Technologies:
-                                    </h4>
-                                    <div className="flex flex-wrap gap-2">
-                                      {(typeof project["Tech Stack"] ===
-                                      "string"
-                                        ? project["Tech Stack"].split(",")
-                                        : [project["Tech Stack"]]
-                                      ).map((tech, i) => (
-                                        <span
-                                          key={i}
-                                          className="px-3 py-1 bg-cyan-500/20 rounded-full text-cyan-300 text-xs"
-                                        >
-                                          {tech.trim()}
-                                        </span>
-                                      ))}
+                        <CardContent className="space-y-4">
+                          {Object.entries(data.extra_sections).map(([sectionName, sectionData], idx) => (
+                            <div
+                              key={idx}
+                              className="p-4 bg-gradient-to-br from-amber-500/5 to-yellow-500/5 rounded-lg border border-amber-500/10"
+                            >
+                              <h4 className="text-white font-semibold text-base mb-3">{sectionName}</h4>
+                              <div className="space-y-2 pl-3 border-l-2 border-amber-500/20">
+                                {Array.isArray(sectionData) ? (
+                                  sectionData.map((item, itemIdx) => (
+                                    <div key={itemIdx} className="text-sm text-white/70">
+                                      {typeof item === "object" ? (
+                                        <div className="space-y-1">
+                                          {Object.entries(item).map(([key, value]) => (
+                                            <div key={key}>
+                                              <span className="font-medium text-white/80">{key}:</span> {value}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <span>{item}</span>
+                                      )}
                                     </div>
-                                  </div>
+                                  ))
+                                ) : (
+                                  <p className="text-sm text-white/70">{JSON.stringify(sectionData)}</p>
                                 )}
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          ))}
                         </CardContent>
                       </Card>
                     )}
