@@ -725,14 +725,16 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
         # Flag to track if candidate passes all filters
         passes_filters = True
         
+        # Helper function to safely get string values
+        def get_safe_string(value: Any) -> str:
+            """Safely convert any value to lowercase string"""
+            if value is None:
+                return ''
+            return str(value).lower().strip()
+        
         # ==================== GENDER FILTER ====================
         if intent.get('gender'):
-            # FIX: Safely get gender value
-            gender_value = parsed.get('gender')
-            if gender_value is None:
-                candidate_gender = ''
-            else:
-                candidate_gender = str(gender_value).lower().strip()
+            candidate_gender = get_safe_string(parsed.get('gender'))
             
             if not candidate_gender:
                 # If gender not specified in resume, exclude from gender-specific queries
@@ -787,8 +789,8 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
         
         # ==================== LOCATION FILTER (ENHANCED WITH location_utils) ====================
         if intent.get('location') or intent.get('locations'):
-            candidate_location = parsed.get('current_location', '')
-            hometown = parsed.get('hometown', '')
+            candidate_location = get_safe_string(parsed.get('current_location'))
+            hometown = get_safe_string(parsed.get('hometown'))
             pref_locations = parsed.get('preferred_locations', [])
             
             # Get search locations from intent
@@ -815,7 +817,7 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
                 
                 # Check preferred locations
                 for pref_loc in pref_locations:
-                    if location_matches(pref_loc, search_loc):
+                    if location_matches(str(pref_loc).lower() if pref_loc else '', search_loc):
                         location_match = True
                         print(f"✓ Preferred location match: {pref_loc} matches {search_loc}")
                         break
@@ -828,19 +830,19 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
         
         # ==================== NATIONALITY FILTER ====================
         if intent.get('nationality'):
-            candidate_nationality = parsed.get('nationality', '').lower()
+            candidate_nationality = get_safe_string(parsed.get('nationality'))
             if intent['nationality'].lower() not in candidate_nationality:
                 passes_filters = False
         
         # ==================== MARITAL STATUS FILTER ====================
         if intent.get('marital_status'):
-            candidate_status = parsed.get('marital_status', '').lower()
+            candidate_status = get_safe_string(parsed.get('marital_status'))
             if intent['marital_status'].lower() not in candidate_status:
                 passes_filters = False
         
         # ==================== NOTICE PERIOD FILTER ====================
         if intent.get('notice_period'):
-            candidate_notice = parsed.get('notice_period', '').lower()
+            candidate_notice = get_safe_string(parsed.get('notice_period'))
             
             if intent['notice_period'] == 'immediate':
                 if not any(word in candidate_notice for word in ['immediate', 'immediately', '0 day']):
@@ -864,8 +866,8 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
             
             # Check if mentioned in text fields
             if candidate_relocate is None:
-                summary = parsed.get('summary', '').lower()
-                objective = parsed.get('objective', '').lower()
+                summary = get_safe_string(parsed.get('summary'))
+                objective = get_safe_string(parsed.get('objective'))
                 
                 if any(phrase in summary + objective for phrase in ['willing to relocate', 'open to relocation']):
                     candidate_relocate = True
@@ -877,8 +879,8 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
         
         # ==================== WORK AUTHORIZATION FILTER ====================
         if intent.get('work_authorization'):
-            candidate_auth = parsed.get('work_authorization', '').lower()
-            visa_status = parsed.get('visa_status', '').lower()
+            candidate_auth = get_safe_string(parsed.get('work_authorization'))
+            visa_status = get_safe_string(parsed.get('visa_status'))
             
             search_auth = intent['work_authorization'].lower()
             if not (search_auth in candidate_auth or search_auth in visa_status):
@@ -946,7 +948,7 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
         
         # ==================== PLACEMENT PREFERENCE FILTER ====================
         if intent.get('placement_preference'):
-            pref = parsed.get('placement_preferences', '').lower()
+            pref = get_safe_string(parsed.get('placement_preferences'))
             
             if intent['placement_preference'] == 'internship' and 'internship' not in pref:
                 passes_filters = False
@@ -960,7 +962,7 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
             # Also check experience for internship roles
             if not internships:
                 for exp in parsed.get('experience', []):
-                    role = exp.get('Role', '').lower()
+                    role = get_safe_string(exp.get('Role'))
                     if 'intern' in role:
                         internships.append(exp)
                         break
@@ -985,7 +987,6 @@ def filter_candidates_by_personal_info(candidates: List[Dict], intent: Dict[str,
         print(f"   - Age filter: {intent.get('age_min', 'any')} - {intent.get('age_max', 'any')}")
     
     return filtered
-
 
 def rank_candidates_with_personal_info(candidates: List[Dict], intent: Dict[str, Any]) -> List[CandidateScore]:
     """
