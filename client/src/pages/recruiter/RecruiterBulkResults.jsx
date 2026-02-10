@@ -43,6 +43,11 @@ import {
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
+// Helper function to check if value is null or "null" string
+const isNullValue = (value) => {
+  return value === null || value === undefined || value === "" || value === "null";
+};
+
 // Helper function to get value regardless of case
 const getValue = (obj, key) => {
   if (!obj) return null;
@@ -61,12 +66,13 @@ const hasValidItems = (array) => {
   if (!array || !Array.isArray(array) || array.length === 0) return false;
   return array.some((item) => {
     if (!item || typeof item !== "object") return false;
-    // Check if at least one value in the object is not null/undefined/empty
+    // Check if at least one value in the object is not null/undefined/empty/"null"
     return Object.values(item).some(
       (value) =>
         value !== null &&
         value !== undefined &&
         value !== "" &&
+        value !== "null" &&
         !(Array.isArray(value) && value.length === 0)
     );
   });
@@ -77,7 +83,7 @@ const hasValidSkills = (skills) => {
     skills &&
     Array.isArray(skills) &&
     skills.length > 0 &&
-    skills.some((skill) => skill && typeof skill === 'string' && skill.trim() !== "")
+    skills.some((skill) => skill && typeof skill === 'string' && skill.trim() !== "" && skill.trim() !== "null")
   );
 };
 
@@ -85,7 +91,7 @@ const hasValidLanguages = (languages) => {
   if (!languages || !Array.isArray(languages) || languages.length === 0) return false;
   return languages.some((lang) => {
     const language = getValue(lang, 'Language');
-    return language && language.trim() !== "";
+    return language && language.trim() !== "" && language.trim() !== "null";
   });
 };
 
@@ -205,8 +211,8 @@ const RecruiterBulkResults = () => {
                 {expandedIdx === idx && (
                   <CardContent className="space-y-6">
                     {/* Personal Information */}
-                    {(parsedData.name || parsedData.email || parsedData.phone || parsedData.gender || 
-                      parsedData.date_of_birth || parsedData.age || parsedData.nationality || parsedData.marital_status) && (
+                    {(parsedData.name && !isNullValue(parsedData.name) || parsedData.email && !isNullValue(parsedData.email) || parsedData.phone && !isNullValue(parsedData.phone) || parsedData.gender && !isNullValue(parsedData.gender) || 
+                      parsedData.date_of_birth && !isNullValue(parsedData.date_of_birth) || parsedData.age && !isNullValue(parsedData.age) || parsedData.nationality && !isNullValue(parsedData.nationality) || parsedData.marital_status && !isNullValue(parsedData.marital_status)) && (
                       <Card className="bg-black/20 backdrop-blur-sm border-blue-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
@@ -218,7 +224,7 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {parsedData.name && (
+                            {parsedData.name && !isNullValue(parsedData.name) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <User className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -227,7 +233,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.email && (
+                            {parsedData.email && !isNullValue(parsedData.email) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Mail className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -236,7 +242,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.phone && (
+                            {parsedData.phone && !isNullValue(parsedData.phone) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Phone className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -245,7 +251,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.gender && (
+                            {parsedData.gender && !isNullValue(parsedData.gender) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <UserCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -254,7 +260,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.date_of_birth && (
+                            {parsedData.date_of_birth && !isNullValue(parsedData.date_of_birth) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Cake className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -263,7 +269,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.age && (
+                            {parsedData.age && !isNullValue(parsedData.age) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Calendar className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -272,7 +278,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.nationality && (
+                            {parsedData.nationality && !isNullValue(parsedData.nationality) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Flag className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -281,7 +287,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.marital_status && (
+                            {parsedData.marital_status && !isNullValue(parsedData.marital_status) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Heart className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -296,8 +302,8 @@ const RecruiterBulkResults = () => {
                     )}
 
                     {/* Location Information */}
-                    {(parsedData.current_location || parsedData.permanent_address || parsedData.hometown || 
-                      hasValidSkills(parsedData.preferred_locations) || parsedData.willing_to_relocate !== null) && (
+                    {(parsedData.current_location && !isNullValue(parsedData.current_location) || parsedData.permanent_address && !isNullValue(parsedData.permanent_address) || parsedData.hometown && !isNullValue(parsedData.hometown) || 
+                      hasValidSkills(parsedData.preferred_locations) || parsedData.willing_to_relocate !== null && parsedData.willing_to_relocate !== "null") && (
                       <Card className="bg-black/20 backdrop-blur-sm border-emerald-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
@@ -309,7 +315,7 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {parsedData.current_location && (
+                            {parsedData.current_location && !isNullValue(parsedData.current_location) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <MapPin className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -318,7 +324,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.permanent_address && (
+                            {parsedData.permanent_address && !isNullValue(parsedData.permanent_address) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Home className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -327,7 +333,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.hometown && (
+                            {parsedData.hometown && !isNullValue(parsedData.hometown) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Home className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -336,7 +342,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.willing_to_relocate !== null && (
+                            {parsedData.willing_to_relocate !== null && parsedData.willing_to_relocate !== "null" && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Plane className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -352,7 +358,7 @@ const RecruiterBulkResults = () => {
                             <div className="mt-4">
                               <p className="text-white/50 text-xs sm:text-sm mb-2">Preferred Locations</p>
                               <div className="flex flex-wrap gap-2">
-                                {parsedData.preferred_locations.map((loc, index) => (
+                                {parsedData.preferred_locations.filter(loc => !isNullValue(loc)).map((loc, index) => (
                                   <span key={index} className="px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 rounded-full text-white text-xs sm:text-sm">
                                     {loc}
                                   </span>
@@ -365,7 +371,7 @@ const RecruiterBulkResults = () => {
                     )}
 
                     {/* Work Authorization & Availability */}
-                    {(parsedData.work_authorization || parsedData.visa_status || parsedData.notice_period || parsedData.availability_date) && (
+                    {(parsedData.work_authorization && !isNullValue(parsedData.work_authorization) || parsedData.visa_status && !isNullValue(parsedData.visa_status) || parsedData.notice_period && !isNullValue(parsedData.notice_period) || parsedData.availability_date && !isNullValue(parsedData.availability_date)) && (
                       <Card className="bg-black/20 backdrop-blur-sm border-purple-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
@@ -377,7 +383,7 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {parsedData.work_authorization && (
+                            {parsedData.work_authorization && !isNullValue(parsedData.work_authorization) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Shield className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -386,7 +392,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.visa_status && (
+                            {parsedData.visa_status && !isNullValue(parsedData.visa_status) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Globe className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -395,7 +401,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.notice_period && (
+                            {parsedData.notice_period && !isNullValue(parsedData.notice_period) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Clock className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -404,7 +410,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.availability_date && (
+                            {parsedData.availability_date && !isNullValue(parsedData.availability_date) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Calendar className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -419,7 +425,7 @@ const RecruiterBulkResults = () => {
                     )}
 
                     {/* Compensation */}
-                    {(parsedData.current_ctc || parsedData.expected_ctc || parsedData.current_salary || parsedData.expected_salary) && (
+                    {(parsedData.current_ctc && !isNullValue(parsedData.current_ctc) || parsedData.expected_ctc && !isNullValue(parsedData.expected_ctc) || parsedData.current_salary && !isNullValue(parsedData.current_salary) || parsedData.expected_salary && !isNullValue(parsedData.expected_salary)) && (
                       <Card className="bg-black/20 backdrop-blur-sm border-amber-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
@@ -431,7 +437,7 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {parsedData.current_ctc && (
+                            {parsedData.current_ctc && !isNullValue(parsedData.current_ctc) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <DollarSign className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -440,7 +446,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.expected_ctc && (
+                            {parsedData.expected_ctc && !isNullValue(parsedData.expected_ctc) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <DollarSign className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -449,7 +455,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.current_salary && (
+                            {parsedData.current_salary && !isNullValue(parsedData.current_salary) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <DollarSign className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -458,7 +464,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.expected_salary && (
+                            {parsedData.expected_salary && !isNullValue(parsedData.expected_salary) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <DollarSign className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -473,9 +479,9 @@ const RecruiterBulkResults = () => {
                     )}
 
                     {/* Summary/Objective */}
-                    {(parsedData.summary && parsedData.summary.trim() !== "" || 
-                      parsedData.objective && parsedData.objective.trim() !== "" || 
-                      parsedData.career_objective && parsedData.career_objective.trim() !== "") && (
+                    {(parsedData.summary && !isNullValue(parsedData.summary) && parsedData.summary.trim() !== "" || 
+                      parsedData.objective && !isNullValue(parsedData.objective) && parsedData.objective.trim() !== "" || 
+                      parsedData.career_objective && !isNullValue(parsedData.career_objective) && parsedData.career_objective.trim() !== "") && (
                       <Card className="bg-black/20 backdrop-blur-sm border-sky-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
@@ -486,19 +492,19 @@ const RecruiterBulkResults = () => {
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                          {parsedData.summary && parsedData.summary.trim() !== "" && (
+                          {parsedData.summary && !isNullValue(parsedData.summary) && parsedData.summary.trim() !== "" && (
                             <div className="p-4 bg-gray-900/50 border border-white/5 rounded-lg">
                               <h4 className="text-white/80 text-sm font-semibold mb-2">Summary</h4>
                               <p className="text-white/70 text-sm leading-relaxed">{parsedData.summary}</p>
                             </div>
                           )}
-                          {parsedData.objective && parsedData.objective.trim() !== "" && (
+                          {parsedData.objective && !isNullValue(parsedData.objective) && parsedData.objective.trim() !== "" && (
                             <div className="p-4 bg-gray-900/50 border border-white/5 rounded-lg">
                               <h4 className="text-white/80 text-sm font-semibold mb-2">Objective</h4>
                               <p className="text-white/70 text-sm leading-relaxed">{parsedData.objective}</p>
                             </div>
                           )}
-                          {parsedData.career_objective && parsedData.career_objective.trim() !== "" && (
+                          {parsedData.career_objective && !isNullValue(parsedData.career_objective) && parsedData.career_objective.trim() !== "" && (
                             <div className="p-4 bg-gray-900/50 border border-white/5 rounded-lg">
                               <h4 className="text-white/80 text-sm font-semibold mb-2">Career Objective</h4>
                               <p className="text-white/70 text-sm leading-relaxed">{parsedData.career_objective}</p>
@@ -535,12 +541,12 @@ const RecruiterBulkResults = () => {
                                   key={index}
                                   className="p-4 sm:p-5 bg-gray-900/50 rounded-lg border border-indigo-500/10 hover:border-indigo-500/30 transition-all"
                                 >
-                                  {degree && <h4 className="text-white font-semibold text-base sm:text-lg mb-1">{degree}</h4>}
-                                  {university && <p className="text-gray-300 text-sm sm:text-base mb-2">{university}</p>}
-                                  {(grade || years) && (
+                                  {degree && !isNullValue(degree) && <h4 className="text-white font-semibold text-base sm:text-lg mb-1">{degree}</h4>}
+                                  {university && !isNullValue(university) && <p className="text-gray-300 text-sm sm:text-base mb-2">{university}</p>}
+                                  {(grade && !isNullValue(grade) || years && !isNullValue(years)) && (
                                     <div className="flex flex-wrap gap-4 mt-2">
-                                      {grade && <span className="text-white/60 text-sm">Grade: {grade}</span>}
-                                      {years && <span className="text-white/60 text-sm">Years: {years}</span>}
+                                      {grade && !isNullValue(grade) && <span className="text-white/60 text-sm">Grade: {grade}</span>}
+                                      {years && !isNullValue(years) && <span className="text-white/60 text-sm">Years: {years}</span>}
                                     </div>
                                   )}
                                 </div>
@@ -552,8 +558,8 @@ const RecruiterBulkResults = () => {
                     )}
 
                     {/* Academic Marks */}
-                    {(parsedData.tenth_marks || parsedData.twelfth_marks || parsedData.graduation_year || 
-                      parsedData.current_year_of_study || parsedData.university_roll_number || parsedData.student_id) && (
+                    {(parsedData.tenth_marks && !isNullValue(parsedData.tenth_marks) || parsedData.twelfth_marks && !isNullValue(parsedData.twelfth_marks) || parsedData.graduation_year && !isNullValue(parsedData.graduation_year) || 
+                      parsedData.current_year_of_study && !isNullValue(parsedData.current_year_of_study) || parsedData.university_roll_number && !isNullValue(parsedData.university_roll_number) || parsedData.student_id && !isNullValue(parsedData.student_id)) && (
                       <Card className="bg-black/20 backdrop-blur-sm border-rose-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
@@ -565,7 +571,7 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {parsedData.tenth_marks && (
+                            {parsedData.tenth_marks && !isNullValue(parsedData.tenth_marks) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Award className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -574,7 +580,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.twelfth_marks && (
+                            {parsedData.twelfth_marks && !isNullValue(parsedData.twelfth_marks) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Award className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -583,7 +589,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.graduation_year && (
+                            {parsedData.graduation_year && !isNullValue(parsedData.graduation_year) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Calendar className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -592,7 +598,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.current_year_of_study && (
+                            {parsedData.current_year_of_study && !isNullValue(parsedData.current_year_of_study) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Calendar className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -601,7 +607,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.university_roll_number && (
+                            {parsedData.university_roll_number && !isNullValue(parsedData.university_roll_number) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <FileText className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -610,7 +616,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.student_id && (
+                            {parsedData.student_id && !isNullValue(parsedData.student_id) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <FileText className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -653,16 +659,16 @@ const RecruiterBulkResults = () => {
                                 >
                                   <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
                                     <div className="flex-1">
-                                      {role && <h4 className="text-white font-semibold text-base sm:text-lg mb-1">{role}</h4>}
-                                      {company && (
+                                      {role && !isNullValue(role) && <h4 className="text-white font-semibold text-base sm:text-lg mb-1">{role}</h4>}
+                                      {company && !isNullValue(company) && (
                                         <div className="flex items-center gap-2 text-gray-300 mb-2">
                                           <Building2 className="w-4 h-4 text-green-400 flex-shrink-0" />
                                           <span className="text-sm sm:text-base">{company}</span>
                                         </div>
                                       )}
-                                      {description && <p className="text-white/70 text-sm mt-2 leading-relaxed">{description}</p>}
+                                      {description && !isNullValue(description) && <p className="text-white/70 text-sm mt-2 leading-relaxed">{description}</p>}
                                     </div>
-                                    {years && (
+                                    {years && !isNullValue(years) && (
                                       <div className="flex items-center gap-2 text-white/70 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20">
                                         <Calendar className="w-4 h-4 text-green-400 flex-shrink-0" />
                                         <span className="text-xs sm:text-sm whitespace-nowrap">{years}</span>
@@ -700,16 +706,16 @@ const RecruiterBulkResults = () => {
                                 <div key={idx} className="p-4 bg-gray-900/50 rounded-lg border border-teal-500/10">
                                   <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
                                     <div className="flex-1">
-                                      {role && <h4 className="text-white font-semibold text-base mb-1">{role}</h4>}
-                                      {company && (
+                                      {role && !isNullValue(role) && <h4 className="text-white font-semibold text-base mb-1">{role}</h4>}
+                                      {company && !isNullValue(company) && (
                                         <div className="flex items-center gap-2 text-gray-300 mb-2">
                                           <Building2 className="w-4 h-4 text-teal-400 flex-shrink-0" />
                                           <span className="text-sm">{company}</span>
                                         </div>
                                       )}
-                                      {description && <p className="text-white/70 text-sm mt-2">{description}</p>}
+                                      {description && !isNullValue(description) && <p className="text-white/70 text-sm mt-2">{description}</p>}
                                     </div>
-                                    {duration && (
+                                    {duration && !isNullValue(duration) && (
                                       <div className="flex items-center gap-2 text-teal-200 bg-teal-500/10 px-3 py-1 rounded-full border border-teal-500/20">
                                         <Calendar className="w-4 h-4 text-teal-400 flex-shrink-0" />
                                         <span className="text-xs">{duration}</span>
@@ -734,7 +740,7 @@ const RecruiterBulkResults = () => {
                             </div>
                             Skills
                             <span className="ml-2 text-white/50 text-sm font-normal">
-                              ({parsedData.skills.length})
+                              ({parsedData.skills.filter(skill => !isNullValue(skill)).length})
                             </span>
                           </CardTitle>
                         </CardHeader>
@@ -742,7 +748,7 @@ const RecruiterBulkResults = () => {
                           <div className="flex flex-wrap gap-2">
                             {parsedData.skills.map((skill, index) => {
                               const skillText = typeof skill === "string" ? skill : skill.name || JSON.stringify(skill);
-                              return skillText && skillText.trim() !== "" ? (
+                              return skillText && !isNullValue(skillText) && skillText.trim() !== "" ? (
                                 <span
                                   key={index}
                                   className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-800 border border-orange-500/30 rounded-full text-white text-xs sm:text-sm font-medium hover:bg-gray-700 transition-all"
@@ -764,12 +770,12 @@ const RecruiterBulkResults = () => {
                             <div className="p-2 bg-red-500/20 rounded-lg mr-3">
                               <Brain className="w-5 h-5 text-red-400" />
                             </div>
-                            Derived Skills ({parsedData.derived_skills.length})
+                            Derived Skills ({parsedData.derived_skills.filter(skill => !isNullValue(skill)).length})
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
                           <div className="flex flex-wrap gap-2">
-                            {parsedData.derived_skills.map((skill, idx) => (
+                            {parsedData.derived_skills.filter(skill => !isNullValue(skill)).map((skill, idx) => (
                               <span
                                 key={idx}
                                 className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-800 border border-cyan-500/30 rounded-full text-cyan-200 text-xs sm:text-sm font-medium hover:bg-gray-700 transition-all"
@@ -812,31 +818,31 @@ const RecruiterBulkResults = () => {
                                 >
                                   <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
                                     <div className="flex-1">
-                                      {title && (
+                                      {title && !isNullValue(title) && (
                                         <h4 className="text-white font-semibold text-base sm:text-lg mb-2">
                                           {title}
                                         </h4>
                                       )}
                                     </div>
-                                    {duration && (
+                                    {duration && !isNullValue(duration) && (
                                       <div className="flex items-center gap-2 text-cyan-200 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
                                         <Calendar className="w-4 h-4 text-cyan-400 flex-shrink-0" />
                                         <span className="text-xs sm:text-sm">{duration}</span>
                                       </div>
                                     )}
                                   </div>
-                                  {description && (
+                                  {description && !isNullValue(description) && (
                                     <p className="text-gray-300 text-sm sm:text-base leading-relaxed mb-3">
                                       {description}
                                     </p>
                                   )}
-                                  {supervisor && description && supervisor !== description && (
+                                  {supervisor && !isNullValue(supervisor) && description && supervisor !== description && (
                                     <div className="mt-2">
                                       <h4 className="text-white/80 text-sm font-semibold mb-1">Supervisor:</h4>
                                       <p className="text-gray-300 text-sm">{supervisor}</p>
                                     </div>
                                   )}
-                                  {techStack && (
+                                  {techStack && !isNullValue(techStack) && (
                                     <div className="mt-3">
                                       <h4 className="text-white/80 text-sm font-semibold mb-2">Technologies Used:</h4>
                                       <div className="flex flex-wrap gap-2">
@@ -876,17 +882,17 @@ const RecruiterBulkResults = () => {
                               
                               return (
                                 <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-yellow-500/10">
-                                  {title && (
+                                  {title && !isNullValue(title) && (
                                     <h4 className="text-white font-semibold text-sm mb-1">
                                       {title}
                                     </h4>
                                   )}
-                                  {description && (
+                                  {description && !isNullValue(description) && (
                                     <p className="text-gray-300 text-sm">
                                       {description}
                                     </p>
                                   )}
-                                  {date && (
+                                  {date && !isNullValue(date) && (
                                     <p className="text-white/50 text-xs mt-1">
                                       {date}
                                     </p>
@@ -921,12 +927,12 @@ const RecruiterBulkResults = () => {
                               
                               return (
                                 <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-blue-500/10">
-                                  {title && <h4 className="text-white font-semibold text-sm mb-1">{title}</h4>}
-                                  {authors && <p className="text-gray-300 text-sm">Authors: {authors}</p>}
-                                  {journal && <p className="text-gray-300 text-sm">{journal}</p>}
+                                  {title && !isNullValue(title) && <h4 className="text-white font-semibold text-sm mb-1">{title}</h4>}
+                                  {authors && !isNullValue(authors) && <p className="text-gray-300 text-sm">Authors: {authors}</p>}
+                                  {journal && !isNullValue(journal) && <p className="text-gray-300 text-sm">{journal}</p>}
                                   <div className="flex gap-4 text-xs text-white/50 mt-2">
-                                    {date && <span>{date}</span>}
-                                    {doi && (
+                                    {date && !isNullValue(date) && <span>{date}</span>}
+                                    {doi && !isNullValue(doi) && (
                                       <a href={doi} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline flex items-center gap-1">
                                         View <ExternalLink className="w-3 h-3" />
                                       </a>
@@ -961,11 +967,11 @@ const RecruiterBulkResults = () => {
                               
                               return (
                                 <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-teal-500/10">
-                                  {title && title.trim() !== "" && <h4 className="text-white font-semibold text-sm mb-1">{title}</h4>}
-                                  {description && description.trim() !== "" && <p className="text-gray-300 text-sm mb-2">{description}</p>}
+                                  {title && !isNullValue(title) && title.trim() !== "" && <h4 className="text-white font-semibold text-sm mb-1">{title}</h4>}
+                                  {description && !isNullValue(description) && description.trim() !== "" && <p className="text-gray-300 text-sm mb-2">{description}</p>}
                                   <div className="flex gap-3 text-xs text-white/60">
-                                    {institution && institution.trim() !== "" && <span>{institution}</span>}
-                                    {duration && duration.trim() !== "" && <span>{duration}</span>}
+                                    {institution && !isNullValue(institution) && institution.trim() !== "" && <span>{institution}</span>}
+                                    {duration && !isNullValue(duration) && duration.trim() !== "" && <span>{duration}</span>}
                                   </div>
                                 </div>
                               );
@@ -992,15 +998,15 @@ const RecruiterBulkResults = () => {
                               const name = getValue(cert, 'Name');
                               const issuer = getValue(cert, 'Issuer');
                               const date = getValue(cert, 'Date');
-                              const validity = getValue(cert, 'Validity');
+                              const validity = getValue(cert, 'Validity') || getValue(cert, 'Expiry');
                               
                               return (
                                 <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-green-500/10">
-                                  {name && <h4 className="text-white font-semibold text-sm mb-1">{name}</h4>}
-                                  {issuer && <p className="text-gray-300 text-sm">{issuer}</p>}
+                                  {name && !isNullValue(name) && <h4 className="text-white font-semibold text-sm mb-1">{name}</h4>}
+                                  {issuer && !isNullValue(issuer) && <p className="text-gray-300 text-sm">{issuer}</p>}
                                   <div className="flex gap-3 text-xs text-white/50 mt-1">
-                                    {date && <span>Issued: {date}</span>}
-                                    {validity && <span>Valid: {validity}</span>}
+                                    {date && !isNullValue(date) && <span>Issued: {date}</span>}
+                                    {validity && !isNullValue(validity) && <span>Valid: {validity}</span>}
                                   </div>
                                 </div>
                               );
@@ -1031,10 +1037,10 @@ const RecruiterBulkResults = () => {
                               
                               return (
                                 <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-red-500/10">
-                                  {title && <h4 className="text-white font-semibold text-sm mb-1">{title}</h4>}
-                                  {issuer && <p className="text-gray-300 text-sm">{issuer}</p>}
-                                  {description && <p className="text-gray-300 text-sm mt-1">{description}</p>}
-                                  {date && <p className="text-white/50 text-xs mt-1">{date}</p>}
+                                  {title && !isNullValue(title) && <h4 className="text-white font-semibold text-sm mb-1">{title}</h4>}
+                                  {issuer && !isNullValue(issuer) && <p className="text-gray-300 text-sm">{issuer}</p>}
+                                  {description && !isNullValue(description) && <p className="text-gray-300 text-sm mt-1">{description}</p>}
+                                  {date && !isNullValue(date) && <p className="text-white/50 text-xs mt-1">{date}</p>}
                                 </div>
                               );
                             })}
@@ -1064,22 +1070,22 @@ const RecruiterBulkResults = () => {
                               
                               return (
                                 <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-pink-500/10">
-                                  {role && (
+                                  {role && !isNullValue(role) && (
                                     <h4 className="text-white font-semibold text-sm mb-1">
                                       {role}
                                     </h4>
                                   )}
-                                  {organization && (
+                                  {organization && !isNullValue(organization) && (
                                     <p className="text-gray-300 text-sm">
                                       {organization}
                                     </p>
                                   )}
-                                  {duration && (
+                                  {duration && !isNullValue(duration) && (
                                     <p className="text-white/60 text-sm">
                                       {duration}
                                     </p>
                                   )}
-                                  {description && (
+                                  {description && !isNullValue(description) && (
                                     <p className="text-white/70 text-sm leading-relaxed">
                                       {description}
                                     </p>
@@ -1113,22 +1119,22 @@ const RecruiterBulkResults = () => {
                               
                               return (
                                 <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-lime-500/10">
-                                  {activityName && (
+                                  {activityName && !isNullValue(activityName) && (
                                     <h4 className="text-white font-semibold text-sm mb-1">
                                       {activityName}
                                     </h4>
                                   )}
-                                  {role && (
+                                  {role && !isNullValue(role) && (
                                     <p className="text-gray-300 text-sm">
                                       {role}
                                     </p>
                                   )}
-                                  {duration && (
+                                  {duration && !isNullValue(duration) && (
                                     <p className="text-white/60 text-sm">
                                       {duration}
                                     </p>
                                   )}
-                                  {description && (
+                                  {description && !isNullValue(description) && (
                                     <p className="text-white/70 text-sm">
                                       {description}
                                     </p>
@@ -1149,7 +1155,7 @@ const RecruiterBulkResults = () => {
                             <div className="p-2 bg-violet-500/20 rounded-lg mr-3">
                               <Languages className="w-5 h-5 text-violet-400" />
                             </div>
-                            Languages ({parsedData.languages.length})
+                            Languages ({parsedData.languages.filter(lang => !isNullValue(getValue(lang, 'Language'))).length})
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -1158,10 +1164,12 @@ const RecruiterBulkResults = () => {
                               const language = getValue(lang, 'Language');
                               const proficiency = getValue(lang, 'Proficiency');
                               
+                              if (isNullValue(language)) return null;
+                              
                               return (
                                 <div key={idx} className="flex items-center justify-between p-2 bg-gray-900/50 rounded border border-violet-500/10">
                                   <span className="text-white text-sm">{language}</span>
-                                  {proficiency && proficiency.trim() !== "" && (
+                                  {proficiency && !isNullValue(proficiency) && proficiency.trim() !== "" && (
                                     <span className="px-2 py-0.5 bg-violet-500/20 rounded text-violet-300 text-xs">{proficiency}</span>
                                   )}
                                 </div>
@@ -1180,12 +1188,12 @@ const RecruiterBulkResults = () => {
                             <div className="p-2 bg-fuchsia-500/20 rounded-lg mr-3">
                               <Sparkles className="w-5 h-5 text-fuchsia-400" />
                             </div>
-                            Interests & Hobbies ({parsedData.interests.length})
+                            Interests & Hobbies ({parsedData.interests.filter(interest => !isNullValue(interest)).length})
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
                           <div className="flex flex-wrap gap-2">
-                            {parsedData.interests.map((interest, idx) => (
+                            {parsedData.interests.filter(interest => !isNullValue(interest)).map((interest, idx) => (
                               <span key={idx} className="px-3 py-1 bg-fuchsia-500/20 border border-fuchsia-500/20 rounded-full text-white text-xs">
                                 {interest}
                               </span>
@@ -1203,12 +1211,12 @@ const RecruiterBulkResults = () => {
                             <div className="p-2 bg-indigo-500/20 rounded-lg mr-3">
                               <Star className="w-5 h-5 text-indigo-400" />
                             </div>
-                            Hobbies ({parsedData.hobbies.length})
+                            Hobbies ({parsedData.hobbies.filter(hobby => !isNullValue(hobby)).length})
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
                           <div className="flex flex-wrap gap-2">
-                            {parsedData.hobbies.map((hobby, idx) => (
+                            {parsedData.hobbies.filter(hobby => !isNullValue(hobby)).map((hobby, idx) => (
                               <span key={idx} className="px-3 py-1 bg-indigo-500/20 border border-indigo-500/20 rounded-full text-white text-xs">
                                 {hobby}
                               </span>
@@ -1239,10 +1247,10 @@ const RecruiterBulkResults = () => {
                               
                               return (
                                 <div key={idx} className="p-3 bg-gray-900/50 rounded-lg border border-slate-500/10">
-                                  {name && <h4 className="text-white font-semibold text-sm mb-1">{name}</h4>}
-                                  {title && <p className="text-gray-300 text-sm">{title}</p>}
-                                  {relationship && <p className="text-white/60 text-sm">{relationship}</p>}
-                                  {contact && <p className="text-white/70 text-sm">{contact}</p>}
+                                  {name && !isNullValue(name) && <h4 className="text-white font-semibold text-sm mb-1">{name}</h4>}
+                                  {title && !isNullValue(title) && <p className="text-gray-300 text-sm">{title}</p>}
+                                  {relationship && !isNullValue(relationship) && <p className="text-white/60 text-sm">{relationship}</p>}
+                                  {contact && !isNullValue(contact) && <p className="text-white/70 text-sm">{contact}</p>}
                                 </div>
                               );
                             })}
@@ -1252,7 +1260,7 @@ const RecruiterBulkResults = () => {
                     )}
 
                     {/* Social & Professional Links */}
-                    {(parsedData.linkedin_url || parsedData.github_url || parsedData.portfolio_url || parsedData.personal_website) && (
+                    {(parsedData.linkedin_url && !isNullValue(parsedData.linkedin_url) || parsedData.github_url && !isNullValue(parsedData.github_url) || parsedData.portfolio_url && !isNullValue(parsedData.portfolio_url) || parsedData.personal_website && !isNullValue(parsedData.personal_website)) && (
                       <Card className="bg-black/20 backdrop-blur-sm border-sky-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
@@ -1264,7 +1272,7 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {parsedData.linkedin_url && (
+                            {parsedData.linkedin_url && !isNullValue(parsedData.linkedin_url) && (
                               <a 
                                 href={parsedData.linkedin_url.startsWith('http') ? parsedData.linkedin_url : `https://${parsedData.linkedin_url}`}
                                 target="_blank" 
@@ -1285,7 +1293,7 @@ const RecruiterBulkResults = () => {
                                 <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
                               </a>
                             )}
-                            {parsedData.github_url && (
+                            {parsedData.github_url && !isNullValue(parsedData.github_url) && (
                               <a href={parsedData.github_url.startsWith('http') ? parsedData.github_url : `https://${parsedData.github_url}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-all border border-sky-500/10">
                                 <Github className="w-5 h-5 text-sky-400 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -1295,7 +1303,7 @@ const RecruiterBulkResults = () => {
                                 <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
                               </a>
                             )}
-                            {parsedData.portfolio_url && (
+                            {parsedData.portfolio_url && !isNullValue(parsedData.portfolio_url) && (
                               <a href={parsedData.portfolio_url.startsWith('http') ? parsedData.portfolio_url : `https://${parsedData.portfolio_url}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-all border border-sky-500/10">
                                 <Briefcase className="w-5 h-5 text-sky-400 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -1305,7 +1313,7 @@ const RecruiterBulkResults = () => {
                                 <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
                               </a>
                             )}
-                            {parsedData.personal_website && (
+                            {parsedData.personal_website && !isNullValue(parsedData.personal_website) && (
                               <a href={parsedData.personal_website.startsWith('http') ? parsedData.personal_website : `https://${parsedData.personal_website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-900/50 rounded-lg hover:bg-gray-800 transition-all border border-sky-500/10">
                                 <Globe className="w-5 h-5 text-sky-400 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -1321,7 +1329,7 @@ const RecruiterBulkResults = () => {
                     )}
 
                     {/* Career Preferences */}
-                    {(parsedData.placement_preferences || parsedData.preferred_job_role || parsedData.preferred_industry) && (
+                    {(parsedData.placement_preferences && !isNullValue(parsedData.placement_preferences) || parsedData.preferred_job_role && !isNullValue(parsedData.preferred_job_role) || parsedData.preferred_industry && !isNullValue(parsedData.preferred_industry)) && (
                       <Card className="bg-black/20 backdrop-blur-sm border-orange-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg font-semibold">
@@ -1333,7 +1341,7 @@ const RecruiterBulkResults = () => {
                         </CardHeader>
                         <CardContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {parsedData.placement_preferences && (
+                            {parsedData.placement_preferences && !isNullValue(parsedData.placement_preferences) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Briefcase className="w-5 h-5 text-orange-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -1342,7 +1350,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.preferred_job_role && (
+                            {parsedData.preferred_job_role && !isNullValue(parsedData.preferred_job_role) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Target className="w-5 h-5 text-orange-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -1351,7 +1359,7 @@ const RecruiterBulkResults = () => {
                                 </div>
                               </div>
                             )}
-                            {parsedData.preferred_industry && (
+                            {parsedData.preferred_industry && !isNullValue(parsedData.preferred_industry) && (
                               <div className="flex items-start gap-3 p-3 bg-gray-900/50 border border-white/5 rounded-lg">
                                 <Building2 className="w-5 h-5 text-orange-400 mt-0.5 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
@@ -1387,18 +1395,20 @@ const RecruiterBulkResults = () => {
                                       {typeof item === "object" ? (
                                         <div className="space-y-1">
                                           {Object.entries(item).map(([key, value]) => (
-                                            <div key={key}>
-                                              <span className="font-medium text-white/80">{key}:</span> {value}
-                                            </div>
+                                            !isNullValue(value) && (
+                                              <div key={key}>
+                                                <span className="font-medium text-white/80">{key}:</span> {value}
+                                              </div>
+                                            )
                                           ))}
                                         </div>
                                       ) : (
-                                        <span>{item}</span>
+                                        !isNullValue(item) && <span>{item}</span>
                                       )}
                                     </div>
                                   ))
                                 ) : (
-                                  <p className="text-sm text-white/70">{JSON.stringify(sectionData)}</p>
+                                  !isNullValue(sectionData) && <p className="text-sm text-white/70">{JSON.stringify(sectionData)}</p>
                                 )}
                               </div>
                             </div>

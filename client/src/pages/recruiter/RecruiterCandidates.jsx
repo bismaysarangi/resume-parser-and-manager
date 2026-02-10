@@ -70,6 +70,11 @@ const getValue = (obj, key) => {
   return null;
 };
 
+// Helper function to check if value is null or "null" string
+const isNullValue = (value) => {
+  return value === null || value === undefined || value === "" || value === "null";
+};
+
 // Helper functions
 const hasValidItems = (array) => {
   if (!array || !Array.isArray(array) || array.length === 0) return false;
@@ -80,6 +85,7 @@ const hasValidItems = (array) => {
         value !== null &&
         value !== undefined &&
         value !== "" &&
+        value !== "null" &&  
         !(Array.isArray(value) && value.length === 0)
     );
   });
@@ -90,7 +96,7 @@ const hasValidSkills = (skills) => {
     skills &&
     Array.isArray(skills) &&
     skills.length > 0 &&
-    skills.some((skill) => skill && skill.trim() !== "")
+    skills.some((skill) => skill && typeof skill === 'string' && skill.trim() !== "" && skill.trim() !== "null")  
   );
 };
 
@@ -98,7 +104,7 @@ const hasValidLanguages = (languages) => {
   if (!languages || !Array.isArray(languages) || languages.length === 0) return false;
   return languages.some((lang) => {
     const language = getValue(lang, 'Language');
-    return language && language.trim() !== "";
+    return language && language.trim() !== "" && language.trim() !== "null";  
   });
 };
 
