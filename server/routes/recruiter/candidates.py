@@ -70,3 +70,42 @@ async def get_candidate_details(
         return resume
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch candidate: {str(e)}")
+
+@router.delete("/candidates/{resume_id}", dependencies=[Depends(require_recruiter)])
+async def delete_candidate(
+    resume_id: str,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Delete a candidate resume from recruiter's database (RECRUITER ONLY)
+    """
+    try:
+        # Verify the resume exists and belongs to this recruiter
+        resume = resume_history_collection.find_one({
+            "_id": ObjectId(resume_id),
+            "recruiter_email": current_user.email
+        })
+        
+        if not resume:
+            raise HTTPException(
+                status_code=404, 
+                detail="Resume not found or you don't have permission to delete it"
+            )
+        
+        # Delete the resume
+        result = resume_history_collection.delete_one({
+            "_id": ObjectId(resume_id),
+            "recruiter_email": current_user.email
+        })
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Failed to delete resume")
+        
+        return {
+            "message": "Resume deleted successfully",
+            "deleted_id": resume_id
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete resume: {str(e)}")

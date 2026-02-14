@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,19 +13,12 @@ import {
   Calendar,
   Building2,
   Search,
-  Filter,
-  Download,
   Eye,
   Trash2,
   Users,
   Sparkles,
   X,
   MessageCircle,
-  Send,
-  Bot,
-  Minimize2,
-  Maximize2,
-  ArrowLeft,
   Trophy,
   Heart,
   Languages,
@@ -42,15 +35,9 @@ import {
   Flag,
   UserCircle,
   Cake,
-  Shield,
-  Clock,
-  Plane,
-  DollarSign,
   Target,
-  Star,
   LinkIcon,
-  Activity,
-  Brain,
+  AlertTriangle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -65,14 +52,10 @@ const getValue = (obj, key) => {
   const lowerKey = key.toLowerCase();
   if (obj[lowerKey] !== undefined) return obj[lowerKey];
   // Try capitalized
-  const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
+  const capitalizedKey =
+    key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
   if (obj[capitalizedKey] !== undefined) return obj[capitalizedKey];
   return null;
-};
-
-// Helper function to check if value is null or "null" string
-const isNullValue = (value) => {
-  return value === null || value === undefined || value === "" || value === "null";
 };
 
 // Helper functions
@@ -85,8 +68,8 @@ const hasValidItems = (array) => {
         value !== null &&
         value !== undefined &&
         value !== "" &&
-        value !== "null" &&  
-        !(Array.isArray(value) && value.length === 0)
+        value !== "null" &&
+        !(Array.isArray(value) && value.length === 0),
     );
   });
 };
@@ -96,15 +79,22 @@ const hasValidSkills = (skills) => {
     skills &&
     Array.isArray(skills) &&
     skills.length > 0 &&
-    skills.some((skill) => skill && typeof skill === 'string' && skill.trim() !== "" && skill.trim() !== "null")  
+    skills.some(
+      (skill) =>
+        skill &&
+        typeof skill === "string" &&
+        skill.trim() !== "" &&
+        skill.trim() !== "null",
+    )
   );
 };
 
 const hasValidLanguages = (languages) => {
-  if (!languages || !Array.isArray(languages) || languages.length === 0) return false;
+  if (!languages || !Array.isArray(languages) || languages.length === 0)
+    return false;
   return languages.some((lang) => {
-    const language = getValue(lang, 'Language');
-    return language && language.trim() !== "" && language.trim() !== "null";  
+    const language = getValue(lang, "Language");
+    return language && language.trim() !== "" && language.trim() !== "null";
   });
 };
 
@@ -117,6 +107,8 @@ const RecruiterCandidates = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Fetch candidates on mount
   useEffect(() => {
@@ -241,7 +233,7 @@ const RecruiterCandidates = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
@@ -254,6 +246,57 @@ const RecruiterCandidates = () => {
     } catch (err) {
       alert(`Error: ${err.message}`);
     }
+  };
+
+  const handleDeleteClick = (e, candidate) => {
+    e.stopPropagation();
+    const name = candidate.parsed_data?.name || "Unknown Candidate";
+    setDeleteConfirm({ id: candidate._id, name });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
+
+    setDeleting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `${API_BASE_URL}/api/recruiter/candidates/${deleteConfirm.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to delete resume");
+      }
+
+      // Remove from local state
+      setCandidates((prev) => prev.filter((c) => c._id !== deleteConfirm.id));
+      setFilteredCandidates((prev) =>
+        prev.filter((c) => c._id !== deleteConfirm.id),
+      );
+
+      // Close modal if this candidate was being viewed
+      if (selectedCandidate?._id === deleteConfirm.id) {
+        setShowDetailModal(false);
+        setSelectedCandidate(null);
+      }
+
+      setDeleteConfirm(null);
+    } catch (err) {
+      alert(`Error deleting resume: ${err.message}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeleteConfirm(null);
   };
 
   if (loading) {
@@ -389,7 +432,7 @@ const RecruiterCandidates = () => {
               return (
                 <Card
                   key={candidate._id}
-                  className="bg-white/10 backdrop-blur-sm border-white/20 hover:border-white/40 transition-all cursor-pointer group"
+                  className="bg-white/10 backdrop-blur-sm border-white/20 hover:border-white/40 transition-all cursor-pointer group relative"
                   onClick={() => viewCandidateDetails(candidate._id)}
                 >
                   <CardHeader className="pb-3">
@@ -407,7 +450,18 @@ const RecruiterCandidates = () => {
                           </p>
                         </div>
                       </div>
-                      <Eye className="w-5 h-5 text-white/40 group-hover:text-white/80 transition-colors flex-shrink-0" />
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <Eye className="w-5 h-5 text-white/40 group-hover:text-white/80 transition-colors" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 h-8 w-8"
+                          onClick={(e) => handleDeleteClick(e, candidate)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
 
@@ -491,7 +545,66 @@ const RecruiterCandidates = () => {
         )}
       </div>
 
-      {/* Detail Modal */}
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={cancelDelete}
+        >
+          <Card
+            className="bg-gradient-to-br from-red-900/90 to-gray-900/90 border-red-500/30 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <CardHeader className="border-b border-red-500/20">
+              <CardTitle className="flex items-center text-white text-xl">
+                <AlertTriangle className="w-6 h-6 text-red-400 mr-3" />
+                Confirm Deletion
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <p className="text-white/90">
+                Are you sure you want to delete the resume for{" "}
+                <span className="font-semibold text-white">
+                  {deleteConfirm.name}
+                </span>
+                ?
+              </p>
+              <p className="text-white/70 text-sm">
+                This action cannot be undone. The resume will be permanently
+                removed from your database.
+              </p>
+              <div className="flex gap-3 pt-4">
+                <Button
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                  onClick={confirmDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </>
+                  )}
+                </Button>
+                <Button
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white border border-white/20"
+                  onClick={cancelDelete}
+                  disabled={deleting}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Detail Modal - keeping the existing detailed view modal code here */}
       {showDetailModal && selectedCandidate && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
@@ -509,14 +622,27 @@ const RecruiterCandidates = () => {
                   </div>
                   {selectedCandidate.parsed_data?.name || "Unknown Candidate"}
                 </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-white/60 hover:text-white hover:bg-white/10"
-                  onClick={() => setShowDetailModal(false)}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(e, selectedCandidate);
+                    }}
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white/60 hover:text-white hover:bg-white/10"
+                    onClick={() => setShowDetailModal(false)}
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
 
@@ -529,8 +655,14 @@ const RecruiterCandidates = () => {
                 return (
                   <>
                     {/* Personal Information */}
-                    {(data.name || data.email || data.phone || data.gender || 
-                      data.date_of_birth || data.age || data.nationality || data.marital_status) && (
+                    {(data.name ||
+                      data.email ||
+                      data.phone ||
+                      data.gender ||
+                      data.date_of_birth ||
+                      data.age ||
+                      data.nationality ||
+                      data.marital_status) && (
                       <Card className="bg-gradient-to-br from-blue-600/10 to-cyan-600/5 border-blue-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg">
@@ -544,8 +676,12 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <User className="w-5 h-5 text-blue-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">Full Name</p>
-                                  <p className="text-white font-medium">{data.name}</p>
+                                  <p className="text-white/60 text-sm mb-1">
+                                    Full Name
+                                  </p>
+                                  <p className="text-white font-medium">
+                                    {data.name}
+                                  </p>
                                 </div>
                               </div>
                             )}
@@ -553,8 +689,12 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <Mail className="w-5 h-5 text-blue-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">Email</p>
-                                  <p className="text-white font-medium break-all">{data.email}</p>
+                                  <p className="text-white/60 text-sm mb-1">
+                                    Email
+                                  </p>
+                                  <p className="text-white font-medium break-all">
+                                    {data.email}
+                                  </p>
                                 </div>
                               </div>
                             )}
@@ -562,8 +702,12 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <Phone className="w-5 h-5 text-blue-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">Phone</p>
-                                  <p className="text-white font-medium">{data.phone}</p>
+                                  <p className="text-white/60 text-sm mb-1">
+                                    Phone
+                                  </p>
+                                  <p className="text-white font-medium">
+                                    {data.phone}
+                                  </p>
                                 </div>
                               </div>
                             )}
@@ -571,8 +715,12 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <UserCircle className="w-5 h-5 text-blue-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">Gender</p>
-                                  <p className="text-white font-medium">{data.gender}</p>
+                                  <p className="text-white/60 text-sm mb-1">
+                                    Gender
+                                  </p>
+                                  <p className="text-white font-medium">
+                                    {data.gender}
+                                  </p>
                                 </div>
                               </div>
                             )}
@@ -580,8 +728,12 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <Cake className="w-5 h-5 text-blue-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">Date of Birth</p>
-                                  <p className="text-white font-medium">{data.date_of_birth}</p>
+                                  <p className="text-white/60 text-sm mb-1">
+                                    Date of Birth
+                                  </p>
+                                  <p className="text-white font-medium">
+                                    {data.date_of_birth}
+                                  </p>
                                 </div>
                               </div>
                             )}
@@ -589,8 +741,12 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <Calendar className="w-5 h-5 text-blue-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">Age</p>
-                                  <p className="text-white font-medium">{data.age} years</p>
+                                  <p className="text-white/60 text-sm mb-1">
+                                    Age
+                                  </p>
+                                  <p className="text-white font-medium">
+                                    {data.age} years
+                                  </p>
                                 </div>
                               </div>
                             )}
@@ -598,8 +754,12 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <Flag className="w-5 h-5 text-blue-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">Nationality</p>
-                                  <p className="text-white font-medium">{data.nationality}</p>
+                                  <p className="text-white/60 text-sm mb-1">
+                                    Nationality
+                                  </p>
+                                  <p className="text-white font-medium">
+                                    {data.nationality}
+                                  </p>
                                 </div>
                               </div>
                             )}
@@ -607,8 +767,12 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <Heart className="w-5 h-5 text-blue-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">Marital Status</p>
-                                  <p className="text-white font-medium">{data.marital_status}</p>
+                                  <p className="text-white/60 text-sm mb-1">
+                                    Marital Status
+                                  </p>
+                                  <p className="text-white font-medium">
+                                    {data.marital_status}
+                                  </p>
                                 </div>
                               </div>
                             )}
@@ -618,7 +782,9 @@ const RecruiterCandidates = () => {
                     )}
 
                     {/* Location Information */}
-                    {(data.current_location || data.permanent_address || data.hometown) && (
+                    {(data.current_location ||
+                      data.permanent_address ||
+                      data.hometown) && (
                       <Card className="bg-gradient-to-br from-emerald-600/10 to-teal-600/5 border-emerald-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg">
@@ -632,8 +798,12 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <MapPin className="w-5 h-5 text-emerald-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">Current Location</p>
-                                  <p className="text-white font-medium">{data.current_location}</p>
+                                  <p className="text-white/60 text-sm mb-1">
+                                    Current Location
+                                  </p>
+                                  <p className="text-white font-medium">
+                                    {data.current_location}
+                                  </p>
                                 </div>
                               </div>
                             )}
@@ -641,8 +811,12 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <Home className="w-5 h-5 text-emerald-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">Permanent Address</p>
-                                  <p className="text-white font-medium">{data.permanent_address}</p>
+                                  <p className="text-white/60 text-sm mb-1">
+                                    Permanent Address
+                                  </p>
+                                  <p className="text-white font-medium">
+                                    {data.permanent_address}
+                                  </p>
                                 </div>
                               </div>
                             )}
@@ -650,8 +824,12 @@ const RecruiterCandidates = () => {
                               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                                 <Home className="w-5 h-5 text-emerald-400 mt-0.5" />
                                 <div>
-                                  <p className="text-white/60 text-sm mb-1">Hometown</p>
-                                  <p className="text-white font-medium">{data.hometown}</p>
+                                  <p className="text-white/60 text-sm mb-1">
+                                    Hometown
+                                  </p>
+                                  <p className="text-white font-medium">
+                                    {data.hometown}
+                                  </p>
                                 </div>
                               </div>
                             )}
@@ -661,7 +839,9 @@ const RecruiterCandidates = () => {
                     )}
 
                     {/* Summary/Objective */}
-                    {(data.summary || data.objective || data.career_objective) && (
+                    {(data.summary ||
+                      data.objective ||
+                      data.career_objective) && (
                       <Card className="bg-gradient-to-br from-sky-600/10 to-blue-600/5 border-sky-500/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg">
@@ -672,20 +852,32 @@ const RecruiterCandidates = () => {
                         <CardContent className="space-y-4">
                           {data.summary && (
                             <div className="p-4 bg-white/5 rounded-lg">
-                              <h4 className="text-white/80 text-sm font-semibold mb-2">Summary</h4>
-                              <p className="text-white/70 text-sm leading-relaxed">{data.summary}</p>
+                              <h4 className="text-white/80 text-sm font-semibold mb-2">
+                                Summary
+                              </h4>
+                              <p className="text-white/70 text-sm leading-relaxed">
+                                {data.summary}
+                              </p>
                             </div>
                           )}
                           {data.objective && (
                             <div className="p-4 bg-white/5 rounded-lg">
-                              <h4 className="text-white/80 text-sm font-semibold mb-2">Objective</h4>
-                              <p className="text-white/70 text-sm leading-relaxed">{data.objective}</p>
+                              <h4 className="text-white/80 text-sm font-semibold mb-2">
+                                Objective
+                              </h4>
+                              <p className="text-white/70 text-sm leading-relaxed">
+                                {data.objective}
+                              </p>
                             </div>
                           )}
                           {data.career_objective && (
                             <div className="p-4 bg-white/5 rounded-lg">
-                              <h4 className="text-white/80 text-sm font-semibold mb-2">Career Objective</h4>
-                              <p className="text-white/70 text-sm leading-relaxed">{data.career_objective}</p>
+                              <h4 className="text-white/80 text-sm font-semibold mb-2">
+                                Career Objective
+                              </h4>
+                              <p className="text-white/70 text-sm leading-relaxed">
+                                {data.career_objective}
+                              </p>
                             </div>
                           )}
                         </CardContent>
@@ -704,21 +896,37 @@ const RecruiterCandidates = () => {
                         <CardContent>
                           <div className="space-y-4">
                             {data.education.map((edu, idx) => {
-                              const degree = getValue(edu, 'Degree');
-                              const university = getValue(edu, 'University');
-                              const grade = getValue(edu, 'Grade');
-                              const years = getValue(edu, 'Years');
-                              
+                              const degree = getValue(edu, "Degree");
+                              const university = getValue(edu, "University");
+                              const grade = getValue(edu, "Grade");
+                              const years = getValue(edu, "Years");
+
                               return (
                                 <div
                                   key={idx}
                                   className="p-4 bg-gradient-to-br from-indigo-500/5 to-blue-500/5 rounded-lg border border-indigo-500/10"
                                 >
-                                  {degree && <h4 className="text-white font-semibold text-base mb-1">{degree}</h4>}
-                                  {university && <p className="text-white/80 text-sm mb-2">{university}</p>}
+                                  {degree && (
+                                    <h4 className="text-white font-semibold text-base mb-1">
+                                      {degree}
+                                    </h4>
+                                  )}
+                                  {university && (
+                                    <p className="text-white/80 text-sm mb-2">
+                                      {university}
+                                    </p>
+                                  )}
                                   <div className="flex flex-wrap gap-4 mt-2">
-                                    {grade && <span className="text-white/70 text-sm">Grade: {grade}</span>}
-                                    {years && <span className="text-white/70 text-sm">Years: {years}</span>}
+                                    {grade && (
+                                      <span className="text-white/70 text-sm">
+                                        Grade: {grade}
+                                      </span>
+                                    )}
+                                    {years && (
+                                      <span className="text-white/70 text-sm">
+                                        Years: {years}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               );
@@ -740,24 +948,32 @@ const RecruiterCandidates = () => {
                         <CardContent>
                           <div className="space-y-4">
                             {data.experience.map((exp, idx) => {
-                              const role = getValue(exp, 'Role');
-                              const company = getValue(exp, 'Company');
-                              const description = getValue(exp, 'Description');
-                              const years = getValue(exp, 'Years');
-                              
+                              const role = getValue(exp, "Role");
+                              const company = getValue(exp, "Company");
+                              const description = getValue(exp, "Description");
+                              const years = getValue(exp, "Years");
+
                               return (
                                 <div
                                   key={idx}
                                   className="p-4 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-lg border border-green-500/10"
                                 >
-                                  {role && <h4 className="text-white font-semibold text-base mb-1">{role}</h4>}
+                                  {role && (
+                                    <h4 className="text-white font-semibold text-base mb-1">
+                                      {role}
+                                    </h4>
+                                  )}
                                   {company && (
                                     <div className="flex items-center gap-2 text-white/80 mb-2">
                                       <Building2 className="w-4 h-4 text-green-400" />
                                       <span className="text-sm">{company}</span>
                                     </div>
                                   )}
-                                  {description && <p className="text-white/70 text-sm mt-2 leading-relaxed">{description}</p>}
+                                  {description && (
+                                    <p className="text-white/70 text-sm mt-2 leading-relaxed">
+                                      {description}
+                                    </p>
+                                  )}
                                   {years && (
                                     <div className="flex items-center gap-2 text-white/60 bg-green-500/10 px-3 py-1 rounded-full w-fit mt-2">
                                       <Calendar className="w-4 h-4 text-green-400" />
@@ -773,12 +989,14 @@ const RecruiterCandidates = () => {
                     )}
 
                     {/* Skills */}
-                    {(hasValidSkills(regularSkills) || hasValidSkills(derivedSkills)) && (
+                    {(hasValidSkills(regularSkills) ||
+                      hasValidSkills(derivedSkills)) && (
                       <Card className="bg-white/10 border-white/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg">
                             <Code className="w-5 h-5 text-orange-400 mr-2" />
-                            Skills & Technologies ({regularSkills.length + derivedSkills.length})
+                            Skills & Technologies (
+                            {regularSkills.length + derivedSkills.length})
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
@@ -807,7 +1025,8 @@ const RecruiterCandidates = () => {
                               <div className="flex items-center gap-2 mb-3">
                                 <Sparkles className="w-4 h-4 text-cyan-400" />
                                 <h4 className="text-white/90 text-sm font-semibold">
-                                  Derived from Projects & Experience ({derivedSkills.length})
+                                  Derived from Projects & Experience (
+                                  {derivedSkills.length})
                                 </h4>
                               </div>
                               <div className="flex flex-wrap gap-2">
@@ -838,30 +1057,56 @@ const RecruiterCandidates = () => {
                         <CardContent>
                           <div className="space-y-4">
                             {data.projects.map((project, idx) => {
-                              const title = getValue(project, 'Title') || getValue(project, 'Name');
-                              const description = getValue(project, 'Description') || getValue(project, 'Supervisor');
-                              const duration = getValue(project, 'Duration') || getValue(project, 'Date');
-                              const techStack = getValue(project, 'Tech Stack') || getValue(project, 'Technologies');
-                              
+                              const title =
+                                getValue(project, "Title") ||
+                                getValue(project, "Name");
+                              const description =
+                                getValue(project, "Description") ||
+                                getValue(project, "Supervisor");
+                              const duration =
+                                getValue(project, "Duration") ||
+                                getValue(project, "Date");
+                              const techStack =
+                                getValue(project, "Tech Stack") ||
+                                getValue(project, "Technologies");
+
                               return (
                                 <div
                                   key={idx}
                                   className="p-4 bg-gradient-to-br from-cyan-500/5 to-teal-500/5 rounded-lg border border-cyan-500/10"
                                 >
-                                  {title && <h4 className="text-white font-semibold text-base mb-2">{title}</h4>}
-                                  {description && <p className="text-white/70 text-sm leading-relaxed mb-3">{description}</p>}
+                                  {title && (
+                                    <h4 className="text-white font-semibold text-base mb-2">
+                                      {title}
+                                    </h4>
+                                  )}
+                                  {description && (
+                                    <p className="text-white/70 text-sm leading-relaxed mb-3">
+                                      {description}
+                                    </p>
+                                  )}
                                   {duration && (
                                     <div className="flex items-center gap-2 text-cyan-200 bg-cyan-500/10 px-3 py-1 rounded-full w-fit mb-2">
                                       <Calendar className="w-4 h-4 text-cyan-400" />
-                                      <span className="text-sm">{duration}</span>
+                                      <span className="text-sm">
+                                        {duration}
+                                      </span>
                                     </div>
                                   )}
                                   {techStack && (
                                     <div className="mt-3">
-                                      <h4 className="text-white/80 text-sm font-semibold mb-2">Technologies:</h4>
+                                      <h4 className="text-white/80 text-sm font-semibold mb-2">
+                                        Technologies:
+                                      </h4>
                                       <div className="flex flex-wrap gap-2">
-                                        {(typeof techStack === "string" ? techStack.split(",") : [techStack]).map((tech, i) => (
-                                          <span key={i} className="px-3 py-1 bg-cyan-500/20 rounded-full text-cyan-300 text-xs">
+                                        {(typeof techStack === "string"
+                                          ? techStack.split(",")
+                                          : [techStack]
+                                        ).map((tech, i) => (
+                                          <span
+                                            key={i}
+                                            className="px-3 py-1 bg-cyan-500/20 rounded-full text-cyan-300 text-xs"
+                                          >
                                             {tech.trim()}
                                           </span>
                                         ))}
@@ -888,18 +1133,36 @@ const RecruiterCandidates = () => {
                         <CardContent>
                           <div className="space-y-3">
                             {data.achievements.map((achievement, idx) => {
-                              const title = getValue(achievement, 'Title') || getValue(achievement, 'title');
-                              const description = getValue(achievement, 'Description') || getValue(achievement, 'description');
-                              const date = getValue(achievement, 'Date') || getValue(achievement, 'year');
-                              
+                              const title =
+                                getValue(achievement, "Title") ||
+                                getValue(achievement, "title");
+                              const description =
+                                getValue(achievement, "Description") ||
+                                getValue(achievement, "description");
+                              const date =
+                                getValue(achievement, "Date") ||
+                                getValue(achievement, "year");
+
                               return (
                                 <div
                                   key={idx}
                                   className="p-4 bg-gradient-to-br from-yellow-500/5 to-amber-500/5 rounded-lg border border-yellow-500/10"
                                 >
-                                  {title && <h4 className="text-white font-semibold text-base mb-1">{title}</h4>}
-                                  {description && <p className="text-white/70 text-sm leading-relaxed">{description}</p>}
-                                  {date && <p className="text-white/50 text-xs mt-2">{date}</p>}
+                                  {title && (
+                                    <h4 className="text-white font-semibold text-base mb-1">
+                                      {title}
+                                    </h4>
+                                  )}
+                                  {description && (
+                                    <p className="text-white/70 text-sm leading-relaxed">
+                                      {description}
+                                    </p>
+                                  )}
+                                  {date && (
+                                    <p className="text-white/50 text-xs mt-2">
+                                      {date}
+                                    </p>
+                                  )}
                                 </div>
                               );
                             })}
@@ -920,20 +1183,35 @@ const RecruiterCandidates = () => {
                         <CardContent>
                           <div className="space-y-3">
                             {data.publications.map((pub, idx) => {
-                              const title = getValue(pub, 'Title');
-                              const authors = getValue(pub, 'Authors');
-                              const journal = getValue(pub, 'Journal/Conference');
-                              const date = getValue(pub, 'Date');
-                              const doi = getValue(pub, 'DOI/Link');
-                              
+                              const title = getValue(pub, "Title");
+                              const authors = getValue(pub, "Authors");
+                              const journal = getValue(
+                                pub,
+                                "Journal/Conference",
+                              );
+                              const date = getValue(pub, "Date");
+                              const doi = getValue(pub, "DOI/Link");
+
                               return (
                                 <div
                                   key={idx}
                                   className="p-4 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 rounded-lg border border-blue-500/10"
                                 >
-                                  {title && <h4 className="text-white font-semibold text-base mb-2">{title}</h4>}
-                                  {authors && <p className="text-white/70 text-sm mb-1">Authors: {authors}</p>}
-                                  {journal && <p className="text-white/70 text-sm mb-2">{journal}</p>}
+                                  {title && (
+                                    <h4 className="text-white font-semibold text-base mb-2">
+                                      {title}
+                                    </h4>
+                                  )}
+                                  {authors && (
+                                    <p className="text-white/70 text-sm mb-1">
+                                      Authors: {authors}
+                                    </p>
+                                  )}
+                                  {journal && (
+                                    <p className="text-white/70 text-sm mb-2">
+                                      {journal}
+                                    </p>
+                                  )}
                                   <div className="flex gap-4 text-xs text-white/50">
                                     {date && <span>{date}</span>}
                                     {doi && (
@@ -943,7 +1221,8 @@ const RecruiterCandidates = () => {
                                         rel="noopener noreferrer"
                                         className="text-blue-400 hover:underline flex items-center gap-1"
                                       >
-                                        View <ExternalLink className="w-3 h-3" />
+                                        View{" "}
+                                        <ExternalLink className="w-3 h-3" />
                                       </a>
                                     )}
                                   </div>
@@ -967,18 +1246,32 @@ const RecruiterCandidates = () => {
                         <CardContent>
                           <div className="space-y-3">
                             {data.research.map((research, idx) => {
-                              const title = getValue(research, 'Title');
-                              const description = getValue(research, 'Description');
-                              const institution = getValue(research, 'Institution');
-                              const duration = getValue(research, 'Duration');
-                              
+                              const title = getValue(research, "Title");
+                              const description = getValue(
+                                research,
+                                "Description",
+                              );
+                              const institution = getValue(
+                                research,
+                                "Institution",
+                              );
+                              const duration = getValue(research, "Duration");
+
                               return (
                                 <div
                                   key={idx}
                                   className="p-4 bg-gradient-to-br from-teal-500/5 to-cyan-500/5 rounded-lg border border-teal-500/10"
                                 >
-                                  {title && <h4 className="text-white font-semibold text-base mb-2">{title}</h4>}
-                                  {description && <p className="text-white/70 text-sm leading-relaxed mb-2">{description}</p>}
+                                  {title && (
+                                    <h4 className="text-white font-semibold text-base mb-2">
+                                      {title}
+                                    </h4>
+                                  )}
+                                  {description && (
+                                    <p className="text-white/70 text-sm leading-relaxed mb-2">
+                                      {description}
+                                    </p>
+                                  )}
                                   <div className="flex gap-4 text-sm text-white/60">
                                     {institution && <span>{institution}</span>}
                                     {duration && <span>{duration}</span>}
@@ -1003,21 +1296,31 @@ const RecruiterCandidates = () => {
                         <CardContent>
                           <div className="space-y-3">
                             {data.certifications.map((cert, idx) => {
-                              const name = getValue(cert, 'Name');
-                              const issuer = getValue(cert, 'Issuer');
-                              const date = getValue(cert, 'Date');
-                              const validity = getValue(cert, 'Validity');
-                              
+                              const name = getValue(cert, "Name");
+                              const issuer = getValue(cert, "Issuer");
+                              const date = getValue(cert, "Date");
+                              const validity = getValue(cert, "Validity");
+
                               return (
                                 <div
                                   key={idx}
                                   className="p-4 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-lg border border-green-500/10"
                                 >
-                                  {name && <h4 className="text-white font-semibold text-base mb-1">{name}</h4>}
-                                  {issuer && <p className="text-white/80 text-sm mb-2">{issuer}</p>}
+                                  {name && (
+                                    <h4 className="text-white font-semibold text-base mb-1">
+                                      {name}
+                                    </h4>
+                                  )}
+                                  {issuer && (
+                                    <p className="text-white/80 text-sm mb-2">
+                                      {issuer}
+                                    </p>
+                                  )}
                                   <div className="flex gap-4 text-xs text-white/50">
                                     {date && <span>Issued: {date}</span>}
-                                    {validity && <span>Valid until: {validity}</span>}
+                                    {validity && (
+                                      <span>Valid until: {validity}</span>
+                                    )}
                                   </div>
                                 </div>
                               );
@@ -1039,20 +1342,44 @@ const RecruiterCandidates = () => {
                         <CardContent>
                           <div className="space-y-3">
                             {data.awards.map((award, idx) => {
-                              const title = getValue(award, 'Title') || getValue(award, 'name');
-                              const issuer = getValue(award, 'Issuer') || getValue(award, 'issuer');
-                              const description = getValue(award, 'Description') || getValue(award, 'description');
-                              const date = getValue(award, 'Date') || getValue(award, 'year');
-                              
+                              const title =
+                                getValue(award, "Title") ||
+                                getValue(award, "name");
+                              const issuer =
+                                getValue(award, "Issuer") ||
+                                getValue(award, "issuer");
+                              const description =
+                                getValue(award, "Description") ||
+                                getValue(award, "description");
+                              const date =
+                                getValue(award, "Date") ||
+                                getValue(award, "year");
+
                               return (
                                 <div
                                   key={idx}
                                   className="p-4 bg-gradient-to-br from-red-500/5 to-orange-500/5 rounded-lg border border-red-500/10"
                                 >
-                                  {title && <h4 className="text-white font-semibold text-base mb-1">{title}</h4>}
-                                  {issuer && <p className="text-white/80 text-sm mb-1">{issuer}</p>}
-                                  {description && <p className="text-white/70 text-sm leading-relaxed mb-2">{description}</p>}
-                                  {date && <p className="text-white/50 text-xs">{date}</p>}
+                                  {title && (
+                                    <h4 className="text-white font-semibold text-base mb-1">
+                                      {title}
+                                    </h4>
+                                  )}
+                                  {issuer && (
+                                    <p className="text-white/80 text-sm mb-1">
+                                      {issuer}
+                                    </p>
+                                  )}
+                                  {description && (
+                                    <p className="text-white/70 text-sm leading-relaxed mb-2">
+                                      {description}
+                                    </p>
+                                  )}
+                                  {date && (
+                                    <p className="text-white/50 text-xs">
+                                      {date}
+                                    </p>
+                                  )}
                                 </div>
                               );
                             })}
@@ -1073,20 +1400,43 @@ const RecruiterCandidates = () => {
                         <CardContent>
                           <div className="space-y-3">
                             {data.volunteer_work.map((vol, idx) => {
-                              const role = getValue(vol, 'Role') || getValue(vol, 'role');
-                              const organization = getValue(vol, 'Organization') || getValue(vol, 'organization');
-                              const duration = getValue(vol, 'Duration') || getValue(vol, 'duration');
-                              const description = getValue(vol, 'Description') || getValue(vol, 'description');
-                              
+                              const role =
+                                getValue(vol, "Role") || getValue(vol, "role");
+                              const organization =
+                                getValue(vol, "Organization") ||
+                                getValue(vol, "organization");
+                              const duration =
+                                getValue(vol, "Duration") ||
+                                getValue(vol, "duration");
+                              const description =
+                                getValue(vol, "Description") ||
+                                getValue(vol, "description");
+
                               return (
                                 <div
                                   key={idx}
                                   className="p-4 bg-gradient-to-br from-pink-500/5 to-rose-500/5 rounded-lg border border-pink-500/10"
                                 >
-                                  {role && <h4 className="text-white font-semibold text-base mb-1">{role}</h4>}
-                                  {organization && <p className="text-white/80 text-sm mb-1">{organization}</p>}
-                                  {duration && <p className="text-white/60 text-sm mb-2">{duration}</p>}
-                                  {description && <p className="text-white/70 text-sm leading-relaxed">{description}</p>}
+                                  {role && (
+                                    <h4 className="text-white font-semibold text-base mb-1">
+                                      {role}
+                                    </h4>
+                                  )}
+                                  {organization && (
+                                    <p className="text-white/80 text-sm mb-1">
+                                      {organization}
+                                    </p>
+                                  )}
+                                  {duration && (
+                                    <p className="text-white/60 text-sm mb-2">
+                                      {duration}
+                                    </p>
+                                  )}
+                                  {description && (
+                                    <p className="text-white/70 text-sm leading-relaxed">
+                                      {description}
+                                    </p>
+                                  )}
                                 </div>
                               );
                             })}
@@ -1107,15 +1457,17 @@ const RecruiterCandidates = () => {
                         <CardContent>
                           <div className="grid grid-cols-2 gap-3">
                             {data.languages.map((lang, idx) => {
-                              const language = getValue(lang, 'Language');
-                              const proficiency = getValue(lang, 'Proficiency');
-                              
+                              const language = getValue(lang, "Language");
+                              const proficiency = getValue(lang, "Proficiency");
+
                               return (
                                 <div
                                   key={idx}
                                   className="flex items-center justify-between p-3 bg-gradient-to-r from-violet-500/5 to-purple-500/5 rounded-lg border border-violet-500/10"
                                 >
-                                  <span className="text-white font-medium text-sm">{language}</span>
+                                  <span className="text-white font-medium text-sm">
+                                    {language}
+                                  </span>
                                   {proficiency && (
                                     <span className="px-3 py-1 bg-violet-500/20 rounded-full text-violet-300 text-xs">
                                       {proficiency}
@@ -1154,7 +1506,10 @@ const RecruiterCandidates = () => {
                     )}
 
                     {/* Social & Professional Links */}
-                    {(data.linkedin_url || data.github_url || data.portfolio_url || data.personal_website) && (
+                    {(data.linkedin_url ||
+                      data.github_url ||
+                      data.portfolio_url ||
+                      data.personal_website) && (
                       <Card className="bg-white/10 border-white/20">
                         <CardHeader className="pb-4">
                           <CardTitle className="flex items-center text-white text-lg">
@@ -1165,67 +1520,99 @@ const RecruiterCandidates = () => {
                         <CardContent>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {data.linkedin_url && (
-                              <a 
-                                href={data.linkedin_url.startsWith('http') ? data.linkedin_url : `https://${data.linkedin_url}`}
-                                target="_blank" 
-                                rel="noopener noreferrer" 
+                              <a
+                                href={
+                                  data.linkedin_url.startsWith("http")
+                                    ? data.linkedin_url
+                                    : `https://${data.linkedin_url}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all"
                               >
-                                {data.linkedin_url.includes('researchgate') ? (
+                                {data.linkedin_url.includes("researchgate") ? (
                                   <BookOpen className="w-5 h-5 text-sky-400 flex-shrink-0" />
                                 ) : (
                                   <Linkedin className="w-5 h-5 text-sky-400 flex-shrink-0" />
                                 )}
                                 <div className="min-w-0 flex-1">
                                   <p className="text-white/50 text-xs mb-1">
-                                    {data.linkedin_url.includes('researchgate') ? 'ResearchGate' : 'LinkedIn'}
+                                    {data.linkedin_url.includes("researchgate")
+                                      ? "ResearchGate"
+                                      : "LinkedIn"}
                                   </p>
-                                  <p className="text-white text-sm truncate">{data.linkedin_url}</p>
+                                  <p className="text-white text-sm truncate">
+                                    {data.linkedin_url}
+                                  </p>
                                 </div>
                                 <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
                               </a>
                             )}
                             {data.github_url && (
-                              <a 
-                                href={data.github_url.startsWith('http') ? data.github_url : `https://${data.github_url}`}
-                                target="_blank" 
-                                rel="noopener noreferrer" 
+                              <a
+                                href={
+                                  data.github_url.startsWith("http")
+                                    ? data.github_url
+                                    : `https://${data.github_url}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all"
                               >
                                 <Github className="w-5 h-5 text-sky-400 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-white/50 text-xs mb-1">GitHub</p>
-                                  <p className="text-white text-sm truncate">{data.github_url}</p>
+                                  <p className="text-white/50 text-xs mb-1">
+                                    GitHub
+                                  </p>
+                                  <p className="text-white text-sm truncate">
+                                    {data.github_url}
+                                  </p>
                                 </div>
                                 <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
                               </a>
                             )}
                             {data.portfolio_url && (
-                              <a 
-                                href={data.portfolio_url.startsWith('http') ? data.portfolio_url : `https://${data.portfolio_url}`}
-                                target="_blank" 
-                                rel="noopener noreferrer" 
+                              <a
+                                href={
+                                  data.portfolio_url.startsWith("http")
+                                    ? data.portfolio_url
+                                    : `https://${data.portfolio_url}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all"
                               >
                                 <Briefcase className="w-5 h-5 text-sky-400 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-white/50 text-xs mb-1">Portfolio</p>
-                                  <p className="text-white text-sm truncate">{data.portfolio_url}</p>
+                                  <p className="text-white/50 text-xs mb-1">
+                                    Portfolio
+                                  </p>
+                                  <p className="text-white text-sm truncate">
+                                    {data.portfolio_url}
+                                  </p>
                                 </div>
                                 <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
                               </a>
                             )}
                             {data.personal_website && (
-                              <a 
-                                href={data.personal_website.startsWith('http') ? data.personal_website : `https://${data.personal_website}`}
-                                target="_blank" 
-                                rel="noopener noreferrer" 
+                              <a
+                                href={
+                                  data.personal_website.startsWith("http")
+                                    ? data.personal_website
+                                    : `https://${data.personal_website}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all"
                               >
                                 <Globe className="w-5 h-5 text-sky-400 flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-white/50 text-xs mb-1">Personal Website</p>
-                                  <p className="text-white text-sm truncate">{data.personal_website}</p>
+                                  <p className="text-white/50 text-xs mb-1">
+                                    Personal Website
+                                  </p>
+                                  <p className="text-white text-sm truncate">
+                                    {data.personal_website}
+                                  </p>
                                 </div>
                                 <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
                               </a>
@@ -1247,20 +1634,39 @@ const RecruiterCandidates = () => {
                         <CardContent>
                           <div className="space-y-3">
                             {data.references.map((ref, idx) => {
-                              const name = getValue(ref, 'Name');
-                              const title = getValue(ref, 'Title');
-                              const relationship = getValue(ref, 'Relationship');
-                              const contact = getValue(ref, 'Contact');
-                              
+                              const name = getValue(ref, "Name");
+                              const title = getValue(ref, "Title");
+                              const relationship = getValue(
+                                ref,
+                                "Relationship",
+                              );
+                              const contact = getValue(ref, "Contact");
+
                               return (
                                 <div
                                   key={idx}
                                   className="p-4 bg-gradient-to-br from-slate-500/5 to-gray-500/5 rounded-lg border border-slate-500/10"
                                 >
-                                  {name && <h4 className="text-white font-semibold text-base mb-1">{name}</h4>}
-                                  {title && <p className="text-white/70 text-sm mb-1">{title}</p>}
-                                  {relationship && <p className="text-white/60 text-sm mb-1">{relationship}</p>}
-                                  {contact && <p className="text-white/70 text-sm">{contact}</p>}
+                                  {name && (
+                                    <h4 className="text-white font-semibold text-base mb-1">
+                                      {name}
+                                    </h4>
+                                  )}
+                                  {title && (
+                                    <p className="text-white/70 text-sm mb-1">
+                                      {title}
+                                    </p>
+                                  )}
+                                  {relationship && (
+                                    <p className="text-white/60 text-sm mb-1">
+                                      {relationship}
+                                    </p>
+                                  )}
+                                  {contact && (
+                                    <p className="text-white/70 text-sm">
+                                      {contact}
+                                    </p>
+                                  )}
                                 </div>
                               );
                             })}
@@ -1270,47 +1676,63 @@ const RecruiterCandidates = () => {
                     )}
 
                     {/* Extra Sections */}
-                    {data.extra_sections && Object.keys(data.extra_sections).length > 0 && (
-                      <Card className="bg-white/10 border-white/20">
-                        <CardHeader className="pb-4">
-                          <CardTitle className="flex items-center text-white text-lg">
-                            <Plus className="w-5 h-5 text-amber-400 mr-2" />
-                            Additional Information ({Object.keys(data.extra_sections).length})
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {Object.entries(data.extra_sections).map(([sectionName, sectionData], idx) => (
-                            <div
-                              key={idx}
-                              className="p-4 bg-gradient-to-br from-amber-500/5 to-yellow-500/5 rounded-lg border border-amber-500/10"
-                            >
-                              <h4 className="text-white font-semibold text-base mb-3">{sectionName}</h4>
-                              <div className="space-y-2 pl-3 border-l-2 border-amber-500/20">
-                                {Array.isArray(sectionData) ? (
-                                  sectionData.map((item, itemIdx) => (
-                                    <div key={itemIdx} className="text-sm text-white/70">
-                                      {typeof item === "object" ? (
-                                        <div className="space-y-1">
-                                          {Object.entries(item).map(([key, value]) => (
-                                            <div key={key}>
-                                              <span className="font-medium text-white/80">{key}:</span> {value}
+                    {data.extra_sections &&
+                      Object.keys(data.extra_sections).length > 0 && (
+                        <Card className="bg-white/10 border-white/20">
+                          <CardHeader className="pb-4">
+                            <CardTitle className="flex items-center text-white text-lg">
+                              <Plus className="w-5 h-5 text-amber-400 mr-2" />
+                              Additional Information (
+                              {Object.keys(data.extra_sections).length})
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            {Object.entries(data.extra_sections).map(
+                              ([sectionName, sectionData], idx) => (
+                                <div
+                                  key={idx}
+                                  className="p-4 bg-gradient-to-br from-amber-500/5 to-yellow-500/5 rounded-lg border border-amber-500/10"
+                                >
+                                  <h4 className="text-white font-semibold text-base mb-3">
+                                    {sectionName}
+                                  </h4>
+                                  <div className="space-y-2 pl-3 border-l-2 border-amber-500/20">
+                                    {Array.isArray(sectionData) ? (
+                                      sectionData.map((item, itemIdx) => (
+                                        <div
+                                          key={itemIdx}
+                                          className="text-sm text-white/70"
+                                        >
+                                          {typeof item === "object" ? (
+                                            <div className="space-y-1">
+                                              {Object.entries(item).map(
+                                                ([key, value]) => (
+                                                  <div key={key}>
+                                                    <span className="font-medium text-white/80">
+                                                      {key}:
+                                                    </span>{" "}
+                                                    {value}
+                                                  </div>
+                                                ),
+                                              )}
                                             </div>
-                                          ))}
+                                          ) : (
+                                            <span>{item}</span>
+                                          )}
                                         </div>
-                                      ) : (
-                                        <span>{item}</span>
-                                      )}
-                                    </div>
-                                  ))
-                                ) : (
-                                  <p className="text-sm text-white/70">{JSON.stringify(sectionData)}</p>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </CardContent>
-                      </Card>
-                    )}
+                                      ))
+                                    ) : (
+                                      <p className="text-sm text-white/70">
+                                        {JSON.stringify(sectionData)}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ),
+                            )}
+                          </CardContent>
+                        </Card>
+                      )}
                   </>
                 );
               })()}
