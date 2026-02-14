@@ -456,7 +456,7 @@ const RecruiterCandidates = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 h-8 w-8"
+                          className="opacity-0 cursor-pointer group-hover:opacity-100 transition-opacity bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 h-8 w-8"
                           onClick={(e) => handleDeleteClick(e, candidate)}
                         >
                           <Trash2 className="w-4 h-4" />
