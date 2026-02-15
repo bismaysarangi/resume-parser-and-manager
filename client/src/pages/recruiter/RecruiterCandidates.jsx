@@ -418,7 +418,7 @@ const RecruiterCandidates = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
             {filteredCandidates.map((candidate) => {
               const data = candidate.parsed_data || {};
               const name = data.name || "Unknown Candidate";

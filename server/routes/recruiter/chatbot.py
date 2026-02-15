@@ -7,6 +7,7 @@ import re
 import traceback
 from datetime import datetime
 from dependencies.auth import get_current_active_user
+from services.email_service import prepare_email_for_candidate  # Added for email functionality
 from dependencies.role_based_auth import require_recruiter
 from core.database import db
 from core.config import GROQ_API_KEY, GROQ_URL, GROQ_PARSING_MODEL
@@ -31,6 +32,20 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     query: str
     conversation_history: List[ChatMessage] = []
+
+
+# Added email request/response models
+class EmailRequest(BaseModel):
+    candidate_id: str
+    job_context: Optional[str] = None
+
+
+class EmailResponse(BaseModel):
+    candidate_name: str
+    candidate_email: str
+    subject: str
+    body: str
+    mailto_link: str
 
 
 class CandidateScore:
@@ -1462,6 +1477,8 @@ def format_ranked_candidates(ranked_candidates: List[CandidateScore], top_n: Opt
             "rank": idx,
             "name": parsed.get("name", "Unknown") if parsed else "Unknown",
             "email": parsed.get("email", "N/A") if parsed else "N/A",
+            "email_available": parsed.get("email") is not None and "@" in parsed.get("email", ""),
+            "phone": parsed.get("phone", "N/A") if parsed else "N/A",
             "skills": (parsed.get("skills", []) + parsed.get("derived_skills", []))[:10] if parsed else [],
         }
         
@@ -1540,6 +1557,7 @@ def format_ranked_candidates_with_personal_info(ranked_candidates: List[Candidat
             "rank": idx,
             "name": parsed.get("name", "Unknown") if parsed else "Unknown",
             "email": parsed.get("email", "N/A") if parsed else "N/A",
+            "email_available": parsed.get("email") is not None and "@" in parsed.get("email", ""),
             "phone": parsed.get("phone", "N/A") if parsed else "N/A",
         }
         
@@ -1983,7 +2001,7 @@ async def chatbot_query(
 ):
     """
     ENHANCED: Chatbot with better query understanding and conversational ability
-    WITH INTEGRATED LOCATION MATCHING
+    WITH INTEGRATED LOCATION MATCHING AND EMAIL SUPPORT
     """
     try:
         print(f"Received query: {request.query}")
@@ -1992,6 +2010,7 @@ async def chatbot_query(
         if not request.query or not request.query.strip():
             return {
                 "response": "I didn't receive a question. How can I help you find candidates?",
+                "candidates": [],
                 "candidates_analyzed": 0,
                 "candidates_shown": 0
             }
@@ -2004,6 +2023,7 @@ async def chatbot_query(
         if not all_candidates:
             return {
                 "response": "You don't have any candidates in your database yet. Please upload some resumes first to get started.",
+                "candidates": [],
                 "candidates_analyzed": 0,
                 "candidates_shown": 0
             }
@@ -2017,6 +2037,7 @@ async def chatbot_query(
         if not unique_candidates:
             return {
                 "response": "No distinct candidates found in your database.",
+                "candidates": [],
                 "candidates_analyzed": 0,
                 "candidates_shown": 0
             }
@@ -2065,12 +2086,14 @@ async def chatbot_query(
             if has_personal_filters:
                 return {
                     "response": f"I analyzed {len(unique_candidates)} candidates, but none matched your specific criteria for '{request.query}'. Try broadening your search criteria or remove some filters.",
+                    "candidates": [],
                     "candidates_analyzed": len(unique_candidates),
                     "candidates_shown": 0
                 }
             else:
                 return {
                     "response": f"I analyzed {len(unique_candidates)} candidates, but none closely matched your criteria for '{request.query}'. Try broadening your search or rephrase your question.",
+                    "candidates": [],
                     "candidates_analyzed": len(unique_candidates),
                     "candidates_shown": 0
                 }
@@ -2106,10 +2129,64 @@ async def chatbot_query(
         if "choices" in response and len(response["choices"]) > 0:
             ai_response = response["choices"][0]["message"]["content"]
             
+            # Format candidates for frontend display (with email info)
+            frontend_candidates = []
+            for scored_candidate in ranked_candidates[:min(top_n, len(ranked_candidates))]:
+                candidate = scored_candidate.candidate
+                parsed = candidate.get("parsed_data", {})
+                
+                # Get top skills
+                skills = parsed.get("skills", [])
+                if not skills:
+                    skills = parsed.get("derived_skills", [])
+                top_skills = skills[:5] if skills else []
+                
+                # Get experience summary
+                experience = parsed.get("experience", [])
+                experience_summary = ""
+                if experience:
+                    latest_exp = experience[0]
+                    exp_title = latest_exp.get("Role", latest_exp.get("title", "Role"))
+                    exp_company = latest_exp.get("Company", latest_exp.get("company", "Company"))
+                    experience_summary = f"{exp_title} at {exp_company}"
+                
+                # Get education summary
+                education = parsed.get("education", [])
+                education_summary = ""
+                if education:
+                    edu = education[0]
+                    edu_degree = edu.get("Degree", "Degree")
+                    edu_field = edu.get("Field", edu.get("discipline", ""))
+                    edu_institution = edu.get("Institution", edu.get("university", "University"))
+                    education_summary = f"{edu_degree} in {edu_field} from {edu_institution}"
+                
+                # CRITICAL: Get email
+                email = parsed.get("email")
+                
+                frontend_candidates.append({
+                    "id": candidate["_id"],
+                    "name": parsed.get("name", "Unknown"),
+                    "email": email,
+                    "email_available": email is not None and "@" in str(email),
+                    "phone": parsed.get("phone"),
+                    "current_location": parsed.get("current_location"),
+                    "experience_summary": experience_summary,
+                    "education_summary": education_summary,
+                    "skills": top_skills,
+                    "experience_years": len(experience),
+                    "current_ctc": parsed.get("current_ctc"),
+                    "expected_ctc": parsed.get("expected_ctc"),
+                    "notice_period": parsed.get("notice_period"),
+                    "relevance_score": round(scored_candidate.score, 1) if hasattr(scored_candidate, 'score') else None,
+                    "linkedin_url": parsed.get("linkedin_url"),
+                    "github_url": parsed.get("github_url")
+                })
+            
             return {
                 "response": ai_response,
+                "candidates": frontend_candidates,  # This is what the frontend needs for emails
                 "candidates_analyzed": len(unique_candidates),
-                "candidates_shown": min(top_n, len(ranked_candidates))
+                "candidates_shown": len(frontend_candidates)
             }
         else:
             raise Exception("Invalid API response")
@@ -2120,10 +2197,144 @@ async def chatbot_query(
         
         return {
             "response": "I apologize, but I encountered an error while processing your query. Please try rephrasing your question or check if you have candidates in your database.",
+            "candidates": [],
             "candidates_analyzed": 0,
             "candidates_shown": 0
         }
 
+
+@router.post("/chatbot/generate-email", response_model=EmailResponse, dependencies=[Depends(require_recruiter)])
+async def generate_candidate_email(
+    request: EmailRequest,
+    current_user: dict = Depends(get_current_active_user)
+):
+    """
+    Generate an automated email for a specific candidate
+    """
+    try:
+        from bson import ObjectId
+        import traceback
+        
+        print("\n" + "="*80)
+        print("📧 EMAIL GENERATION REQUEST")
+        print("="*80)
+        print(f"Candidate ID: {request.candidate_id}")
+        
+        # FIX: Handle both dict and Pydantic model for current_user
+        if isinstance(current_user, dict):
+            recruiter_email = current_user.get("email")
+            recruiter_name = current_user.get("full_name") or current_user.get("username", "Recruiter")
+        else:
+            # Pydantic model - use attribute access
+            recruiter_email = current_user.email
+            recruiter_name = getattr(current_user, "full_name", None) or getattr(current_user, "username", "Recruiter")
+        
+        print(f"Recruiter: {recruiter_email}")
+        print(f"Recruiter Name: {recruiter_name}")
+        print(f"Job Context: {request.job_context}")
+        
+        # Validate candidate_id
+        if not request.candidate_id:
+            print("❌ No candidate ID provided")
+            raise HTTPException(status_code=400, detail="Candidate ID is required")
+        
+        candidate_id_str = str(request.candidate_id).strip()
+        if not ObjectId.is_valid(candidate_id_str):
+            print(f"❌ Invalid ObjectId format: '{candidate_id_str}'")
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid candidate ID format: {candidate_id_str}"
+            )
+        
+        print(f"✅ Valid ObjectId format")
+        
+        # Fetch candidate from database
+        try:
+            candidate = resume_history_collection.find_one({"_id": ObjectId(candidate_id_str)})
+        except Exception as db_error:
+            print(f"❌ DATABASE ERROR: {str(db_error)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database error: {str(db_error)}"
+            )
+        
+        if not candidate:
+            print(f"❌ Candidate not found with ID: {candidate_id_str}")
+            raise HTTPException(status_code=404, detail="Candidate not found")
+        
+        print(f"✅ Candidate found: {candidate.get('parsed_data', {}).get('name', 'Unknown')}")
+        
+        # Verify ownership
+        if candidate.get("recruiter_email") != recruiter_email:
+            print(f"❌ Access denied - candidate belongs to different recruiter")
+            raise HTTPException(status_code=403, detail="Access denied to this candidate")
+        
+        print(f"✅ Ownership verified")
+        
+        # Check if candidate has parsed_data and email
+        parsed_data = candidate.get("parsed_data", {})
+        if not parsed_data:
+            print(f"❌ Candidate has no parsed_data")
+            raise HTTPException(
+                status_code=400,
+                detail="Candidate data is incomplete"
+            )
+        
+        candidate_email = parsed_data.get("email")
+        if not candidate_email or candidate_email == "N/A" or candidate_email == "None":
+            print(f"❌ Candidate has no valid email: {candidate_email}")
+            raise HTTPException(
+                status_code=400,
+                detail="This candidate has no email address on file"
+            )
+        
+        print(f"📧 Candidate email: {candidate_email}")
+        
+        # Generate email content
+        print(f"🤖 Calling prepare_email_for_candidate...")
+        
+        try:
+            email_data = await prepare_email_for_candidate(
+                recruiter_name=recruiter_name,
+                recruiter_email=recruiter_email,
+                candidate=candidate,
+                job_context=request.job_context
+            )
+        except Exception as email_error:
+            print(f"❌ EMAIL GENERATION ERROR: {str(email_error)}")
+            print(traceback.format_exc())
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to generate email content: {str(email_error)}"
+            )
+        
+        if "error" in email_data:
+            print(f"❌ Email preparation error: {email_data['error']}")
+            raise HTTPException(status_code=400, detail=email_data["error"])
+        
+        print(f"✅ Email generated successfully!")
+        print(f"   Subject: {email_data.get('subject', 'No subject')}")
+        print("="*80 + "\n")
+        
+        return EmailResponse(**email_data)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        print(f"\n{'='*80}")
+        print(f"❌ UNEXPECTED ERROR in generate_candidate_email")
+        print(f"{'='*80}")
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        print(f"\nFull traceback:")
+        print(error_trace)
+        print(f"{'='*80}\n")
+        
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error: {str(e)}"
+        )
 
 async def call_groq_api(prompt: str, temperature: float = 0.7):
     """Call Groq API"""

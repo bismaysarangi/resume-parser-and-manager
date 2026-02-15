@@ -7,6 +7,10 @@ import {
   Lightbulb,
   Award,
   Target,
+  Mail,
+  Copy,
+  Check,
+  X,
 } from "lucide-react";
 
 const API_BASE_URL = "http://localhost:8000";
@@ -18,7 +22,7 @@ const RecruiterChatbot = () => {
     {
       role: "assistant",
       content:
-        "Hello! I'm your AI-powered candidate search assistant. I analyze all profiles and rank them by relevance. How can I help you today?",
+        "Hello! I'm your AI-powered candidate search assistant. I analyze all profiles and rank them by relevance. When I show you candidates, click on their email to generate an automated message!",
       isComplete: true,
     },
   ]);
@@ -27,6 +31,19 @@ const RecruiterChatbot = () => {
   const [lastQueryInfo, setLastQueryInfo] = useState(null);
   const [typingMessage, setTypingMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+
+  // Email modal state
+  const [emailModal, setEmailModal] = useState({
+    isOpen: false,
+    candidateName: "",
+    candidateEmail: "",
+    subject: "",
+    body: "",
+    mailtoLink: "",
+    loading: false,
+    copied: false,
+  });
+
   const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
 
@@ -63,7 +80,7 @@ const RecruiterChatbot = () => {
         `${API_BASE_URL}/api/recruiter/chatbot/stats`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       const data = await response.json();
       setStats(data);
@@ -122,7 +139,16 @@ const RecruiterChatbot = () => {
 
       const data = await response.json();
       setIsLoading(false);
-      await typeMessage(data.response);
+
+      // Store candidates in the assistant message
+      const assistantMessage = {
+        role: "assistant",
+        content: data.response,
+        candidates: data.candidates || [],
+        isComplete: true,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
 
       if (data.ranking_applied) {
         setLastQueryInfo({
@@ -135,6 +161,236 @@ const RecruiterChatbot = () => {
       setIsLoading(false);
       await typeMessage("Error processing request.");
     }
+  };
+
+  const handleEmailClick = async (
+    candidateId,
+    candidateName,
+    candidateEmail,
+    jobContext = null,
+  ) => {
+    if (!candidateEmail) {
+      alert("No email available for this candidate");
+      return;
+    }
+
+    // DEBUG: Log what we're sending
+    console.log("📧 Email generation request:", {
+      candidateId,
+      candidateName,
+      candidateEmail,
+      jobContext: jobContext || lastQueryInfo?.intent?.query,
+    });
+
+    setEmailModal({
+      ...emailModal,
+      isOpen: true,
+      candidateName,
+      candidateEmail,
+      loading: true,
+      error: null, // Clear any previous errors
+    });
+
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("No authentication token found. Please log in again.");
+      }
+
+      const requestBody = {
+        candidate_id: String(candidateId), // Ensure it's a string
+        job_context:
+          jobContext || lastQueryInfo?.intent?.query || "Relevant position",
+      };
+
+      console.log("📤 Sending request body:", requestBody);
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/recruiter/chatbot/generate-email`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(requestBody),
+        },
+      );
+
+      // Enhanced error handling
+      if (!response.ok) {
+        let errorMessage = "Failed to generate email";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorMessage;
+          console.error("❌ Server error:", errorData);
+        } catch (e) {
+          // Response might not be JSON
+          const errorText = await response.text();
+          console.error("❌ Server response:", errorText);
+          errorMessage = `Server error: ${response.status}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      console.log("✅ Email generated successfully");
+
+      setEmailModal({
+        ...emailModal,
+        isOpen: true,
+        candidateName: data.candidate_name,
+        candidateEmail: data.candidate_email,
+        subject: data.subject,
+        body: data.body,
+        mailtoLink: data.mailto_link,
+        loading: false,
+        copied: false,
+        error: null,
+      });
+    } catch (error) {
+      console.error("❌ Error generating email:", error);
+      setEmailModal({
+        ...emailModal,
+        isOpen: true,
+        candidateName,
+        candidateEmail,
+        loading: false,
+        error: error.message || "Failed to generate email. Please try again.",
+        // Keep the modal open so user can see the error
+      });
+    }
+  };
+
+  const closeEmailModal = () => {
+    setEmailModal({
+      isOpen: false,
+      candidateName: "",
+      candidateEmail: "",
+      subject: "",
+      body: "",
+      mailtoLink: "",
+      loading: false,
+      copied: false,
+    });
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    setEmailModal({ ...emailModal, copied: true });
+    setTimeout(() => {
+      setEmailModal({ ...emailModal, copied: false });
+    }, 2000);
+  };
+
+  const openInEmailClient = () => {
+    window.location.href = emailModal.mailtoLink;
+  };
+
+  // Helper to render message with clickable emails
+  const renderMessageContent = (msg) => {
+    if (
+      msg.role === "assistant" &&
+      msg.candidates &&
+      msg.candidates.length > 0
+    ) {
+      // This message contains candidate data, render specially
+      return (
+        <div>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap mb-3">
+            {msg.content.split("\n\n")[0]} {/* First part is the intro */}
+          </p>
+
+          <div className="space-y-3 mt-3">
+            {msg.candidates.map((candidate, idx) => (
+              <div
+                key={candidate.id}
+                className="bg-white/10 rounded-lg p-3 border border-white/20"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <span className="font-semibold text-purple-300">
+                      {idx + 1}. {candidate.name}
+                    </span>
+                    {candidate.relevance_score && (
+                      <span className="ml-2 text-xs bg-purple-600/30 px-2 py-0.5 rounded-full">
+                        {candidate.relevance_score}% match
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Email with click handler */}
+                {candidate.email_available ? (
+                  <button
+                    onClick={() =>
+                      handleEmailClick(
+                        candidate.id,
+                        candidate.name,
+                        candidate.email,
+                      )
+                    }
+                    className="flex items-center gap-1.5 text-xs bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 px-2 py-1 rounded-md transition-colors mb-2"
+                  >
+                    <Mail className="w-3 h-3" />
+                    <span className="truncate max-w-[200px]">
+                      {candidate.email}
+                    </span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-xs bg-gray-600/30 text-gray-400 px-2 py-1 rounded-md mb-2">
+                    <Mail className="w-3 h-3" />
+                    <span>No email available</span>
+                  </div>
+                )}
+
+                {/* Skills */}
+                {candidate.skills && candidate.skills.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {candidate.skills.map((skill, i) => (
+                      <span
+                        key={i}
+                        className="text-xs bg-white/10 px-2 py-0.5 rounded-full"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Experience */}
+                {candidate.experience_summary && (
+                  <p className="text-xs text-white/70 mb-1">
+                    <span className="font-medium">Exp:</span>{" "}
+                    {candidate.experience_summary}
+                  </p>
+                )}
+
+                {/* Education */}
+                {candidate.education_summary && (
+                  <p className="text-xs text-white/70">
+                    <span className="font-medium">Edu:</span>{" "}
+                    {candidate.education_summary}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <p className="text-sm text-white/50 mt-3 italic">
+            Click on an email to generate an automated message!
+          </p>
+        </div>
+      );
+    }
+
+    // Regular message without candidates
+    return (
+      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+        {msg.content}
+      </p>
+    );
   };
 
   if (loading) {
@@ -150,6 +406,108 @@ const RecruiterChatbot = () => {
 
   return (
     <div className="h-screen flex flex-col bg-[#221824] overflow-hidden">
+      {/* Email Modal */}
+      {emailModal.isOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#2a1f2a] border border-white/20 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center">
+              <h3 className="text-white font-semibold flex items-center gap-2">
+                <Mail className="w-4 h-4 text-purple-400" />
+                Email to {emailModal.candidateName}
+              </h3>
+              <button
+                onClick={closeEmailModal}
+                className="text-white/50 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto flex-1">
+              {emailModal.loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="ml-3 text-white/70">Generating email...</p>
+                </div>
+              ) : emailModal.error ? (
+                <div className="text-red-400 p-4 text-center">
+                  {emailModal.error}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-white/40 uppercase block mb-1">
+                      To:
+                    </label>
+                    <div className="bg-white/5 p-3 rounded-lg text-white">
+                      {emailModal.candidateEmail}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-white/40 uppercase block mb-1">
+                      Subject:
+                    </label>
+                    <div className="bg-white/5 p-3 rounded-lg text-white font-medium">
+                      {emailModal.subject}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-white/40 uppercase block mb-1">
+                      Body:
+                    </label>
+                    <div className="bg-white/5 p-4 rounded-lg text-white whitespace-pre-wrap font-mono text-sm">
+                      {emailModal.body}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-white/10 flex gap-2">
+              <button
+                onClick={() =>
+                  copyToClipboard(`${emailModal.subject}\n\n${emailModal.body}`)
+                }
+                disabled={emailModal.loading || emailModal.error}
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 disabled:bg-gray-600 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-white text-sm transition-colors"
+              >
+                {emailModal.copied ? (
+                  <>
+                    <Check className="w-4 h-4 text-green-400" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    Copy
+                  </>
+                )}
+              </button>
+
+              {/* Direct email button - creates mailto on the fly */}
+              <button
+                onClick={() => {
+                  const subject = encodeURIComponent(emailModal.subject);
+                  const body = encodeURIComponent(emailModal.body);
+                  window.location.href = `mailto:${emailModal.candidateEmail}?subject=${subject}&body=${body}`;
+                }}
+                disabled={
+                  emailModal.loading ||
+                  emailModal.error ||
+                  !emailModal.candidateEmail
+                }
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 disabled:cursor-not-allowed px-4 py-2 rounded-lg text-white text-sm transition-colors ml-auto"
+              >
+                <Mail className="w-4 h-4" />
+                Open in Email Client
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav className="h-16 border-b border-white/10 flex items-center px-6 shrink-0">
         <button
           className="flex items-center gap-2 text-white/60 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-white/5"
@@ -182,10 +540,6 @@ const RecruiterChatbot = () => {
                         <Target className="w-3 h-3" /> {lastQueryInfo.analyzed}{" "}
                         Scanned
                       </div>
-                      {/* <div className="flex items-center gap-1">
-                        <Award className="w-3 h-3" /> {lastQueryInfo.shown}{" "}
-                        Ranked
-                      </div> */}
                     </>
                   ) : (
                     <div className="opacity-0">Placeholder</div>
@@ -214,9 +568,7 @@ const RecruiterChatbot = () => {
                         : "bg-white/5 text-white border border-white/10 rounded-tl-none"
                     }`}
                   >
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                      {msg.content}
-                    </p>
+                    {renderMessageContent(msg)}
                   </div>
                 </div>
               ))}
