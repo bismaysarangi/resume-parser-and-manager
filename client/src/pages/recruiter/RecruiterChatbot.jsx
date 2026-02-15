@@ -284,10 +284,6 @@ const RecruiterChatbot = () => {
     }, 2000);
   };
 
-  const openInEmailClient = () => {
-    window.location.href = emailModal.mailtoLink;
-  };
-
   // Helper to render message with clickable emails
   const renderMessageContent = (msg) => {
     if (

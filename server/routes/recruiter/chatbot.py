@@ -534,7 +534,7 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
 
     # ==================== REST OF EXISTING EXTRACTION ====================
     
-    # Extract "top N" requests
+    # Extract "top N" requests - ENHANCED to catch more patterns
     top_n_patterns = [
         r'top\s+(\d+)',
         r'best\s+(\d+)',
@@ -542,7 +542,14 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
         r'(\d+)\s+top',
         r'give\s+me\s+(\d+)',
         r'show\s+me\s+(\d+)',
-        r'find\s+(\d+)'
+        r'find\s+(\d+)',
+        r'(\d+)\s+candidates?',
+        r'(\d+)\s+people',
+        r'(\d+)\s+developers?',
+        r'(\d+)\s+engineers?',
+        r'list\s+(\d+)',
+        r'display\s+(\d+)',
+        r'return\s+(\d+)'
     ]
     
     for pattern in top_n_patterns:
@@ -550,11 +557,14 @@ def extract_query_intent(query: str) -> Dict[str, Any]:
         if match:
             intent['top_n'] = int(match.group(1))
             intent['query_type'] = 'ranking'
+            print(f"✓ Number detected: {intent['top_n']} candidates requested")
             break
     
+    # If no specific number requested but it's a ranking query, default to 5
     if not intent['top_n'] and any(word in query_lower for word in ['best', 'top', 'strongest', 'most qualified']):
         intent['top_n'] = 5
         intent['query_type'] = 'ranking'
+        print(f"✓ Using default of 5 candidates for ranking query")
 
     # SKILLS extraction (existing code)
     skill_database = {
@@ -2002,6 +2012,7 @@ async def chatbot_query(
     """
     ENHANCED: Chatbot with better query understanding and conversational ability
     WITH INTEGRATED LOCATION MATCHING AND EMAIL SUPPORT
+    FIX: Now respects exact number requested (4, 10, etc.) or defaults to 5
     """
     try:
         print(f"Received query: {request.query}")
@@ -2075,12 +2086,31 @@ async def chatbot_query(
             ranked_candidates = rank_candidates(unique_candidates, intent)
             total_after_filter = len(unique_candidates)
         
-        # Determine how many to show
-        top_n = intent.get('top_n') or 5
+        # ================ FIXED: Determine how many candidates to show ================
+        # Get requested number from intent (if any)
+        requested_count = intent.get('top_n')
         
-        # Filter low scores
-        if len(ranked_candidates) > top_n:
-            ranked_candidates = [c for c in ranked_candidates if c.score > 10][:top_n]
+        if requested_count:
+            # User specifically asked for a number (e.g., "10 candidates", "top 4")
+            top_n = requested_count
+            print(f"📊 User explicitly requested {top_n} candidates")
+        else:
+            # No specific number requested, default to 5
+            top_n = 5
+            print(f"📊 No number specified, defaulting to {top_n} candidates")
+        
+        # Filter out very low scores (below 10) but only if we have enough candidates
+        # This prevents showing candidates with extremely low relevance
+        if len(ranked_candidates) > top_n * 2:  # Only filter if we have excess
+            ranked_candidates = [c for c in ranked_candidates if c.score > 10]
+            print(f"📊 Filtered out low-scoring candidates, remaining: {len(ranked_candidates)}")
+        
+        # Take the top N based on what was requested
+        ranked_candidates = ranked_candidates[:min(top_n, len(ranked_candidates))]
+        
+        actual_count = len(ranked_candidates)
+        print(f"📊 Returning {actual_count} candidates (requested: {top_n})")
+        # ==============================================================================
         
         if not ranked_candidates:
             if has_personal_filters:
@@ -2098,30 +2128,30 @@ async def chatbot_query(
                     "candidates_shown": 0
                 }
         
-        # Format for LLM - use appropriate formatter
+        # Format for LLM - use actual_count instead of top_n
         if has_personal_filters:
-            ranked_data = format_ranked_candidates_with_personal_info(ranked_candidates, top_n)
+            ranked_data = format_ranked_candidates_with_personal_info(ranked_candidates, actual_count)
             prompt = create_enhanced_prompt_with_personal_info(
                 request.query,
                 ranked_data,
                 intent,
-                min(top_n, len(ranked_candidates)),
+                actual_count,  # Pass actual number shown
                 len(unique_candidates),
                 total_after_filter,
                 request.conversation_history
             )
         else:
-            ranked_data = format_ranked_candidates(ranked_candidates, top_n)
+            ranked_data = format_ranked_candidates(ranked_candidates, actual_count)
             prompt = create_enhanced_prompt(
                 request.query,
                 ranked_data,
                 intent,
-                min(top_n, len(ranked_candidates)),
+                actual_count,  # Pass actual number shown
                 len(unique_candidates),
                 request.conversation_history
             )
         
-        print(f"Sending top {min(top_n, len(ranked_candidates))} candidates to LLM")
+        print(f"Sending {actual_count} candidates to LLM")
         
         # Call Groq with higher temperature for natural responses
         response = await call_groq_api(prompt, temperature=0.8)
@@ -2131,7 +2161,7 @@ async def chatbot_query(
             
             # Format candidates for frontend display (with email info)
             frontend_candidates = []
-            for scored_candidate in ranked_candidates[:min(top_n, len(ranked_candidates))]:
+            for scored_candidate in ranked_candidates:
                 candidate = scored_candidate.candidate
                 parsed = candidate.get("parsed_data", {})
                 
