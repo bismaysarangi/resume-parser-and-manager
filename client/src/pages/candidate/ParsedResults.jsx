@@ -43,15 +43,104 @@ import {
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
+// ─── helpers (same as RecruiterBulkResults) ───────────────────────────────────
+
+const isNullValue = (value) =>
+  value === null || value === undefined || value === "" || value === "null";
+
+const getValue = (obj, key) => {
+  if (!obj) return null;
+  if (obj[key] !== undefined) return obj[key];
+  const lowerKey = key.toLowerCase();
+  if (obj[lowerKey] !== undefined) return obj[lowerKey];
+  const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1).toLowerCase();
+  if (obj[capitalizedKey] !== undefined) return obj[capitalizedKey];
+  return null;
+};
+
+const hasValidItems = (array) => {
+  if (!array || !Array.isArray(array) || array.length === 0) return false;
+  return array.some((item) => {
+    if (!item || typeof item !== "object") return false;
+    return Object.values(item).some(
+      (value) =>
+        value !== null &&
+        value !== undefined &&
+        value !== "" &&
+        value !== "null" &&
+        !(Array.isArray(value) && value.length === 0)
+    );
+  });
+};
+
+const hasValidSkills = (skills) =>
+  skills &&
+  Array.isArray(skills) &&
+  skills.length > 0 &&
+  skills.some(
+    (skill) =>
+      skill &&
+      typeof skill === "string" &&
+      skill.trim() !== "" &&
+      skill.trim() !== "null"
+  );
+
+const hasValidLanguages = (languages) => {
+  if (!languages || !Array.isArray(languages) || languages.length === 0)
+    return false;
+  return languages.some((lang) => {
+    const language = getValue(lang, "Language");
+    return language && language.trim() !== "" && language.trim() !== "null";
+  });
+};
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+// extra_sections may contain top-level fields like career_objective — hoist them
+const hoistExtraSections = (data) => {
+  if (!data) return data;
+  const result = { ...data };
+
+  // Pull career_objective out of extra_sections if it lives there
+  if (
+    result.extra_sections &&
+    typeof result.extra_sections === "object" &&
+    !Array.isArray(result.extra_sections)
+  ) {
+    const es = result.extra_sections;
+
+    // hoist any scalar fields that belong at the top level
+    const scalarKeys = [
+      "career_objective", "placement_preferences",
+      "preferred_job_role", "preferred_industry",
+    ];
+    scalarKeys.forEach((k) => {
+      if (es[k] !== undefined && isNullValue(result[k])) {
+        result[k] = es[k];
+      }
+    });
+
+    // rebuild extra_sections without those scalars and without null values
+    const remaining = Object.entries(es).filter(
+      ([k, v]) => !scalarKeys.includes(k) && !isNullValue(v)
+    );
+    result.extra_sections = remaining.length
+      ? Object.fromEntries(remaining)
+      : null;
+  }
+
+  return result;
+};
+
+// ─── component ────────────────────────────────────────────────────────────────
+
 const ParsedResults = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { parsedData: rawData, fileName } = location.state || {};
 
-  const parsedData = rawData?.data || rawData;
-
-  console.log("Raw Data:", rawData);
-  console.log("Parsed Data:", parsedData);
+  // support both { data: {...} } and flat object shapes, then hoist extra fields
+  const parsedData = hoistExtraSections(rawData?.data || rawData);
 
   if (!parsedData) {
     return (
@@ -62,9 +151,7 @@ const ParsedResults = () => {
         <Card className="bg-white/10 backdrop-blur-sm border-white/20 max-w-md mx-4">
           <CardContent className="p-8 text-center">
             <FileText className="w-16 h-16 text-white/60 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-white mb-4">
-              No Data Found
-            </h2>
+            <h2 className="text-2xl font-bold text-white mb-4">No Data Found</h2>
             <p className="text-white/70 mb-6">Please upload a resume first.</p>
             <Link to="/candidate/upload">
               <Button className="bg-white text-black hover:bg-white/90">
@@ -77,35 +164,6 @@ const ParsedResults = () => {
     );
   }
 
-  const hasValidItems = (array) => {
-    if (!array || !Array.isArray(array) || array.length === 0) return false;
-    return array.some((item) => {
-      if (!item || typeof item !== "object") return false;
-      return Object.values(item).some(
-        (value) =>
-          value !== null &&
-          value !== undefined &&
-          value !== "" &&
-          !(Array.isArray(value) && value.length === 0)
-      );
-    });
-  };
-
-  const hasValidSkills = (skills) => {
-    return (
-      skills &&
-      Array.isArray(skills) &&
-      skills.length > 0 &&
-      skills.some((skill) => skill && typeof skill === 'string' && skill.trim() !== "")
-    );
-  };
-
-  // Helper to check if languages array has valid items (even without proficiency)
-  const hasValidLanguages = (languages) => {
-    if (!languages || !Array.isArray(languages) || languages.length === 0) return false;
-    return languages.some((lang) => lang && lang.Language && lang.Language.trim() !== "");
-  };
-
   return (
     <div
       className="min-h-screen pt-16"
@@ -113,9 +171,18 @@ const ParsedResults = () => {
     >
       <div className="container mx-auto max-w-7xl py-6 sm:py-8 px-4 sm:px-6 mt-4">
         <div className="space-y-6">
-          {/* Personal Information */}
-          {(parsedData.name || parsedData.email || parsedData.phone || parsedData.gender || 
-            parsedData.date_of_birth || parsedData.age || parsedData.nationality || parsedData.marital_status) && (
+
+          {/* ── Personal Information ── */}
+          {(
+            (parsedData.name && !isNullValue(parsedData.name)) ||
+            (parsedData.email && !isNullValue(parsedData.email)) ||
+            (parsedData.phone && !isNullValue(parsedData.phone)) ||
+            (parsedData.gender && !isNullValue(parsedData.gender)) ||
+            (parsedData.date_of_birth && !isNullValue(parsedData.date_of_birth)) ||
+            (parsedData.age && !isNullValue(parsedData.age)) ||
+            (parsedData.nationality && !isNullValue(parsedData.nationality)) ||
+            (parsedData.marital_status && !isNullValue(parsedData.marital_status))
+          ) && (
             <Card className="bg-gradient-to-br from-blue-600/10 to-cyan-600/5 backdrop-blur-sm border-blue-500/20 hover:border-blue-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg sm:text-xl">
@@ -127,7 +194,7 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  {parsedData.name && (
+                  {parsedData.name && !isNullValue(parsedData.name) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <User className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -136,7 +203,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.email && (
+                  {parsedData.email && !isNullValue(parsedData.email) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Mail className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -145,7 +212,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.phone && (
+                  {parsedData.phone && !isNullValue(parsedData.phone) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Phone className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -154,7 +221,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.gender && (
+                  {parsedData.gender && !isNullValue(parsedData.gender) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <UserCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -163,7 +230,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.date_of_birth && (
+                  {parsedData.date_of_birth && !isNullValue(parsedData.date_of_birth) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Cake className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -172,7 +239,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.age && (
+                  {parsedData.age && !isNullValue(parsedData.age) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Calendar className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -181,7 +248,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.nationality && (
+                  {parsedData.nationality && !isNullValue(parsedData.nationality) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Flag className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -190,7 +257,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.marital_status && (
+                  {parsedData.marital_status && !isNullValue(parsedData.marital_status) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Heart className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -204,9 +271,14 @@ const ParsedResults = () => {
             </Card>
           )}
 
-          {/* Location Information */}
-          {(parsedData.current_location || parsedData.permanent_address || parsedData.hometown || 
-            hasValidSkills(parsedData.preferred_locations) || parsedData.willing_to_relocate !== null) && (
+          {/* ── Location Information ── */}
+          {(
+            (parsedData.current_location && !isNullValue(parsedData.current_location)) ||
+            (parsedData.permanent_address && !isNullValue(parsedData.permanent_address)) ||
+            (parsedData.hometown && !isNullValue(parsedData.hometown)) ||
+            hasValidSkills(parsedData.preferred_locations) ||
+            (parsedData.willing_to_relocate !== null && parsedData.willing_to_relocate !== "null" && parsedData.willing_to_relocate !== undefined)
+          ) && (
             <Card className="bg-gradient-to-br from-emerald-600/10 to-green-600/5 backdrop-blur-sm border-emerald-500/20 hover:border-emerald-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg sm:text-xl">
@@ -218,7 +290,7 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  {parsedData.current_location && (
+                  {parsedData.current_location && !isNullValue(parsedData.current_location) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <MapPin className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -227,7 +299,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.permanent_address && (
+                  {parsedData.permanent_address && !isNullValue(parsedData.permanent_address) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Home className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -236,7 +308,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.hometown && (
+                  {parsedData.hometown && !isNullValue(parsedData.hometown) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Home className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -245,7 +317,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.willing_to_relocate !== null && (
+                  {parsedData.willing_to_relocate !== null && parsedData.willing_to_relocate !== "null" && parsedData.willing_to_relocate !== undefined && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Plane className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -261,11 +333,13 @@ const ParsedResults = () => {
                   <div className="mt-4">
                     <p className="text-white/60 text-xs sm:text-sm mb-2">Preferred Locations</p>
                     <div className="flex flex-wrap gap-2">
-                      {parsedData.preferred_locations.map((loc, index) => (
-                        <span key={index} className="px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 rounded-full text-white text-xs sm:text-sm">
-                          {loc}
-                        </span>
-                      ))}
+                      {parsedData.preferred_locations
+                        .filter((loc) => !isNullValue(loc))
+                        .map((loc, index) => (
+                          <span key={index} className="px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/30 rounded-full text-white text-xs sm:text-sm">
+                            {loc}
+                          </span>
+                        ))}
                     </div>
                   </div>
                 )}
@@ -273,8 +347,13 @@ const ParsedResults = () => {
             </Card>
           )}
 
-          {/* Work Authorization & Availability */}
-          {(parsedData.work_authorization || parsedData.visa_status || parsedData.notice_period || parsedData.availability_date) && (
+          {/* ── Work Authorization & Availability ── */}
+          {(
+            (parsedData.work_authorization && !isNullValue(parsedData.work_authorization)) ||
+            (parsedData.visa_status && !isNullValue(parsedData.visa_status)) ||
+            (parsedData.notice_period && !isNullValue(parsedData.notice_period)) ||
+            (parsedData.availability_date && !isNullValue(parsedData.availability_date))
+          ) && (
             <Card className="bg-gradient-to-br from-purple-600/10 to-violet-600/5 backdrop-blur-sm border-purple-500/20 hover:border-purple-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg sm:text-xl">
@@ -286,7 +365,7 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  {parsedData.work_authorization && (
+                  {parsedData.work_authorization && !isNullValue(parsedData.work_authorization) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Shield className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -295,7 +374,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.visa_status && (
+                  {parsedData.visa_status && !isNullValue(parsedData.visa_status) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Globe className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -304,7 +383,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.notice_period && (
+                  {parsedData.notice_period && !isNullValue(parsedData.notice_period) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Clock className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -313,7 +392,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.availability_date && (
+                  {parsedData.availability_date && !isNullValue(parsedData.availability_date) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Calendar className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -327,8 +406,13 @@ const ParsedResults = () => {
             </Card>
           )}
 
-          {/* Compensation */}
-          {(parsedData.current_ctc || parsedData.expected_ctc || parsedData.current_salary || parsedData.expected_salary) && (
+          {/* ── Compensation ── */}
+          {(
+            (parsedData.current_ctc && !isNullValue(parsedData.current_ctc)) ||
+            (parsedData.expected_ctc && !isNullValue(parsedData.expected_ctc)) ||
+            (parsedData.current_salary && !isNullValue(parsedData.current_salary)) ||
+            (parsedData.expected_salary && !isNullValue(parsedData.expected_salary))
+          ) && (
             <Card className="bg-gradient-to-br from-amber-600/10 to-yellow-600/5 backdrop-blur-sm border-amber-500/20 hover:border-amber-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg sm:text-xl">
@@ -340,7 +424,7 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  {parsedData.current_ctc && (
+                  {parsedData.current_ctc && !isNullValue(parsedData.current_ctc) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <DollarSign className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -349,7 +433,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.expected_ctc && (
+                  {parsedData.expected_ctc && !isNullValue(parsedData.expected_ctc) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <DollarSign className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -358,7 +442,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.current_salary && (
+                  {parsedData.current_salary && !isNullValue(parsedData.current_salary) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <DollarSign className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -367,7 +451,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.expected_salary && (
+                  {parsedData.expected_salary && !isNullValue(parsedData.expected_salary) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <DollarSign className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -381,10 +465,12 @@ const ParsedResults = () => {
             </Card>
           )}
 
-          {/* Summary/Objective */}
-          {(parsedData.summary && parsedData.summary.trim() !== "" || 
-            parsedData.objective && parsedData.objective.trim() !== "" || 
-            parsedData.career_objective && parsedData.career_objective.trim() !== "") && (
+          {/* ── Professional Summary ── */}
+          {(
+            (parsedData.summary && !isNullValue(parsedData.summary) && parsedData.summary.trim() !== "") ||
+            (parsedData.objective && !isNullValue(parsedData.objective) && parsedData.objective.trim() !== "") ||
+            (parsedData.career_objective && !isNullValue(parsedData.career_objective) && parsedData.career_objective.trim() !== "")
+          ) && (
             <Card className="bg-gradient-to-br from-sky-600/10 to-blue-600/5 backdrop-blur-sm border-sky-500/20 hover:border-sky-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg sm:text-xl">
@@ -395,19 +481,19 @@ const ParsedResults = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {parsedData.summary && parsedData.summary.trim() !== "" && (
+                {parsedData.summary && !isNullValue(parsedData.summary) && parsedData.summary.trim() !== "" && (
                   <div className="p-4 bg-white/5 rounded-lg">
                     <h4 className="text-white/80 text-sm font-semibold mb-2">Summary</h4>
                     <p className="text-white/70 text-sm leading-relaxed">{parsedData.summary}</p>
                   </div>
                 )}
-                {parsedData.objective && parsedData.objective.trim() !== "" && (
+                {parsedData.objective && !isNullValue(parsedData.objective) && parsedData.objective.trim() !== "" && (
                   <div className="p-4 bg-white/5 rounded-lg">
                     <h4 className="text-white/80 text-sm font-semibold mb-2">Objective</h4>
                     <p className="text-white/70 text-sm leading-relaxed">{parsedData.objective}</p>
                   </div>
                 )}
-                {parsedData.career_objective && parsedData.career_objective.trim() !== "" && (
+                {parsedData.career_objective && !isNullValue(parsedData.career_objective) && parsedData.career_objective.trim() !== "" && (
                   <div className="p-4 bg-white/5 rounded-lg">
                     <h4 className="text-white/80 text-sm font-semibold mb-2">Career Objective</h4>
                     <p className="text-white/70 text-sm leading-relaxed">{parsedData.career_objective}</p>
@@ -417,7 +503,7 @@ const ParsedResults = () => {
             </Card>
           )}
 
-          {/* Education */}
+          {/* ── Education ── */}
           {hasValidItems(parsedData.education) && (
             <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:border-white/30 transition-all">
               <CardHeader className="pb-4">
@@ -433,26 +519,38 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {parsedData.education.map((edu, index) => (
-                    <div key={index} className="p-4 sm:p-5 bg-gradient-to-br from-indigo-500/5 to-blue-500/5 rounded-lg border border-indigo-500/10 hover:border-indigo-400/20 transition-all">
-                      {edu.Degree && <h3 className="text-white font-semibold text-base sm:text-lg mb-1">{edu.Degree}</h3>}
-                      {edu.University && <p className="text-white/80 text-sm sm:text-base mb-2">{edu.University}</p>}
-                      {(edu.Grade || edu.Years) && (
-                        <div className="flex flex-wrap gap-4 mt-2">
-                          {edu.Grade && <span className="text-white/70 text-sm">Grade: {edu.Grade}</span>}
-                          {edu.Years && <span className="text-white/70 text-sm">Years: {edu.Years}</span>}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  {parsedData.education.map((edu, index) => {
+                    const degree = getValue(edu, "Degree");
+                    const university = getValue(edu, "University");
+                    const grade = getValue(edu, "Grade");
+                    const years = getValue(edu, "Years");
+                    return (
+                      <div key={index} className="p-4 sm:p-5 bg-gradient-to-br from-indigo-500/5 to-blue-500/5 rounded-lg border border-indigo-500/10 hover:border-indigo-400/20 transition-all">
+                        {degree && !isNullValue(degree) && <h3 className="text-white font-semibold text-base sm:text-lg mb-1">{degree}</h3>}
+                        {university && !isNullValue(university) && <p className="text-white/80 text-sm sm:text-base mb-2">{university}</p>}
+                        {((grade && !isNullValue(grade)) || (years && !isNullValue(years))) && (
+                          <div className="flex flex-wrap gap-4 mt-2">
+                            {grade && !isNullValue(grade) && <span className="text-white/70 text-sm">Grade: {grade}</span>}
+                            {years && !isNullValue(years) && <span className="text-white/70 text-sm">Years: {years}</span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Academic Marks */}
-          {(parsedData.tenth_marks || parsedData.twelfth_marks || parsedData.graduation_year || 
-            parsedData.current_year_of_study || parsedData.university_roll_number || parsedData.student_id) && (
+          {/* ── Academic Details ── */}
+          {(
+            (parsedData.tenth_marks && !isNullValue(parsedData.tenth_marks)) ||
+            (parsedData.twelfth_marks && !isNullValue(parsedData.twelfth_marks)) ||
+            (parsedData.graduation_year && !isNullValue(parsedData.graduation_year)) ||
+            (parsedData.current_year_of_study && !isNullValue(parsedData.current_year_of_study)) ||
+            (parsedData.university_roll_number && !isNullValue(parsedData.university_roll_number)) ||
+            (parsedData.student_id && !isNullValue(parsedData.student_id))
+          ) && (
             <Card className="bg-gradient-to-br from-rose-600/10 to-pink-600/5 backdrop-blur-sm border-rose-500/20 hover:border-rose-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg sm:text-xl">
@@ -464,7 +562,7 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  {parsedData.tenth_marks && (
+                  {parsedData.tenth_marks && !isNullValue(parsedData.tenth_marks) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Award className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -473,7 +571,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.twelfth_marks && (
+                  {parsedData.twelfth_marks && !isNullValue(parsedData.twelfth_marks) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Award className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -482,7 +580,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.graduation_year && (
+                  {parsedData.graduation_year && !isNullValue(parsedData.graduation_year) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Calendar className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -491,7 +589,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.current_year_of_study && (
+                  {parsedData.current_year_of_study && !isNullValue(parsedData.current_year_of_study) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Calendar className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -500,7 +598,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.university_roll_number && (
+                  {parsedData.university_roll_number && !isNullValue(parsedData.university_roll_number) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <FileText className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -509,7 +607,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.student_id && (
+                  {parsedData.student_id && !isNullValue(parsedData.student_id) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <FileText className="w-5 h-5 text-rose-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -523,7 +621,7 @@ const ParsedResults = () => {
             </Card>
           )}
 
-          {/* Work Experience */}
+          {/* ── Work Experience ── */}
           {hasValidItems(parsedData.experience) && (
             <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:border-white/30 transition-all">
               <CardHeader className="pb-4">
@@ -539,34 +637,40 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {parsedData.experience.map((exp, index) => (
-                    <div key={index} className="p-4 sm:p-5 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-lg border border-green-500/10 hover:border-green-400/20 transition-all">
-                      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
-                        <div className="flex-1">
-                          {exp.Role && <h3 className="text-white font-semibold text-base sm:text-lg mb-1">{exp.Role}</h3>}
-                          {exp.Company && (
-                            <div className="flex items-center gap-2 text-white/80 mb-2">
-                              <Building2 className="w-4 h-4 text-green-400 flex-shrink-0" />
-                              <span className="text-sm sm:text-base">{exp.Company}</span>
+                  {parsedData.experience.map((exp, index) => {
+                    const role = getValue(exp, "Role");
+                    const company = getValue(exp, "Company");
+                    const description = getValue(exp, "Description");
+                    const years = getValue(exp, "Years");
+                    return (
+                      <div key={index} className="p-4 sm:p-5 bg-gradient-to-br from-green-500/5 to-emerald-500/5 rounded-lg border border-green-500/10 hover:border-green-400/20 transition-all">
+                        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
+                          <div className="flex-1">
+                            {role && !isNullValue(role) && <h3 className="text-white font-semibold text-base sm:text-lg mb-1">{role}</h3>}
+                            {company && !isNullValue(company) && (
+                              <div className="flex items-center gap-2 text-white/80 mb-2">
+                                <Building2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+                                <span className="text-sm sm:text-base">{company}</span>
+                              </div>
+                            )}
+                            {description && !isNullValue(description) && <p className="text-white/70 text-sm mt-2 leading-relaxed">{description}</p>}
+                          </div>
+                          {years && !isNullValue(years) && (
+                            <div className="flex items-center gap-2 text-white/60 bg-green-500/10 px-3 py-1 rounded-full">
+                              <Calendar className="w-4 h-4 text-green-400 flex-shrink-0" />
+                              <span className="text-xs sm:text-sm whitespace-nowrap">{years}</span>
                             </div>
                           )}
-                          {exp.Description && <p className="text-white/70 text-sm mt-2 leading-relaxed">{exp.Description}</p>}
                         </div>
-                        {exp.Years && (
-                          <div className="flex items-center gap-2 text-white/60 bg-green-500/10 px-3 py-1 rounded-full">
-                            <Calendar className="w-4 h-4 text-green-400 flex-shrink-0" />
-                            <span className="text-xs sm:text-sm whitespace-nowrap">{exp.Years}</span>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Internships */}
+          {/* ── Internships ── */}
           {hasValidItems(parsedData.internships) && (
             <Card className="bg-gradient-to-br from-teal-600/10 to-cyan-600/5 backdrop-blur-sm border-teal-500/20 hover:border-teal-400/30 transition-all">
               <CardHeader className="pb-4">
@@ -582,34 +686,40 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {parsedData.internships.map((intern, index) => (
-                    <div key={index} className="p-4 sm:p-5 bg-gradient-to-br from-teal-500/5 to-cyan-500/5 rounded-lg border border-teal-500/10 hover:border-teal-400/20 transition-all">
-                      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
-                        <div className="flex-1">
-                          {intern.Role && <h3 className="text-white font-semibold text-base sm:text-lg mb-1">{intern.Role}</h3>}
-                          {intern.Company && (
-                            <div className="flex items-center gap-2 text-white/80 mb-2">
-                              <Building2 className="w-4 h-4 text-teal-400 flex-shrink-0" />
-                              <span className="text-sm sm:text-base">{intern.Company}</span>
+                  {parsedData.internships.map((intern, index) => {
+                    const role = getValue(intern, "Role");
+                    const company = getValue(intern, "Company");
+                    const description = getValue(intern, "Description");
+                    const duration = getValue(intern, "Duration");
+                    return (
+                      <div key={index} className="p-4 sm:p-5 bg-gradient-to-br from-teal-500/5 to-cyan-500/5 rounded-lg border border-teal-500/10 hover:border-teal-400/20 transition-all">
+                        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
+                          <div className="flex-1">
+                            {role && !isNullValue(role) && <h3 className="text-white font-semibold text-base sm:text-lg mb-1">{role}</h3>}
+                            {company && !isNullValue(company) && (
+                              <div className="flex items-center gap-2 text-white/80 mb-2">
+                                <Building2 className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                                <span className="text-sm sm:text-base">{company}</span>
+                              </div>
+                            )}
+                            {description && !isNullValue(description) && <p className="text-white/70 text-sm mt-2 leading-relaxed">{description}</p>}
+                          </div>
+                          {duration && !isNullValue(duration) && (
+                            <div className="flex items-center gap-2 text-white/60 bg-teal-500/10 px-3 py-1 rounded-full">
+                              <Calendar className="w-4 h-4 text-teal-400 flex-shrink-0" />
+                              <span className="text-xs sm:text-sm whitespace-nowrap">{duration}</span>
                             </div>
                           )}
-                          {intern.Description && <p className="text-white/70 text-sm mt-2 leading-relaxed">{intern.Description}</p>}
                         </div>
-                        {intern.Duration && (
-                          <div className="flex items-center gap-2 text-white/60 bg-teal-500/10 px-3 py-1 rounded-full">
-                            <Calendar className="w-4 h-4 text-teal-400 flex-shrink-0" />
-                            <span className="text-xs sm:text-sm whitespace-nowrap">{intern.Duration}</span>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Skills */}
+          {/* ── Skills ── */}
           {hasValidSkills(parsedData.skills) && (
             <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:border-white/30 transition-all">
               <CardHeader className="pb-4">
@@ -619,7 +729,7 @@ const ParsedResults = () => {
                   </div>
                   Skills
                   <span className="ml-2 text-white/60 text-sm font-normal">
-                    ({parsedData.skills.length})
+                    ({parsedData.skills.filter((s) => !isNullValue(s)).length})
                   </span>
                 </CardTitle>
               </CardHeader>
@@ -627,7 +737,7 @@ const ParsedResults = () => {
                 <div className="flex flex-wrap gap-2">
                   {parsedData.skills.map((skill, index) => {
                     const skillText = typeof skill === "string" ? skill : skill.name || JSON.stringify(skill);
-                    return skillText && skillText.trim() !== "" ? (
+                    return skillText && !isNullValue(skillText) && skillText.trim() !== "" ? (
                       <span key={index} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-orange-600/20 to-red-600/20 border border-orange-500/30 rounded-full text-white text-xs sm:text-sm font-medium hover:border-orange-400/50 hover:scale-105 transition-all">
                         {skillText}
                       </span>
@@ -638,7 +748,7 @@ const ParsedResults = () => {
             </Card>
           )}
 
-          {/* Derived Skills */}
+          {/* ── Derived Skills ── */}
           {hasValidSkills(parsedData.derived_skills) && (
             <Card className="bg-gradient-to-br from-red-600/10 to-orange-600/5 backdrop-blur-sm border-red-500/20 hover:border-red-400/30 transition-all">
               <CardHeader className="pb-4">
@@ -648,23 +758,25 @@ const ParsedResults = () => {
                   </div>
                   Derived Skills
                   <span className="ml-2 text-white/60 text-sm font-normal">
-                    ({parsedData.derived_skills.length})
+                    ({parsedData.derived_skills.filter((s) => !isNullValue(s)).length})
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {parsedData.derived_skills.map((skill, index) => (
-                    <span key={index} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-red-600/20 to-pink-600/20 border border-red-500/30 rounded-full text-white text-xs sm:text-sm font-medium hover:border-red-400/50 hover:scale-105 transition-all">
-                      {skill}
-                    </span>
-                  ))}
+                  {parsedData.derived_skills
+                    .filter((s) => !isNullValue(s))
+                    .map((skill, index) => (
+                      <span key={index} className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-red-600/20 to-pink-600/20 border border-red-500/30 rounded-full text-white text-xs sm:text-sm font-medium hover:border-red-400/50 hover:scale-105 transition-all">
+                        {skill}
+                      </span>
+                    ))}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Projects */}
+          {/* ── Projects ── */}
           {hasValidItems(parsedData.projects) && (
             <Card className="bg-white/10 backdrop-blur-sm border-white/20 hover:border-white/30 transition-all">
               <CardHeader className="pb-4">
@@ -680,40 +792,55 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {parsedData.projects.map((project, index) => (
-                    <div key={index} className="p-4 sm:p-5 bg-gradient-to-br from-cyan-500/5 to-teal-500/5 rounded-lg border border-cyan-500/10 hover:border-cyan-400/20 transition-all">
-                      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
-                        <div className="flex-1">
-                          {project.Name && <h3 className="text-white font-semibold text-base sm:text-lg mb-2">{project.Name}</h3>}
+                  {parsedData.projects.map((project, index) => {
+                    const name = getValue(project, "Name") || getValue(project, "Title");
+                    const description = getValue(project, "Description");
+                    const date = getValue(project, "Date") || getValue(project, "Duration");
+                    const techStack = getValue(project, "Tech Stack") || getValue(project, "Technologies");
+                    const supervisor = getValue(project, "Supervisor");
+                    return (
+                      <div key={index} className="p-4 sm:p-5 bg-gradient-to-br from-cyan-500/5 to-teal-500/5 rounded-lg border border-cyan-500/10 hover:border-cyan-400/20 transition-all">
+                        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-2 mb-3">
+                          <div className="flex-1">
+                            {name && !isNullValue(name) && <h3 className="text-white font-semibold text-base sm:text-lg mb-2">{name}</h3>}
+                          </div>
+                          {date && !isNullValue(date) && (
+                            <div className="flex items-center gap-2 text-white/60 bg-cyan-500/10 px-3 py-1 rounded-full">
+                              <Calendar className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                              <span className="text-xs sm:text-sm">{date}</span>
+                            </div>
+                          )}
                         </div>
-                        {project.Date && (
-                          <div className="flex items-center gap-2 text-white/60 bg-cyan-500/10 px-3 py-1 rounded-full">
-                            <Calendar className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                            <span className="text-xs sm:text-sm">{project.Date}</span>
+                        {description && !isNullValue(description) && (
+                          <p className="text-white/70 text-sm sm:text-base leading-relaxed mb-3">{description}</p>
+                        )}
+                        {supervisor && !isNullValue(supervisor) && description && supervisor !== description && (
+                          <div className="mt-2">
+                            <h4 className="text-white/80 text-sm font-semibold mb-1">Supervisor:</h4>
+                            <p className="text-white/70 text-sm">{supervisor}</p>
+                          </div>
+                        )}
+                        {techStack && !isNullValue(techStack) && (
+                          <div className="mt-3">
+                            <h4 className="text-white/80 text-sm font-semibold mb-2">Technologies Used:</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {(typeof techStack === "string" ? techStack.split(",") : [techStack]).map((tech, i) => (
+                                <span key={i} className="px-3 py-1 bg-cyan-500/20 rounded-full text-cyan-300 text-xs font-medium">
+                                  {tech.trim()}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
-                      {project.Description && <p className="text-white/70 text-sm sm:text-base leading-relaxed mb-3">{project.Description}</p>}
-                      {project["Tech Stack"] && (
-                        <div className="mt-3">
-                          <h4 className="text-white/80 text-sm font-semibold mb-2">Technologies Used:</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {(typeof project["Tech Stack"] === "string" ? project["Tech Stack"].split(",") : [project["Tech Stack"]]).map((tech, i) => (
-                              <span key={i} className="px-3 py-1 bg-cyan-500/20 rounded-full text-cyan-300 text-xs font-medium">
-                                {tech.trim()}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Achievements */}
+          {/* ── Achievements ── */}
           {hasValidItems(parsedData.achievements) && (
             <Card className="bg-gradient-to-br from-yellow-600/10 to-amber-600/5 backdrop-blur-sm border-yellow-500/20 hover:border-yellow-400/30 transition-all">
               <CardHeader className="pb-4">
@@ -729,19 +856,26 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {parsedData.achievements.map((achievement, index) => (
-                    <div key={index} className="p-4 bg-white/5 rounded-lg border border-yellow-500/10">
-                      {achievement.Title && <h4 className="text-white font-semibold text-base mb-1">{achievement.Title}</h4>}
-                      {achievement.Description && <p className="text-white/70 text-sm leading-relaxed mb-2">{achievement.Description}</p>}
-                      {achievement.Date && <p className="text-white/50 text-xs">{achievement.Date}</p>}
-                    </div>
-                  ))}
+                  {parsedData.achievements.map((achievement, index) => {
+                    const title = achievement.Title || achievement.title || achievement.name || achievement.Name;
+                    const description = achievement.Description || achievement.description;
+                    const date = achievement.Date || achievement.date || achievement.year || achievement.Year;
+                    return (
+                      <div key={index} className="p-4 bg-white/5 rounded-lg border border-yellow-500/10">
+                        {title && !isNullValue(title) && <h4 className="text-white font-semibold text-base mb-1">{title}</h4>}
+                        {description && !isNullValue(description) && <p className="text-white/70 text-sm leading-relaxed mb-2">{description}</p>}
+                        {date !== null && date !== undefined && String(date) !== "null" && (
+                          <p className="text-white/50 text-xs">{date}</p>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Publications */}
+          {/* ── Publications ── */}
           {hasValidItems(parsedData.publications) && (
             <Card className="bg-gradient-to-br from-blue-600/10 to-indigo-600/5 backdrop-blur-sm border-blue-500/20 hover:border-blue-400/30 transition-all">
               <CardHeader className="pb-4">
@@ -757,28 +891,35 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {parsedData.publications.map((pub, index) => (
-                    <div key={index} className="p-4 bg-white/5 rounded-lg border border-blue-500/10">
-                      {pub.Title && <h4 className="text-white font-semibold text-base mb-2">{pub.Title}</h4>}
-                      {pub.Authors && <p className="text-white/70 text-sm mb-1">Authors: {pub.Authors}</p>}
-                      {pub["Journal/Conference"] && <p className="text-white/70 text-sm mb-2">{pub["Journal/Conference"]}</p>}
-                      <div className="flex gap-4 text-xs text-white/50 mt-2">
-                        {pub.Date && <span>{pub.Date}</span>}
-                        {pub["DOI/Link"] && (
-                          <a href={pub["DOI/Link"]} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline flex items-center gap-1">
-                            View <ExternalLink className="w-3 h-3" />
-                          </a>
-                        )}
+                  {parsedData.publications.map((pub, index) => {
+                    const title = getValue(pub, "Title");
+                    const authors = getValue(pub, "Authors");
+                    const journal = getValue(pub, "Journal/Conference");
+                    const date = getValue(pub, "Date");
+                    const doi = getValue(pub, "DOI/Link");
+                    return (
+                      <div key={index} className="p-4 bg-white/5 rounded-lg border border-blue-500/10">
+                        {title && !isNullValue(title) && <h4 className="text-white font-semibold text-base mb-2">{title}</h4>}
+                        {authors && !isNullValue(authors) && <p className="text-white/70 text-sm mb-1">Authors: {authors}</p>}
+                        {journal && !isNullValue(journal) && <p className="text-white/70 text-sm mb-2">{journal}</p>}
+                        <div className="flex gap-4 text-xs text-white/50 mt-2">
+                          {date !== null && date !== undefined && String(date) !== "null" && <span>{date}</span>}
+                          {doi && !isNullValue(doi) && (
+                            <a href={doi} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline flex items-center gap-1">
+                              View <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Research */}
-          {(hasValidItems(parsedData.research) && (parsedData.research && parsedData.research.length > 0)) && (
+          {/* ── Research Experience ── */}
+          {hasValidItems(parsedData.research) && (
             <Card className="bg-gradient-to-br from-teal-600/10 to-cyan-600/5 backdrop-blur-sm border-teal-500/20 hover:border-teal-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg sm:text-xl">
@@ -793,30 +934,28 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {parsedData.research.map((research, index) => (
-                    <div key={index} className="p-4 bg-white/5 rounded-lg border border-teal-500/10">
-                      {research.Title && research.Title.trim() !== "" && (
-                        <h4 className="text-white font-semibold text-base mb-2">{research.Title}</h4>
-                      )}
-                      {research.Description && research.Description.trim() !== "" && (
-                        <p className="text-white/70 text-sm leading-relaxed mb-2">{research.Description}</p>
-                      )}
-                      <div className="flex gap-4 text-sm text-white/60 mt-2">
-                        {research.Institution && research.Institution.trim() !== "" && (
-                          <span>{research.Institution}</span>
-                        )}
-                        {research.Duration && research.Duration.trim() !== "" && (
-                          <span>{research.Duration}</span>
-                        )}
+                  {parsedData.research.map((research, index) => {
+                    const title = getValue(research, "Title");
+                    const description = getValue(research, "Description");
+                    const institution = getValue(research, "Institution");
+                    const duration = getValue(research, "Duration");
+                    return (
+                      <div key={index} className="p-4 bg-white/5 rounded-lg border border-teal-500/10">
+                        {title && !isNullValue(title) && title.trim() !== "" && <h4 className="text-white font-semibold text-base mb-2">{title}</h4>}
+                        {description && !isNullValue(description) && description.trim() !== "" && <p className="text-white/70 text-sm leading-relaxed mb-2">{description}</p>}
+                        <div className="flex gap-4 text-sm text-white/60 mt-2">
+                          {institution && !isNullValue(institution) && institution.trim() !== "" && <span>{institution}</span>}
+                          {duration && !isNullValue(duration) && duration.trim() !== "" && <span>{duration}</span>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Certifications */}
+          {/* ── Certifications ── */}
           {hasValidItems(parsedData.certifications) && (
             <Card className="bg-gradient-to-br from-green-600/10 to-emerald-600/5 backdrop-blur-sm border-green-500/20 hover:border-green-400/30 transition-all">
               <CardHeader className="pb-4">
@@ -832,22 +971,28 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {parsedData.certifications.map((cert, index) => (
-                    <div key={index} className="p-4 bg-white/5 rounded-lg border border-green-500/10">
-                      {cert.Name && <h4 className="text-white font-semibold text-base mb-1">{cert.Name}</h4>}
-                      {cert.Issuer && <p className="text-white/70 text-sm mb-2">{cert.Issuer}</p>}
-                      <div className="flex gap-4 text-xs text-white/50 mt-1">
-                        {cert.Date && <span>Issued: {cert.Date}</span>}
-                        {cert.Validity && <span>Valid until: {cert.Validity}</span>}
+                  {parsedData.certifications.map((cert, index) => {
+                    const name = getValue(cert, "Name");
+                    const issuer = getValue(cert, "Issuer");
+                    const date = getValue(cert, "Date");
+                    const validity = getValue(cert, "Validity") || getValue(cert, "Expiry");
+                    return (
+                      <div key={index} className="p-4 bg-white/5 rounded-lg border border-green-500/10">
+                        {name && !isNullValue(name) && <h4 className="text-white font-semibold text-base mb-1">{name}</h4>}
+                        {issuer && !isNullValue(issuer) && <p className="text-white/70 text-sm mb-2">{issuer}</p>}
+                        <div className="flex gap-4 text-xs text-white/50 mt-1">
+                          {date && !isNullValue(date) && <span>Issued: {date}</span>}
+                          {validity && !isNullValue(validity) && <span>Valid until: {validity}</span>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Awards */}
+          {/* ── Awards & Honors ── */}
           {hasValidItems(parsedData.awards) && (
             <Card className="bg-gradient-to-br from-red-600/10 to-orange-600/5 backdrop-blur-sm border-red-500/20 hover:border-red-400/30 transition-all">
               <CardHeader className="pb-4">
@@ -863,20 +1008,26 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {parsedData.awards.map((award, index) => (
-                    <div key={index} className="p-4 bg-white/5 rounded-lg border border-red-500/10">
-                      {award.Title && <h4 className="text-white font-semibold text-base mb-1">{award.Title}</h4>}
-                      {award.Issuer && <p className="text-white/70 text-sm mb-1">{award.Issuer}</p>}
-                      {award.Description && <p className="text-white/70 text-sm leading-relaxed mb-2">{award.Description}</p>}
-                      {award.Date && <p className="text-white/50 text-xs">{award.Date}</p>}
-                    </div>
-                  ))}
+                  {parsedData.awards.map((award, index) => {
+                    const title = getValue(award, "Title") || getValue(award, "name");
+                    const issuer = getValue(award, "Issuer") || getValue(award, "issuer");
+                    const description = getValue(award, "Description") || getValue(award, "description");
+                    const date = getValue(award, "Date") || getValue(award, "year");
+                    return (
+                      <div key={index} className="p-4 bg-white/5 rounded-lg border border-red-500/10">
+                        {title && !isNullValue(title) && <h4 className="text-white font-semibold text-base mb-1">{title}</h4>}
+                        {issuer && !isNullValue(issuer) && <p className="text-white/70 text-sm mb-1">{issuer}</p>}
+                        {description && !isNullValue(description) && <p className="text-white/70 text-sm leading-relaxed mb-2">{description}</p>}
+                        {date && !isNullValue(date) && <p className="text-white/50 text-xs">{date}</p>}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Volunteer Work */}
+          {/* ── Volunteer Experience ── */}
           {hasValidItems(parsedData.volunteer_work) && (
             <Card className="bg-gradient-to-br from-pink-600/10 to-rose-600/5 backdrop-blur-sm border-pink-500/20 hover:border-pink-400/30 transition-all">
               <CardHeader className="pb-4">
@@ -892,20 +1043,26 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {parsedData.volunteer_work.map((vol, index) => (
-                    <div key={index} className="p-4 bg-white/5 rounded-lg border border-pink-500/10">
-                      {vol.Role && <h4 className="text-white font-semibold text-base mb-1">{vol.Role}</h4>}
-                      {vol.Organization && <p className="text-white/70 text-sm mb-1">{vol.Organization}</p>}
-                      {vol.Duration && <p className="text-white/60 text-sm mb-2">{vol.Duration}</p>}
-                      {vol.Description && <p className="text-white/70 text-sm leading-relaxed">{vol.Description}</p>}
-                    </div>
-                  ))}
+                  {parsedData.volunteer_work.map((vol, index) => {
+                    const role = getValue(vol, "Role") || getValue(vol, "role");
+                    const organization = getValue(vol, "Organization") || getValue(vol, "organization");
+                    const duration = getValue(vol, "Duration") || getValue(vol, "duration");
+                    const description = getValue(vol, "Description") || getValue(vol, "description");
+                    return (
+                      <div key={index} className="p-4 bg-white/5 rounded-lg border border-pink-500/10">
+                        {role && !isNullValue(role) && <h4 className="text-white font-semibold text-base mb-1">{role}</h4>}
+                        {organization && !isNullValue(organization) && <p className="text-white/70 text-sm mb-1">{organization}</p>}
+                        {duration && !isNullValue(duration) && <p className="text-white/60 text-sm mb-2">{duration}</p>}
+                        {description && !isNullValue(description) && <p className="text-white/70 text-sm leading-relaxed">{description}</p>}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Extracurricular Activities */}
+          {/* ── Extracurricular Activities ── */}
           {hasValidItems(parsedData.extracurricular_activities) && (
             <Card className="bg-gradient-to-br from-lime-600/10 to-green-600/5 backdrop-blur-sm border-lime-500/20 hover:border-lime-400/30 transition-all">
               <CardHeader className="pb-4">
@@ -921,20 +1078,26 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {parsedData.extracurricular_activities.map((activity, index) => (
-                    <div key={index} className="p-4 bg-white/5 rounded-lg border border-lime-500/10">
-                      {activity.Activity && <h4 className="text-white font-semibold text-base mb-1">{activity.Activity}</h4>}
-                      {activity.Role && <p className="text-white/70 text-sm mb-1">{activity.Role}</p>}
-                      {activity.Duration && <p className="text-white/60 text-sm mb-2">{activity.Duration}</p>}
-                      {activity.Description && <p className="text-white/70 text-sm leading-relaxed">{activity.Description}</p>}
-                    </div>
-                  ))}
+                  {parsedData.extracurricular_activities.map((activity, index) => {
+                    const activityName = getValue(activity, "Activity") || getValue(activity, "activity");
+                    const role = getValue(activity, "Role") || getValue(activity, "role");
+                    const duration = getValue(activity, "Duration") || getValue(activity, "duration");
+                    const description = getValue(activity, "Description") || getValue(activity, "description");
+                    return (
+                      <div key={index} className="p-4 bg-white/5 rounded-lg border border-lime-500/10">
+                        {activityName && !isNullValue(activityName) && <h4 className="text-white font-semibold text-base mb-1">{activityName}</h4>}
+                        {role && !isNullValue(role) && <p className="text-white/70 text-sm mb-1">{role}</p>}
+                        {duration && !isNullValue(duration) && <p className="text-white/60 text-sm mb-2">{duration}</p>}
+                        {description && !isNullValue(description) && <p className="text-white/70 text-sm leading-relaxed">{description}</p>}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Languages */}
+          {/* ── Languages ── */}
           {hasValidLanguages(parsedData.languages) && (
             <Card className="bg-gradient-to-br from-violet-600/10 to-purple-600/5 backdrop-blur-sm border-violet-500/20 hover:border-violet-400/30 transition-all">
               <CardHeader className="pb-4">
@@ -944,26 +1107,31 @@ const ParsedResults = () => {
                   </div>
                   Languages
                   <span className="ml-2 text-white/60 text-sm font-normal">
-                    ({parsedData.languages.length})
+                    ({parsedData.languages.filter((l) => !isNullValue(getValue(l, "Language"))).length})
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {parsedData.languages.map((lang, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-violet-500/10">
-                      <span className="text-white font-medium">{lang.Language}</span>
-                      {lang.Proficiency && lang.Proficiency.trim() !== "" && (
-                        <span className="px-3 py-1 bg-violet-500/20 rounded-full text-violet-300 text-xs">{lang.Proficiency}</span>
-                      )}
-                    </div>
-                  ))}
+                  {parsedData.languages.map((lang, index) => {
+                    const language = getValue(lang, "Language");
+                    const proficiency = getValue(lang, "Proficiency");
+                    if (isNullValue(language)) return null;
+                    return (
+                      <div key={index} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-violet-500/10">
+                        <span className="text-white font-medium">{language}</span>
+                        {proficiency && !isNullValue(proficiency) && proficiency.trim() !== "" && (
+                          <span className="px-3 py-1 bg-violet-500/20 rounded-full text-violet-300 text-xs">{proficiency}</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Interests */}
+          {/* ── Interests & Hobbies ── */}
           {hasValidSkills(parsedData.interests) && (
             <Card className="bg-gradient-to-br from-fuchsia-600/10 to-purple-600/5 backdrop-blur-sm border-fuchsia-500/20 hover:border-fuchsia-400/30 transition-all">
               <CardHeader className="pb-4">
@@ -973,23 +1141,25 @@ const ParsedResults = () => {
                   </div>
                   Interests & Hobbies
                   <span className="ml-2 text-white/60 text-sm font-normal">
-                    ({parsedData.interests.length})
+                    ({parsedData.interests.filter((i) => !isNullValue(i)).length})
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {parsedData.interests.map((interest, index) => (
-                    <span key={index} className="px-3 py-1.5 bg-fuchsia-500/20 border border-fuchsia-500/30 rounded-full text-white text-sm">
-                      {interest}
-                    </span>
-                  ))}
+                  {parsedData.interests
+                    .filter((interest) => !isNullValue(interest))
+                    .map((interest, index) => (
+                      <span key={index} className="px-3 py-1.5 bg-fuchsia-500/20 border border-fuchsia-500/30 rounded-full text-white text-sm">
+                        {interest}
+                      </span>
+                    ))}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Hobbies */}
+          {/* ── Hobbies ── */}
           {hasValidSkills(parsedData.hobbies) && (
             <Card className="bg-gradient-to-br from-indigo-600/10 to-blue-600/5 backdrop-blur-sm border-indigo-500/20 hover:border-indigo-400/30 transition-all">
               <CardHeader className="pb-4">
@@ -999,23 +1169,25 @@ const ParsedResults = () => {
                   </div>
                   Hobbies
                   <span className="ml-2 text-white/60 text-sm font-normal">
-                    ({parsedData.hobbies.length})
+                    ({parsedData.hobbies.filter((h) => !isNullValue(h)).length})
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {parsedData.hobbies.map((hobby, index) => (
-                    <span key={index} className="px-3 py-1.5 bg-indigo-500/20 border border-indigo-500/30 rounded-full text-white text-sm">
-                      {hobby}
-                    </span>
-                  ))}
+                  {parsedData.hobbies
+                    .filter((hobby) => !isNullValue(hobby))
+                    .map((hobby, index) => (
+                      <span key={index} className="px-3 py-1.5 bg-indigo-500/20 border border-indigo-500/30 rounded-full text-white text-sm">
+                        {hobby}
+                      </span>
+                    ))}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* References */}
+          {/* ── References ── */}
           {hasValidItems(parsedData.references) && (
             <Card className="bg-gradient-to-br from-slate-600/10 to-gray-600/5 backdrop-blur-sm border-slate-500/20 hover:border-slate-400/30 transition-all">
               <CardHeader className="pb-4">
@@ -1031,21 +1203,32 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {parsedData.references.map((ref, index) => (
-                    <div key={index} className="p-4 bg-white/5 rounded-lg border border-slate-500/10">
-                      {ref.Name && <h4 className="text-white font-semibold text-base mb-1">{ref.Name}</h4>}
-                      {ref.Title && <p className="text-white/70 text-sm mb-1">{ref.Title}</p>}
-                      {ref.Relationship && <p className="text-white/60 text-sm mb-1">{ref.Relationship}</p>}
-                      {ref.Contact && <p className="text-white/70 text-sm">{ref.Contact}</p>}
-                    </div>
-                  ))}
+                  {parsedData.references.map((ref, index) => {
+                    const name = getValue(ref, "Name");
+                    const title = getValue(ref, "Title");
+                    const relationship = getValue(ref, "Relationship");
+                    const contact = getValue(ref, "Contact");
+                    return (
+                      <div key={index} className="p-4 bg-white/5 rounded-lg border border-slate-500/10">
+                        {name && !isNullValue(name) && <h4 className="text-white font-semibold text-base mb-1">{name}</h4>}
+                        {title && !isNullValue(title) && <p className="text-white/70 text-sm mb-1">{title}</p>}
+                        {relationship && !isNullValue(relationship) && <p className="text-white/60 text-sm mb-1">{relationship}</p>}
+                        {contact && !isNullValue(contact) && <p className="text-white/70 text-sm">{contact}</p>}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Social & Professional Links */}
-          {(parsedData.linkedin_url || parsedData.github_url || parsedData.portfolio_url || parsedData.personal_website) && (
+          {/* ── Social & Professional Links ── */}
+          {(
+            (parsedData.linkedin_url && !isNullValue(parsedData.linkedin_url)) ||
+            (parsedData.github_url && !isNullValue(parsedData.github_url)) ||
+            (parsedData.portfolio_url && !isNullValue(parsedData.portfolio_url)) ||
+            (parsedData.personal_website && !isNullValue(parsedData.personal_website))
+          ) && (
             <Card className="bg-gradient-to-br from-sky-600/10 to-cyan-600/5 backdrop-blur-sm border-sky-500/20 hover:border-sky-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg sm:text-xl">
@@ -1057,18 +1240,32 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {parsedData.linkedin_url && (
-                    <a href={parsedData.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all border border-sky-500/10 hover:border-sky-400/30">
-                      <Linkedin className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                  {parsedData.linkedin_url && !isNullValue(parsedData.linkedin_url) && (
+                    <a
+                      href={parsedData.linkedin_url.startsWith("http") ? parsedData.linkedin_url : `https://${parsedData.linkedin_url}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all border border-sky-500/10 hover:border-sky-400/30"
+                    >
+                      {parsedData.linkedin_url.includes("researchgate") ? (
+                        <BookOpen className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                      ) : (
+                        <Linkedin className="w-5 h-5 text-sky-400 flex-shrink-0" />
+                      )}
                       <div className="min-w-0 flex-1">
-                        <p className="text-white/60 text-xs mb-1">LinkedIn</p>
+                        <p className="text-white/60 text-xs mb-1">
+                          {parsedData.linkedin_url.includes("researchgate") ? "ResearchGate" : "LinkedIn"}
+                        </p>
                         <p className="text-white text-sm truncate">{parsedData.linkedin_url}</p>
                       </div>
                       <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
                     </a>
                   )}
-                  {parsedData.github_url && (
-                    <a href={parsedData.github_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all border border-sky-500/10 hover:border-sky-400/30">
+                  {parsedData.github_url && !isNullValue(parsedData.github_url) && (
+                    <a
+                      href={parsedData.github_url.startsWith("http") ? parsedData.github_url : `https://${parsedData.github_url}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all border border-sky-500/10 hover:border-sky-400/30"
+                    >
                       <Github className="w-5 h-5 text-sky-400 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-white/60 text-xs mb-1">GitHub</p>
@@ -1077,8 +1274,12 @@ const ParsedResults = () => {
                       <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
                     </a>
                   )}
-                  {parsedData.portfolio_url && (
-                    <a href={parsedData.portfolio_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all border border-sky-500/10 hover:border-sky-400/30">
+                  {parsedData.portfolio_url && !isNullValue(parsedData.portfolio_url) && (
+                    <a
+                      href={parsedData.portfolio_url.startsWith("http") ? parsedData.portfolio_url : `https://${parsedData.portfolio_url}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all border border-sky-500/10 hover:border-sky-400/30"
+                    >
                       <Briefcase className="w-5 h-5 text-sky-400 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-white/60 text-xs mb-1">Portfolio</p>
@@ -1087,8 +1288,12 @@ const ParsedResults = () => {
                       <ExternalLink className="w-4 h-4 text-sky-400 flex-shrink-0" />
                     </a>
                   )}
-                  {parsedData.personal_website && (
-                    <a href={parsedData.personal_website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all border border-sky-500/10 hover:border-sky-400/30">
+                  {parsedData.personal_website && !isNullValue(parsedData.personal_website) && (
+                    <a
+                      href={parsedData.personal_website.startsWith("http") ? parsedData.personal_website : `https://${parsedData.personal_website}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-all border border-sky-500/10 hover:border-sky-400/30"
+                    >
                       <Globe className="w-5 h-5 text-sky-400 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-white/60 text-xs mb-1">Personal Website</p>
@@ -1102,8 +1307,12 @@ const ParsedResults = () => {
             </Card>
           )}
 
-          {/* Career Preferences */}
-          {(parsedData.placement_preferences || parsedData.preferred_job_role || parsedData.preferred_industry) && (
+          {/* ── Career Preferences ── */}
+          {(
+            (parsedData.placement_preferences && !isNullValue(parsedData.placement_preferences)) ||
+            (parsedData.preferred_job_role && !isNullValue(parsedData.preferred_job_role)) ||
+            (parsedData.preferred_industry && !isNullValue(parsedData.preferred_industry))
+          ) && (
             <Card className="bg-gradient-to-br from-orange-600/10 to-red-600/5 backdrop-blur-sm border-orange-500/20 hover:border-orange-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg sm:text-xl">
@@ -1115,7 +1324,7 @@ const ParsedResults = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                  {parsedData.placement_preferences && (
+                  {parsedData.placement_preferences && !isNullValue(parsedData.placement_preferences) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Briefcase className="w-5 h-5 text-orange-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -1124,7 +1333,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.preferred_job_role && (
+                  {parsedData.preferred_job_role && !isNullValue(parsedData.preferred_job_role) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Target className="w-5 h-5 text-orange-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -1133,7 +1342,7 @@ const ParsedResults = () => {
                       </div>
                     </div>
                   )}
-                  {parsedData.preferred_industry && (
+                  {parsedData.preferred_industry && !isNullValue(parsedData.preferred_industry) && (
                     <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                       <Building2 className="w-5 h-5 text-orange-400 mt-0.5 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -1147,8 +1356,11 @@ const ParsedResults = () => {
             </Card>
           )}
 
-          {/* Extra Sections */}
-          {parsedData.extra_sections && Object.keys(parsedData.extra_sections).length > 0 && (
+          {/* ── Additional / Extra Sections ── */}
+          {parsedData.extra_sections &&
+            typeof parsedData.extra_sections === "object" &&
+            !Array.isArray(parsedData.extra_sections) &&
+            Object.keys(parsedData.extra_sections).length > 0 && (
             <Card className="bg-gradient-to-br from-amber-600/10 to-yellow-600/5 backdrop-blur-sm border-amber-500/20 hover:border-amber-400/30 transition-all">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-white text-lg sm:text-xl">
@@ -1171,19 +1383,23 @@ const ParsedResults = () => {
                           <div key={itemIdx} className="text-sm text-white/70 pl-3 border-l-2 border-amber-500/20">
                             {typeof item === "object" ? (
                               <div className="space-y-1">
-                                {Object.entries(item).map(([key, value]) => (
-                                  <div key={key}>
-                                    <span className="font-medium text-white/80">{key}:</span> {value}
-                                  </div>
-                                ))}
+                                {Object.entries(item).map(([key, value]) =>
+                                  !isNullValue(value) ? (
+                                    <div key={key}>
+                                      <span className="font-medium text-white/80">{key}:</span> {value}
+                                    </div>
+                                  ) : null
+                                )}
                               </div>
                             ) : (
-                              <span>{item}</span>
+                              !isNullValue(item) && <span>{item}</span>
                             )}
                           </div>
                         ))
                       ) : (
-                        <p className="text-sm text-white/70">{JSON.stringify(sectionData)}</p>
+                        !isNullValue(sectionData) && (
+                          <p className="text-sm text-white/70">{JSON.stringify(sectionData)}</p>
+                        )
                       )}
                     </div>
                   </div>
@@ -1191,9 +1407,10 @@ const ParsedResults = () => {
               </CardContent>
             </Card>
           )}
+
         </div>
 
-        {/* Action Button */}
+        {/* ── Action Button ── */}
         <div className="mt-8 text-center">
           <Button
             size="lg"
