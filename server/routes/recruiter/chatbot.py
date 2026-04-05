@@ -1627,7 +1627,7 @@ def format_ranked_candidates_with_personal_info(ranked_candidates: List[Candidat
             candidate_info["work_information"] = work_info
         
         # ==================== PROFESSIONAL INFORMATION ====================
-        candidate_info["skills"] = (parsed.get("skills", []) + parsed.get("derived_skills", []))[:10] if parsed else []
+        candidate_info["skills"] = (parsed.get("skills", []) + parsed.get("derived_skills", []))[:5] if parsed else []
         
         experiences = parsed.get("experience", []) if parsed else []
         if experiences:
@@ -1643,7 +1643,7 @@ def format_ranked_candidates_with_personal_info(ranked_candidates: List[Candidat
                         "company": exp.get("Company", "N/A"),
                         "duration": exp.get("Years", "N/A")
                     }
-                    for exp in experiences[:3]
+                    for exp in experiences[:2]
                 ],
                 "notable_companies": company_details.get('top_companies', []),
                 "has_fulltime": company_details.get('has_fulltime', False),
@@ -1666,7 +1666,7 @@ def format_ranked_candidates_with_personal_info(ranked_candidates: List[Candidat
         education = parsed.get("education", []) if parsed else []
         if education:
             edu_list = []
-            for edu in education[:2]:
+            for edu in education[:1]:
                 edu_item = {
                     "degree": edu.get("Degree", "N/A"),
                     "institution": edu.get("Institution", "N/A"),
@@ -1704,7 +1704,7 @@ def format_ranked_candidates_with_personal_info(ranked_candidates: List[Candidat
                     "name": proj.get("Name", "Unnamed Project"),
                     "description": proj.get("Description", "")[:150] + "..." if len(proj.get("Description", "")) > 150 else proj.get("Description", "")
                 }
-                for proj in projects[:3]
+                for proj in projects[:2]
             ]
         
         # ==================== ADDITIONAL SECTIONS ====================
@@ -1800,7 +1800,7 @@ These candidates are ranked based on overall fit, considering:
     filter_context = ""
     if filters_applied:
         filter_context = f"\n\nFILTERS APPLIED:\n" + "\n".join(f"- {f}" for f in filters_applied)
-        filter_context += f"\n\nRESULT: {total_after_filter} candidates matched these filters (from {total_unique} total candidates)"
+        filter_context += f"\n\nRESULT: Candidates matched these filters (from {total_unique} total candidates)"
     
     # Build conversation context
     conversation_context = ""
@@ -1816,7 +1816,7 @@ These candidates are ranked based on overall fit, considering:
 {ranking_context}
 {filter_context}
 
-CANDIDATE DATA (Top {total_shown} of {total_after_filter} matching candidates):
+CANDIDATE DATA (Top matching candidates):
 {ranked_data}
 {conversation_context}
 
@@ -1943,7 +1943,7 @@ LIST REQUESTED:
 {ranking_context}
 
 CANDIDATE DATA (Top {total_shown} of {total_unique} unique candidates):
-{ranked_data}
+{ranked_data[:12000]}
 {conversation_context}
 
 USER QUERY: "{query}"
@@ -1987,16 +1987,7 @@ WHAT TO AVOID:
 - Don't be overly formal for casual questions
 - Don't apologize excessively
 
-RESPONSE EXAMPLES:
-
-Casual: "Hey, who's good at Python?"
-Good: "I found several strong Python developers. Sarah has been using Python extensively for 5 years, including building ML platforms at Google. John specializes in Python backend work with 6 years of experience. Would you like more details on either?"
-
-Specific: "Find developers with 5+ years and React experience"
-Good: "I found 3 candidates meeting your criteria. Sarah has 8 years of experience with strong React skills demonstrated across multiple projects at Google and Microsoft. John has 6.5 years, focusing on React-based frontend applications. Maria brings 7 years with React expertise in cloud-native applications."
-
-Conversational: "Can you help me find someone?"
-Good: "Of course! I can help you find candidates from your database. You can search by skills (like Python or React), years of experience, education level, or companies they've worked at. What kind of candidate are you looking for?"
+Keep responses concise, natural, and accurate to the exact number of candidates shown above.
 
 Now respond to: "{query}"
 """
@@ -2080,11 +2071,11 @@ async def chatbot_query(
         if has_personal_filters:
             print("🔍 Using personal info filtering with location_utils")
             ranked_candidates = rank_candidates_with_personal_info(unique_candidates, intent)
-            total_after_filter = len(ranked_candidates)
         else:
             print("🔍 Using standard ranking")
             ranked_candidates = rank_candidates(unique_candidates, intent)
-            total_after_filter = len(unique_candidates)
+
+        total_after_filter = len(ranked_candidates)
         
         # ================ FIXED: Determine how many candidates to show ================
         # Get requested number from intent (if any)
@@ -2109,7 +2100,8 @@ async def chatbot_query(
         ranked_candidates = ranked_candidates[:min(top_n, len(ranked_candidates))]
         
         actual_count = len(ranked_candidates)
-        print(f"📊 Returning {actual_count} candidates (requested: {top_n})")
+        total_after_filter = actual_count if actual_count < total_after_filter else total_after_filter
+        print(f"📊 Returning {actual_count} candidates (requested: {top_n}, matched filters: {total_after_filter})")
         # ==============================================================================
         
         if not ranked_candidates:
@@ -2373,11 +2365,14 @@ async def call_groq_api(prompt: str, temperature: float = 0.7):
         "Content-Type": "application/json",
     }
 
+    if len(prompt) > 20000:
+        prompt = prompt[:20000] + "\n\n[Data truncated to fit context limit]"
+    
     payload = {
         "model": GROQ_PARSING_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature,
-        "max_tokens": 2000
+        "max_tokens": 1500
     }
 
     async with httpx.AsyncClient(timeout=60) as client:

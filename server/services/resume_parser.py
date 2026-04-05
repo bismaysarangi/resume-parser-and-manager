@@ -513,11 +513,16 @@ async def call_groq_api(prompt, temperature=0.1, max_retries=3):
         "Content-Type": "application/json",
     }
 
+    MAX_PROMPT_CHARS = 15000
+    if len(prompt) > MAX_PROMPT_CHARS:
+        # Keep the instruction part (first 3000 chars) + truncated resume text
+        prompt = prompt[:3000] + "\n\n[Resume text truncated to fit limits]\n\n" + prompt[MAX_PROMPT_CHARS-2000:MAX_PROMPT_CHARS]
+    
     payload = {
         "model": GROQ_PARSING_MODEL,
         "messages": [{"role": "user", "content": prompt}],
         "temperature": temperature,
-        "max_tokens": 4000
+        "max_tokens": 2000  # Reduced from 4000 — response doesn't need more
     }
 
     for attempt in range(max_retries):
