@@ -286,11 +286,11 @@ const CandidateCard = ({
           <span className="font-semibold text-purple-300 text-sm">
             {idx + 1}. {candidate.name}
           </span>
-          {candidate.relevance_score && (
+          {/* {candidate.relevance_score && (
             <span className="text-xs bg-purple-600/30 px-2 py-0.5 rounded-full text-purple-300 font-mono">
-              {candidate.relevance_score}%
+              {candidate.relevance_score}
             </span>
-          )}
+          )} */}
         </div>
       </div>
       <button
@@ -387,7 +387,7 @@ const TableRow = ({
     <td className="px-3 py-2.5 text-center">
       {candidate.relevance_score ? (
         <span className="text-xs bg-purple-600/30 text-purple-300 px-2 py-0.5 rounded-full font-mono">
-          {candidate.relevance_score}%
+          {candidate.relevance_score}
         </span>
       ) : (
         <span className="text-xs text-white/30">—</span>

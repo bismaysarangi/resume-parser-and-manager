@@ -1800,7 +1800,7 @@ These candidates are ranked based on overall fit, considering:
     filter_context = ""
     if filters_applied:
         filter_context = f"\n\nFILTERS APPLIED:\n" + "\n".join(f"- {f}" for f in filters_applied)
-        filter_context += f"\n\nRESULT: Candidates matched these filters (from {total_unique} total candidates)"
+        filter_context += f"\n\nRESULT: The following candidates matched these filters."
     
     # Build conversation context
     conversation_context = ""
@@ -1816,7 +1816,7 @@ These candidates are ranked based on overall fit, considering:
 {ranking_context}
 {filter_context}
 
-CANDIDATE DATA (Top matching candidates):
+CANDIDATE DATA:
 {ranked_data}
 {conversation_context}
 
@@ -1842,9 +1842,9 @@ CORE INSTRUCTIONS:
    - Focus on qualitative insights and relevant matches
 
 4. FILTER ACKNOWLEDGMENT:
-   - If filters were applied, acknowledge how many candidates matched
-   - If query had personal info criteria, explain matches clearly
-   - Example: "I found 3 female candidates based in Mumbai with Python skills..."
+   - If filters were applied, briefly mention what criteria were used
+   - Do NOT mention how many candidates matched or were analyzed
+   - Example: "Here are male Java developers from Odisha — starting with the strongest profiles..."
 
 5. AMBIGUOUS QUERIES:
    - Make reasonable interpretations
@@ -1853,20 +1853,11 @@ CORE INSTRUCTIONS:
 
 WHAT TO AVOID:
 - Don't expose numerical scores (e.g., "87.5/100")
+- Don't mention candidate counts at all (e.g., never say "X candidates match", "X out of Y", "I found X")
 - Don't be overly formal for casual questions
 - Don't apologize excessively
 - Don't make discriminatory or biased statements based on personal characteristics
 
-RESPONSE EXAMPLES:
-
-Query: "Find female candidates from Mumbai with Python skills"
-Good: "I found 3 female candidates based in Mumbai with strong Python expertise. Sarah has 5 years of Python experience and is currently based in Mumbai. Priya has 3 years and specializes in Django/Flask. Ananya is a recent graduate from Mumbai with Python projects in ML. Would you like more details on any of them?"
-
-Query: "Candidates under 25 years old graduating in 2024"
-Good: "I found 5 candidates graduating in 2024 who are under 25. Rahul (23) has strong full-stack skills with React and Node.js. Neha (24) specializes in data science with Python and ML. Amit (22) has multiple internships at startups. All are immediate joiners. Would you like to know more about their projects?"
-
-Query: "Immediate joiners willing to relocate"
-Good: "I found 4 immediate joiners who are open to relocation. Arjun is based in Delhi and willing to relocate anywhere, with 2 years of experience in React. Kavya from Bangalore has indicated immediate availability and preference for Mumbai/Pune. Both have strong technical backgrounds."
 
 Now respond to: "{query}"
 """
@@ -1942,7 +1933,7 @@ LIST REQUESTED:
 
 {ranking_context}
 
-CANDIDATE DATA (Top {total_shown} of {total_unique} unique candidates):
+CANDIDATE DATA:
 {ranked_data[:12000]}
 {conversation_context}
 
@@ -1982,12 +1973,11 @@ CORE INSTRUCTIONS:
 
 WHAT TO AVOID:
 - Don't expose numerical scores (e.g., "87.5/100")
-- Don't say "I cannot calculate experience"
-- Don't use rigid bullet-point templates unnecessarily
+- Don't mention how many candidates were found or analyzed (e.g., avoid "I found X candidates", "X out of Y match")
 - Don't be overly formal for casual questions
 - Don't apologize excessively
 
-Keep responses concise, natural, and accurate to the exact number of candidates shown above.
+Keep responses concise and natural.
 
 Now respond to: "{query}"
 """
