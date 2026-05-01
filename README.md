@@ -2,6 +2,8 @@
 
 A full-stack web application for intelligent resume parsing, AI-powered career insights, and smart candidate recruitment. Built with **React** (Frontend), **FastAPI** (Backend), and **MongoDB** (Database), powered by **Groq AI** for resume analysis and intelligent candidate ranking.
 
+🚀 **Live Demo:** [https://resume-parser-and-manager.vercel.app](https://resume-parser-and-manager.vercel.app)
+
 ---
 
 ## Features
@@ -34,19 +36,29 @@ A full-stack web application for intelligent resume parsing, AI-powered career i
 ## Tech Stack
 
 ### Frontend
-- React 18 with Vite
-- React Router v6
+- React 19 with Vite
+- React Router v7
 - Tailwind CSS + shadcn/ui components
 - Lucide React icons
 
 ### Backend
-- FastAPI (Python 3.10+)
+- FastAPI (Python 3.13)
 - MongoDB with PyMongo
 - Groq AI API (Llama 3.1 / Llama 3.3 / Mixtral models)
 - JWT authentication (python-jose)
 - PDFPlumber & python-docx for file parsing
 - httpx for async HTTP requests
 - Bcrypt password hashing via Passlib
+
+---
+
+## Deployment
+
+| Layer | Platform | URL |
+|-------|----------|-----|
+| Frontend | Vercel | https://resume-parser-and-manager.vercel.app |
+| Backend | Render (Docker) | https://resume-parser-and-manager.onrender.com |
+| Database | MongoDB Atlas | Cloud-hosted |
 
 ---
 
@@ -82,6 +94,7 @@ bismaysarangi-resume-parser-and-manager/
 └── server/                         # FastAPI Backend
     ├── main.py
     ├── requirements.txt
+    ├── Dockerfile
     ├── .env.example
     ├── core/
     │   ├── config.py
@@ -116,7 +129,7 @@ bismaysarangi-resume-parser-and-manager/
 
 ---
 
-## Quick Start
+## Quick Start (Local Development)
 
 ### 1. Clone the Repository
 
@@ -153,7 +166,7 @@ Visit **http://localhost:5173**
 
 ## Environment Variables
 
-Create `server/.env` based on `.env.example`:
+### Backend — create `server/.env` based on `.env.example`:
 
 ```env
 MONGO_USER=your_username
@@ -161,12 +174,19 @@ MONGO_PASS=your_password
 MONGO_CLUSTER=cluster0.xxxxx.mongodb.net
 SECRET_KEY=your_secret_key
 GROQ_API_KEY=your_groq_api_key
+CORS_ORIGINS=http://localhost:5173
 ```
 
 To generate a secure `SECRET_KEY`:
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+### Frontend — create `client/.env`:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000
 ```
 
 ---
@@ -354,13 +374,15 @@ Configured in `server/core/config.py`:
 
 ## Troubleshooting
 
-**MongoDB connection error** — Verify credentials in `.env`, ensure your IP is whitelisted in MongoDB Atlas, and confirm the cluster URL format.
+**MongoDB connection error** — Verify credentials in `.env`, ensure your IP is whitelisted in MongoDB Atlas (use `0.0.0.0/0` for Render), and confirm the cluster URL format.
 
 **Groq rate limiting** — The built-in retry and backoff logic handles most cases automatically. Check your usage quota at [console.groq.com](https://console.groq.com).
 
-**CORS errors** — The backend runs on port 8000 and the frontend on port 5173. These are already configured in `core/config.py`. If you change either port, update `CORS_ORIGINS` accordingly.
+**CORS errors** — In production, ensure `CORS_ORIGINS` env var on Render is set to `https://resume-parser-and-manager.vercel.app`. For local dev, it defaults to `http://localhost:5173`.
 
 **Token expired** — JWT tokens expire after 8 hours. Clear `localStorage` and log in again.
+
+**Render cold start** — The free tier spins down after inactivity. Use [UptimeRobot](https://uptimerobot.com) to ping `https://resume-parser-and-manager.onrender.com/` every 5 minutes to keep it alive.
 
 ---
 
@@ -368,21 +390,21 @@ Configured in `server/core/config.py`:
 
 ```bash
 # Register a candidate
-curl -X POST http://localhost:8000/api/v1/auth/signup \
+curl -X POST https://resume-parser-and-manager.onrender.com/api/v1/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"username":"jane","email":"jane@example.com","password":"secret123","role":"candidate"}'
 
 # Login
-curl -X POST http://localhost:8000/api/v1/auth/login \
+curl -X POST https://resume-parser-and-manager.onrender.com/api/v1/auth/login \
   -F "username=jane@example.com" -F "password=secret123"
 
 # Parse a resume (candidate)
-curl -X POST http://localhost:8000/api/candidate/parse-resume \
+curl -X POST https://resume-parser-and-manager.onrender.com/api/candidate/parse-resume \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -F "file=@resume.pdf"
 
 # Search candidates (recruiter)
-curl -X POST http://localhost:8000/api/recruiter/chatbot \
+curl -X POST https://resume-parser-and-manager.onrender.com/api/recruiter/chatbot \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"query":"Top 5 React developers with TypeScript experience","conversation_history":[]}'
@@ -399,3 +421,5 @@ curl -X POST http://localhost:8000/api/recruiter/chatbot \
 - [MongoDB](https://www.mongodb.com/) — Database
 - [PDFPlumber](https://github.com/jsvine/pdfplumber) — PDF text extraction
 - [python-docx](https://python-docx.readthedocs.io/) — DOCX parsing
+- [Vercel](https://vercel.com/) — Frontend hosting
+- [Render](https://render.com/) — Backend hosting
