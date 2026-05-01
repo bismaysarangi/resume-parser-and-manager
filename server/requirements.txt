@@ -10,3 +10,4 @@ pymongo==4.15.3
 python-dotenv==1.2.1
 python_docx==1.2.0
 python_jose==3.5.0
+bcrypt==4.2.1
