@@ -41,7 +41,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE_URL = "https://resume-parser-and-manager.onrender.com/";
+const API_BASE_URL = "https://resume-parser-and-manager.onrender.com";
 
 // Helper function to get value regardless of case
 const getValue = (obj, key) => {

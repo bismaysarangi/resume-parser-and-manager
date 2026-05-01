@@ -26,7 +26,7 @@ import {
   Search,
 } from "lucide-react";
 
-const API_BASE_URL = "https://resume-parser-and-manager.onrender.com/";
+const API_BASE_URL = "https://resume-parser-and-manager.onrender.com";
 
 // ─── Export Helpers ────────────────────────────────────────────────────────────
 const exportToCSV = (candidates, filename = "candidates") => {
