@@ -48,19 +48,19 @@ const Dashboard = () => {
 
       // Fetch user profile
       const userResponse = await axios.get(
-        "http://127.0.0.1:8000/api/v1/user/profile",
+        "https://resume-parser-and-manager.onrender.com/api/v1/user/profile",
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       setUser(userResponse.data);
 
       // Fetch resume history
       const historyResponse = await axios.get(
-        "http://127.0.0.1:8000/api/candidate/resume-history",
+        "https://resume-parser-and-manager.onrender.com/api/candidate/resume-history",
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       setHistory(historyResponse.data);
 
@@ -70,7 +70,7 @@ const Dashboard = () => {
         console.log("First resume:", historyResponse.data[0]);
         console.log(
           "First resume ai_insights:",
-          historyResponse.data[0].ai_insights
+          historyResponse.data[0].ai_insights,
         );
       }
 
@@ -90,7 +90,7 @@ const Dashboard = () => {
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     const recentResumes = resumeHistory.filter(
-      (item) => new Date(item.parsed_at) > oneWeekAgo
+      (item) => new Date(item.parsed_at) > oneWeekAgo,
     ).length;
 
     // Calculate average skills count
@@ -102,7 +102,7 @@ const Dashboard = () => {
 
     // Calculate average AI score - only from resumes with scores
     const resumesWithScores = resumeHistory.filter(
-      (item) => item.ai_insights?.overallScore > 0
+      (item) => item.ai_insights?.overallScore > 0,
     );
     const totalScore = resumesWithScores.reduce((acc, item) => {
       return acc + (item.ai_insights?.overallScore || 0);

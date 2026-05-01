@@ -48,7 +48,7 @@ const AiInsights = () => {
       console.log("Requesting AI insights...");
 
       const response = await fetch(
-        "http://127.0.0.1:8000/api/candidate/ai-insights",
+        "https://resume-parser-and-manager.onrender.com/api/candidate/ai-insights",
         {
           method: "POST",
           headers: {
@@ -56,7 +56,7 @@ const AiInsights = () => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ resume_data: parsedData }),
-        }
+        },
       );
 
       const data = await response.json();
@@ -65,13 +65,13 @@ const AiInsights = () => {
         // Handle specific error codes
         if (response.status === 429) {
           throw new Error(
-            "AI service is busy. Please wait a moment and try again."
+            "AI service is busy. Please wait a moment and try again.",
           );
         } else if (response.status === 504) {
           throw new Error("Request timed out. Please try again.");
         } else if (response.status === 502) {
           throw new Error(
-            "AI service returned invalid response. Please retry."
+            "AI service returned invalid response. Please retry.",
           );
         } else {
           throw new Error(data.detail || "Failed to generate insights");

@@ -35,11 +35,14 @@ export default function Login() {
       formData.append("username", email);
       formData.append("password", password);
 
-      const res = await fetch("http://127.0.0.1:8000/api/v1/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: formData,
-      });
+      const res = await fetch(
+        "https://resume-parser-and-manager.onrender.com/api/v1/auth/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: formData,
+        },
+      );
 
       const data = await res.json();
 

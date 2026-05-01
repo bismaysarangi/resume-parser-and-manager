@@ -47,12 +47,12 @@ const RecruiterBulkUpload = () => {
     if (token) {
       try {
         const response = await axios.get(
-          "http://127.0.0.1:8000/api/v1/user/profile",
+          "https://resume-parser-and-manager.onrender.com/api/v1/user/profile",
           {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
+          },
         );
         setUser(response.data);
         if (response.data.role !== "recruiter") {
@@ -115,7 +115,7 @@ const RecruiterBulkUpload = () => {
               resolve(files);
             } else {
               const promises = entries.map((ent) =>
-                traverseFileTree(ent, path + entry.name + "/")
+                traverseFileTree(ent, path + entry.name + "/"),
               );
               const nested = await Promise.all(promises);
               nested.forEach((arr) => files.push(...arr));
@@ -153,7 +153,7 @@ const RecruiterBulkUpload = () => {
     if (!files || files.length === 0) return;
 
     const valid = files.filter(
-      (f) => ALLOWED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE
+      (f) => ALLOWED_TYPES.includes(f.type) && f.size <= MAX_FILE_SIZE,
     );
 
     if (valid.length === 0) {
@@ -168,7 +168,7 @@ const RecruiterBulkUpload = () => {
 
     if (valid.length > MAX_FILES) {
       setFileWarning(
-        `⚠️ You selected ${valid.length} files. Only the first ${MAX_FILES} resumes will be processed to avoid rate limits.`
+        `⚠️ You selected ${valid.length} files. Only the first ${MAX_FILES} resumes will be processed to avoid rate limits.`,
       );
     } else {
       setFileWarning(null);
@@ -177,7 +177,7 @@ const RecruiterBulkUpload = () => {
     // Estimate processing time
     const estimatedMinutes = Math.ceil((final.length * 3) / 60);
     console.log(
-      `📊 ${final.length} files selected, estimated time: ~${estimatedMinutes} minutes`
+      `📊 ${final.length} files selected, estimated time: ~${estimatedMinutes} minutes`,
     );
 
     setSelectedFiles(final);
@@ -208,16 +208,16 @@ const RecruiterBulkUpload = () => {
     try {
       const formData = new FormData();
       selectedFiles.forEach((file) =>
-        formData.append("files", file, file.name)
+        formData.append("files", file, file.name),
       );
 
       const estimatedMinutes = Math.ceil((selectedFiles.length * 3) / 60);
       console.log(
-        `⏱️  Starting upload of ${selectedFiles.length} files (~${estimatedMinutes} min)`
+        `⏱️  Starting upload of ${selectedFiles.length} files (~${estimatedMinutes} min)`,
       );
 
       const response = await axios.post(
-        "http://127.0.0.1:8000/api/recruiter/bulk-parse-resume",
+        "https://resume-parser-and-manager.onrender.com/api/recruiter/bulk-parse-resume",
         formData,
         {
           headers: {
@@ -225,7 +225,7 @@ const RecruiterBulkUpload = () => {
             Authorization: `Bearer ${token}`,
           },
           timeout: 600000, // 10 minutes for large batches
-        }
+        },
       );
 
       console.log("✅ Upload complete:", response.data);

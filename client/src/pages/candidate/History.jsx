@@ -34,12 +34,12 @@ const HistoryPage = () => {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        "http://127.0.0.1:8000/api/candidate/resume-history",
+        "https://resume-parser-and-manager.onrender.com/api/candidate/resume-history",
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
       setHistory(response.data);
     } catch (error) {

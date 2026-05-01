@@ -49,9 +49,12 @@ export default function Profile() {
       return;
     }
 
-    fetch("http://127.0.0.1:8000/api/v1/user/profile", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch(
+      "https://resume-parser-and-manager.onrender.com/api/v1/user/profile",
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
       .then((res) => res.json())
       .then((data) => {
         if (data.email) {
@@ -118,7 +121,7 @@ export default function Profile() {
 
     try {
       const res = await fetch(
-        "http://127.0.0.1:8000/api/v1/user/profile/update",
+        "https://resume-parser-and-manager.onrender.com/api/v1/user/profile/update",
         {
           method: "PUT",
           headers: {
@@ -126,7 +129,7 @@ export default function Profile() {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(updateData),
-        }
+        },
       );
 
       const data = await res.json();

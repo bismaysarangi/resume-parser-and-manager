@@ -40,12 +40,12 @@ const UploadPage = () => {
       try {
         // Verify the token is valid by calling a protected endpoint
         const response = await axios.get(
-          "http://127.0.0.1:8000/api/v1/user/profile",
+          "https://resume-parser-and-manager.onrender.com/api/v1/user/profile",
           {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
+          },
         );
         setUser(response.data);
         console.log("User is authenticated:", response.data);
@@ -131,14 +131,14 @@ const UploadPage = () => {
       console.log("Sending upload request with token:", token);
 
       const response = await axios.post(
-        "http://127.0.0.1:8000/api/candidate/parse-resume",
+        "https://resume-parser-and-manager.onrender.com/api/candidate/parse-resume",
         formData,
         {
           headers: {
             "Content-Type": "multipart/form-data",
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       console.log("Upload successful:", response.data);

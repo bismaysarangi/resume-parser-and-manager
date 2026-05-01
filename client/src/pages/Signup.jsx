@@ -44,18 +44,21 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/v1/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          full_name: fullName,
-          username: email,
-          email,
-          password,
-          role,
-          company_name: role === "recruiter" ? companyName : null,
-        }),
-      });
+      const res = await fetch(
+        "https://resume-parser-and-manager.onrender.com/api/v1/auth/signup",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            full_name: fullName,
+            username: email,
+            email,
+            password,
+            role,
+            company_name: role === "recruiter" ? companyName : null,
+          }),
+        },
+      );
 
       const data = await res.json();
       if (!res.ok) {
@@ -64,7 +67,6 @@ export default function Signup() {
 
       setLoading(false);
       navigate("/login");
-      
     } catch (error) {
       setErrorMessage(error.message);
       setLoading(false);
