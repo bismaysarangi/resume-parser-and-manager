@@ -62,11 +62,14 @@ const Navbar = () => {
 
   const fetchUserProfile = async (token) => {
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/auth/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const response = await fetch(
+        "https://resume-parser-and-manager.onrender.com/api/v1/auth/me",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         },
-      });
+      );
 
       if (response.ok) {
         const profile = await response.json();
