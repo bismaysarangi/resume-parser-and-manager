@@ -25,4 +25,4 @@ GROQ_INSIGHTS_MODEL = "llama-3.3-70b-versatile"
 GROQ_CHATBOT_MODEL = "mixtral-8x7b-32768"
 
 # CORS Configuration
-CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
