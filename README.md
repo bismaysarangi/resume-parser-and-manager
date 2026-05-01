@@ -2,7 +2,7 @@
 
 A full-stack web application for intelligent resume parsing, AI-powered career insights, and smart candidate recruitment. Built with **React** (Frontend), **FastAPI** (Backend), and **MongoDB** (Database), powered by **Groq AI** for resume analysis and intelligent candidate ranking.
 
-🚀 **Live Demo:** [https://resume-parser-and-manager.vercel.app](https://resume-parser-and-manager.vercel.app)
+**Live Demo:** [https://resume-parser-and-manager.vercel.app](https://resume-parser-and-manager.vercel.app)
 
 ---
 
