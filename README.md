@@ -42,7 +42,7 @@ A full-stack web application for intelligent resume parsing, AI-powered career i
 ### Backend
 - FastAPI (Python 3.10+)
 - MongoDB with PyMongo
-- Groq AI API (Llama 3.1 / Llama 3.3 / Mixtral models)
+- Groq AI API (GPT OSS 20B / Llama 3.3 / Mixtral models)
 - JWT authentication (python-jose)
 - PDFPlumber & python-docx for file parsing
 - httpx for async HTTP requests
@@ -327,7 +327,7 @@ Configured in `server/core/config.py`:
 
 | Purpose | Model |
 |---------|-------|
-| Resume Parsing | `llama-3.1-8b-instant` |
+| Resume Parsing | `gpt-oss-20b` |
 | Career Insights | `llama-3.3-70b-versatile` |
 | Chatbot & Email Generation | `mixtral-8x7b-32768` |
 

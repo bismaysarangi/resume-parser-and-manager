@@ -20,10 +20,9 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 # OPENAI_URL = "https://openrouter.ai/api/v1"
 
-GROQ_PARSING_MODEL = "llama-3.1-8b-instant"
-GROQ_INSIGHTS_MODEL = "llama-3.3-70b-versatile"
-GROQ_CHATBOT_MODEL = "mixtral-8x7b-32768"
+GROQ_PARSING_MODEL = os.getenv("GROQ_PARSING_MODEL", "gpt-oss-20b")
+GROQ_INSIGHTS_MODEL = os.getenv("GROQ_INSIGHTS_MODEL", "llama-3.3-70b-versatile")
+GROQ_CHATBOT_MODEL = os.getenv("GROQ_CHATBOT_MODEL", "mixtral-8x7b-32768")
 
-# CORS Configuration
 # CORS Configuration
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "https://resume-parser-and-manager.vercel.app").split(",")
