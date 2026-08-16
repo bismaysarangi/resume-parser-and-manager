@@ -21,7 +21,7 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 # OPENAI_URL = "https://openrouter.ai/api/v1"
 
 GROQ_PARSING_MODEL = os.getenv("GROQ_PARSING_MODEL", "gpt-oss-20b")
-GROQ_INSIGHTS_MODEL = os.getenv("GROQ_INSIGHTS_MODEL", "llama-3.3-70b-versatile")
+GROQ_INSIGHTS_MODEL = os.getenv("GROQ_INSIGHTS_MODEL", "qwen-3.6-27b")
 GROQ_CHATBOT_MODEL = os.getenv("GROQ_CHATBOT_MODEL", "mixtral-8x7b-32768")
 
 # CORS Configuration
